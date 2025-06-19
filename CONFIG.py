@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Jun  5 10:53:05 2025
+
+@author: taubertier
+"""
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# Variables à modifier pour rentrer les paramètres de votre config
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+### === Chemins === ###
+data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/donnees SG/2018_CMDm/2018_CMDm_zone1_test/"
+#data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/donnees SG/2018_CMD/2018_CMD_zone2_test/"
+#data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/CMD mini explorer 3L GPS/"
+#data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/CMD explorer GPS/HCP/"
+json_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/JSONs/"
+script_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/Code python JT/"
+### =============== ###
+
+### === Précisions === ###
+prec_coos = 4 # Précision (chiffres après la virgule) des données "coordonnées" [4]
+prec_data = 2 # Précision (chiffres après la virgule) des données "mesures" [2]
+### ================== ###
+
+### === MatPlotLib === ###
+fig_width = 16 # Largeur des figures mpl [16]
+fig_height = 9 # Hauteur des figures mpl [9]
+### ================== ###
+
+### === Tkinter === ###
+ver = "6-1" # Version du programme appelé par l'interface
+
+sc_name = ":1" # Valeur obtenue avec la commande "echo $DISPLAY"
+tk_width = 1800 # Largeur des fenêtres principales [1920]
+tk_height = 900 # Hauteur des fenêtres principales [1080]
+tk_width_mpl = 1100 # Largeur des figures (images) [1100]
+tk_height_mpl = 900 # Hauteur des figures (images) [900]
+
+tk_b_font_size = -26 # Taille de la police des boutons (négatif = meilleur rendu) [-26]
+### =============== ###
+
+### === Options interface graphique === ###
+keep_prev_ui = False # Garder les fenêtres ouvertes [False]
+keep_cmd = False # Garder le terminal ouvert [False]
+show_raw_figs = True # Afficher les figures mpl [True]
+clear_old_outputs = True # Effacer les anciens résultats [True]
+ui_popups = True # Activer les fenêtres graphiques pour les choix, via lancement par "GraphicInterface.py" [True]
+blocking_figs = False # Laisse les figures mpl monopoliser l'exécution (sont interactives mais bloquent le programme) [False]
+
+ui_popups_from_cmd = False # Activer les fenêtres graphiques pour les choix, via lancement terminal. Ignoré par "ui_popups" sinon [False]
+ui_popups_shutdown = True # Terminer l'exécution si la fenêtre de choix est fermée, sinon la relance [True]
+### =================================== ###
+
+### === Couleurs === ###
+no_blink = False # Retirer l'effet clignotant du texte [False]
+### ================ ###
+
+### === Warnings === ###
+no_warnings = True # Ne plus afficher les warnings externes au code (ceux des librairies) [True]
+### ================ ###
+
+
+
