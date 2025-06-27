@@ -14,9 +14,9 @@ Created on Thu Jun  5 10:53:05 2025
 
 
 ### === Chemins === ###
-data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/donnees SG/2018_CMDm/2018_CMDm_zone1_test/"
+#data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/donnees SG/2018_CMDm/2018_CMDm_zone1_test/"
 #data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/donnees SG/2018_CMD/2018_CMD_zone2_test/"
-#data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/CMD mini explorer 3L GPS/"
+data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/CMD mini explorer 3L GPS/"
 #data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/CMD explorer GPS/HCP/"
 json_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/JSONs/"
 script_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/Code python JT/"
@@ -36,7 +36,7 @@ fig_height = 9 # Hauteur des figures mpl [9]
 ver = "6-1" # Version du programme appelé par l'interface
 
 sc_name = ":1" # Valeur obtenue avec la commande "echo $DISPLAY"
-tk_width = 1800 # Largeur des fenêtres principales [1920]
+tk_width = 1600 # Largeur des fenêtres principales [1920]
 tk_height = 900 # Hauteur des fenêtres principales [1080]
 tk_width_mpl = 1100 # Largeur des figures (images) [1100]
 tk_height_mpl = 900 # Hauteur des figures (images) [900]
