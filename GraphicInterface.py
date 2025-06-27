@@ -41,7 +41,7 @@ blocking_figs = CONFIG.blocking_figs
 if CONFIG.no_warnings:
     warnings.filterwarnings("ignore")
 
-def LOAD_root(title):
+def LOAD_root(title,mm=False):
     """ [TA]\n
     Create an instance of tkinter window, load components common top all instances.
     
@@ -77,8 +77,12 @@ def LOAD_root(title):
     canvas.pack(fill = "both", expand = True)
     
     bg_zoom = max(-(-CONFIG.tk_width // 640),-(-CONFIG.tk_height // 360))
-    bg_im = tk.PhotoImage(master = canvas, file = r"Images/METIS_BG.png").zoom(bg_zoom,bg_zoom)
-    canvas.create_image( CONFIG.tk_width, 0, image = bg_im, anchor = "ne")
+    if mm:
+        bg_im = tk.PhotoImage(master = canvas, file = r"Images/METIS_BG.png").zoom(bg_zoom,bg_zoom)
+        canvas.create_image( CONFIG.tk_width, 0, image = bg_im, anchor = "ne")
+    else:
+        bg_im = tk.PhotoImage(master = canvas, file = r"Images/Neutral_BG.png").zoom(bg_zoom,bg_zoom)
+        canvas.create_image( CONFIG.tk_width//2, CONFIG.tk_height//2, image = bg_im, anchor = "center")
     
     button_im = tk.PhotoImage(master = canvas, file = r"Images/ayaya.png").zoom(10,10)
     settings_im = tk.PhotoImage(master = canvas, file = r"Images/Settings.png").zoom(3,3)
@@ -89,7 +93,7 @@ def LOAD_root(title):
 
 def GUI_main_menu():
 
-    root, canvas, bg_im, button_im, settings_im = LOAD_root("Main menu")
+    root, canvas, bg_im, button_im, settings_im = LOAD_root("Main menu",mm=True)
     
     def on_CMD_button_pressed():
         if not keep_prev_ui:
@@ -161,7 +165,7 @@ def GUI_main_CMD():
             root.destroy()
         GUI_CMD_exec_new_device()
     
-    canvas.create_rectangle(CONFIG.tk_width//2-275, CONFIG.tk_height-375, CONFIG.tk_width//2+275, CONFIG.tk_height-125, fill="#d6c09f", width=0)
+    canvas.create_rectangle(CONFIG.tk_width//2-275, CONFIG.tk_height-375, CONFIG.tk_width//2+275, CONFIG.tk_height-125, fill="#d9c09c", width=0)
     b1 = tk.Button(root, text = 'CMD_exec_\nknown_device', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_kd_button_pressed)
     b1_c = canvas.create_window( CONFIG.tk_width//2-150,CONFIG.tk_height-350, anchor = "n",window = b1)
     b2 = tk.Button(root, text = 'CMD_exec_\nnew_device', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_nd_button_pressed)
@@ -202,7 +206,7 @@ def GUI_main_CMDEX():
             root.destroy()
         GUI_CMDEX_grid()
       
-    canvas.create_rectangle(CONFIG.tk_width//2-275, CONFIG.tk_height-575, CONFIG.tk_width//2+275, CONFIG.tk_height-125, fill="#d6c09f", width=0)
+    canvas.create_rectangle(CONFIG.tk_width//2-275, CONFIG.tk_height-575, CONFIG.tk_width//2+275, CONFIG.tk_height-25, fill="#d9c09c", width=0)
     b1 = tk.Button(root, text = 'CMDEX_init', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_i_button_pressed)
     b1_c = canvas.create_window( CONFIG.tk_width//2-150,CONFIG.tk_height-550, anchor = "n",window = b1)
     b2 = tk.Button(root, text = 'CMDEX_\nevol_profils', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_ep_button_pressed)
@@ -242,7 +246,7 @@ def GUI_main_JSON():
             root.destroy()
         GUI_JSON_remove_devices()
     
-    canvas.create_rectangle(CONFIG.tk_width//2-425, CONFIG.tk_height-375, CONFIG.tk_width//2+425, CONFIG.tk_height-125, fill="#d6c09f", width=0)
+    canvas.create_rectangle(CONFIG.tk_width//2-425, CONFIG.tk_height-375, CONFIG.tk_width//2+425, CONFIG.tk_height-125, fill="#d9c09c", width=0)
     b1 = tk.Button(root, text = 'JSON_print_\ndevices', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_pd_button_pressed)
     b1_c = canvas.create_window( CONFIG.tk_width//2-300,CONFIG.tk_height-350, anchor = "n",window = b1)
     b2 = tk.Button(root, text = 'JSON_add_\ndevice', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_ad_button_pressed)
@@ -310,7 +314,7 @@ def GUI_main_DAT():
             root.destroy()
         GUI_DAT_fuse_bases()
     
-    canvas.create_rectangle(CONFIG.tk_width//2-725, CONFIG.tk_height-575, CONFIG.tk_width//2+725, CONFIG.tk_height-25, fill="#d6c09f", width=0)
+    canvas.create_rectangle(CONFIG.tk_width//2-725, CONFIG.tk_height-575, CONFIG.tk_width//2+725, CONFIG.tk_height-25, fill="#d9c09c", width=0)
     b1 = tk.Button(root, text = 'DAT_change_\ndate', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_cd_button_pressed)
     b1_c = canvas.create_window( CONFIG.tk_width//2-600,CONFIG.tk_height-550, anchor = "n",window = b1)
     b2 = tk.Button(root, text = 'DAT_pop_\nand_dec', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_pad_button_pressed)
@@ -355,6 +359,16 @@ def GUI_main_other():
             root.destroy()
         GUI_TRANS_matrix_to_df()
     
+    def on_TRANS_mtg_button_pressed():
+        if not keep_prev_ui:
+            root.destroy()
+        GUI_TRANS_matrix_to_grd()
+    
+    def on_TRANS_gtm_button_pressed():
+        if not keep_prev_ui:
+            root.destroy()
+        GUI_TRANS_grd_to_matrix()
+    
     def on_FIG_df_button_pressed():
         if not keep_prev_ui:
             root.destroy()
@@ -375,19 +389,23 @@ def GUI_main_other():
             root.destroy()
         GUI_EXEC()
     
-    canvas.create_rectangle(CONFIG.tk_width//2-425, CONFIG.tk_height-575, CONFIG.tk_width//2+425, CONFIG.tk_height-25, fill="#d6c09f", width=0)
+    canvas.create_rectangle(CONFIG.tk_width//2-575, CONFIG.tk_height-575, CONFIG.tk_width//2+575, CONFIG.tk_height-25, fill="#d9c09c", width=0)
     b1 = tk.Button(root, text = 'TRANS_df_\nto_matrix', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_TRANS_dtm_button_pressed)
-    b1_c = canvas.create_window( CONFIG.tk_width//2-300,CONFIG.tk_height-550, anchor = "n",window = b1)
+    b1_c = canvas.create_window( CONFIG.tk_width//2-450,CONFIG.tk_height-550, anchor = "n",window = b1)
     b2 = tk.Button(root, text = 'TRANS_\nmatrix_to_df', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_TRANS_mtd_button_pressed)
-    b2_c = canvas.create_window( CONFIG.tk_width//2,CONFIG.tk_height-550, anchor = "n",window = b2)
-    b3 = tk.Button(root, text = 'FIG_display_\nfig', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_FIG_df_button_pressed)
-    b3_c = canvas.create_window( CONFIG.tk_width//2+300,CONFIG.tk_height-550, anchor = "n",window = b3)
-    b4 = tk.Button(root, text = 'FIG_plot_\ndata', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_FIG_pd_button_pressed)
-    b4_c = canvas.create_window( CONFIG.tk_width//2-300,CONFIG.tk_height-250, anchor = "n",window = b4)
-    b5 = tk.Button(root, text = 'FIG_plot_\ngrid', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_FIG_pg_button_pressed)
-    b5_c = canvas.create_window( CONFIG.tk_width//2,CONFIG.tk_height-250, anchor = "n",window = b5)
-    b6 = tk.Button(root, text = 'EXEC', font=('Terminal', int(CONFIG.tk_b_font_size*1.5), 'bold'), compound="center", image = button_im, command=on_EXEC_button_pressed)
-    b6_c = canvas.create_window( CONFIG.tk_width//2+300,CONFIG.tk_height-250, anchor = "n",window = b6)
+    b2_c = canvas.create_window( CONFIG.tk_width//2-150,CONFIG.tk_height-550, anchor = "n",window = b2)
+    b3 = tk.Button(root, text = 'TRANS_\nmatrix_to_grd', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_TRANS_mtg_button_pressed)
+    b3_c = canvas.create_window( CONFIG.tk_width//2+150,CONFIG.tk_height-550, anchor = "n",window = b3)
+    b4 = tk.Button(root, text = 'TRANS_grd_\nto_matrix', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_TRANS_gtm_button_pressed)
+    b4_c = canvas.create_window( CONFIG.tk_width//2+450,CONFIG.tk_height-550, anchor = "n",window = b4)
+    b5 = tk.Button(root, text = 'FIG_display_\nfig', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_FIG_df_button_pressed)
+    b5_c = canvas.create_window( CONFIG.tk_width//2-450,CONFIG.tk_height-250, anchor = "n",window = b5)
+    b6 = tk.Button(root, text = 'FIG_plot_\ndata', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_FIG_pd_button_pressed)
+    b6_c = canvas.create_window( CONFIG.tk_width//2-150,CONFIG.tk_height-250, anchor = "n",window = b6)
+    b7 = tk.Button(root, text = 'FIG_plot_\ngrid', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_FIG_pg_button_pressed)
+    b7_c = canvas.create_window( CONFIG.tk_width//2+150,CONFIG.tk_height-250, anchor = "n",window = b7)
+    b8 = tk.Button(root, text = 'EXEC', font=('Terminal', int(CONFIG.tk_b_font_size*1.5), 'bold'), compound="center", image = button_im, command=on_EXEC_button_pressed)
+    b8_c = canvas.create_window( CONFIG.tk_width//2+450,CONFIG.tk_height-250, anchor = "n",window = b8)
     br = tk.Button(root, text = 'Retour', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", command=on_return_button_pressed)
     br_c = canvas.create_window( 50,25, anchor = "nw",window = br)
     bs = tk.Button(root, image = settings_im, command=EXEC_settings)
@@ -636,6 +654,30 @@ def GUI_TRANS_matrix_to_df(from_EXEC=None):
     default_list = ["*","\\t","mtd.dat"]
     
     EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "TRANS_matrix_to_df", "", "Changement de format, de matrice (.json) à dataframe (.dat)", GUI_main_other, from_EXEC)
+    
+    root.mainloop()
+
+def GUI_TRANS_matrix_to_grd(from_EXEC=None):
+
+    root, canvas, bg_im, button_im, settings_im = LOAD_root("TRANS_matrix_to_grd")
+
+    label_list = ["file","fmt","output_file"]
+    type_list = ["str","str","str"]
+    default_list = ["*","*","None"]
+    
+    EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "TRANS_matrix_to_grd", "", "Changement de format, de matrice (.json) à Surfer (.grd)", GUI_main_other, from_EXEC)
+    
+    root.mainloop()
+
+def GUI_TRANS_grd_to_matrix(from_EXEC=None):
+
+    root, canvas, bg_im, button_im, settings_im = LOAD_root("TRANS_grd_to_matrix")
+
+    label_list = ["file_list","fmt","output_file"]
+    type_list = ["str[]","str","str"]
+    default_list = ["*","*","None"]
+    
+    EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "TRANS_grd_to_matrix", "", "Changement de format, de Surfer (.grd) à matrice (.json)", GUI_main_other, from_EXEC)
     
     root.mainloop()
 

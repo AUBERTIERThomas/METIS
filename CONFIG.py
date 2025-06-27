@@ -38,8 +38,8 @@ ver = "6-1" # Version du programme appelé par l'interface
 sc_name = ":1" # Valeur obtenue avec la commande "echo $DISPLAY"
 tk_width = 1600 # Largeur des fenêtres principales [1920]
 tk_height = 900 # Hauteur des fenêtres principales [1080]
-tk_width_mpl = 1100 # Largeur des figures (images) [1100]
-tk_height_mpl = 900 # Hauteur des figures (images) [900]
+tk_width_mpl = tk_width*0.52 # Largeur des figures (images) [tk_width*0.52]
+tk_height_mpl = tk_height*0.82 # Hauteur des figures (images) [tk_height*0.82]
 
 tk_b_font_size = -26 # Taille de la police des boutons (négatif = meilleur rendu) [-26]
 ### =============== ###

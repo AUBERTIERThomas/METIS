@@ -153,7 +153,7 @@ def inverse_regr(n,min_,max_,err_var,rc):
         res = model.predict(xd)
         mse = mean_squared_error(res, y)
         coefs = e.coef_
-        coefs[0] *= 2
+        coefs[0] *= 2 # bah alors scikit on a fait quoi avec son terme à 0 hein ???
         print(l[i+1])
         final_coefs = [np.sign(c)*(np.abs(c)**(1/(i+1))) for i,c in enumerate(coefs)]
         print(final_coefs)
