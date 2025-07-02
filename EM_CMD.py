@@ -844,17 +844,27 @@ def CMD_init(app_data,file_list,sep,sup_na,regr,corr_base,not_in_file=False):
             ls_pd_done_before.append(data)
         except KeyError:
             ls_pd.append(data)
-        
+    
+    nb_f = len(ls_pd)
+    nb_res = 2
+    const_GPS = 2
     if app_data["GPS"] :
-        nb_res = 2
-        const_GPS = 7
         n_col_X='Northing'
         n_col_Y='Easting'
     else :
-        nb_res = 2
-        const_GPS = 2
         n_col_X='x[m]'
         n_col_Y='y[m]'
+    if nb_f == 0:
+        cdata = ls_pd_done_before[0]
+    else:
+        cdata = ls_pd[0]
+    for c in ["Altitude","Date","Time","DOP","Satelites"]:
+        try:
+            cdata[c]
+            const_GPS += 1
+        except KeyError:
+            pass
+    print(const_GPS)
     
     ls_base = []
     ls_mes = []
@@ -865,44 +875,44 @@ def CMD_init(app_data,file_list,sep,sup_na,regr,corr_base,not_in_file=False):
     for ic,don_c in enumerate(ls_pd) :
         print("Fichier de données n°{} : '{}'".format(ic+1,file_list[ic]))
       
-    if len(ls_pd) != 0:
+    if nb_f != 0:
         don_raw = pd.concat(ls_pd)
         don_raw.index=np.arange(don_raw.shape[0])
 
         # Si le fichier contient des données temporelles
         try:
-            don_raw['temps (s)']=CMD_time(don_raw)
             # On gère les prospections faites des jours différents
+            don_raw['temps (s)']=CMD_time(don_raw)
             for ic,date_c in enumerate(don_raw['Date'].unique()) :
                 if ic>0 :
                     ind_d =don_raw.index[don_raw['Date']==date_c]
                     don_raw.loc[ind_d,'temps (s)']=don_raw.loc[ind_d,'temps (s)']+ic*86400
-                don_d=CMD_detect_chgt(don_raw)
-                #MESS_warn_mess("uno")
-                don_i=CMD_intrp_prof(don_d)
-                #MESS_warn_mess("dos")
-                don_i=CMD_detect_base_pos(don_i,2)
-                #MESS_warn_mess("tres")
         except KeyError:
+            pass
+        if app_data["GPS"]:
+            don_d=CMD_detect_chgt(don_raw)
+            #MESS_warn_mess("uno")
+            don_i=CMD_intrp_prof(don_d,acq_GPS=app_data["GPS"])
+            #MESS_warn_mess("dos")
+            don_i=CMD_detect_base_pos(don_i,2)
+            #MESS_warn_mess("tres")
+        else:
             don_raw["X_int"] = don_raw.iloc[:,0]
             don_raw["Y_int"] = don_raw.iloc[:,1]
-            
             don_i = CMD_detec_profil_carre(don_raw)
-    
+            
         if sup_na:
             don_i.dropna(subset = [n_col_X,n_col_Y],inplace=True)
             don_i.reset_index(drop=True,inplace=True)
         else:
             MESS_warn_mess("Les données NaN seront redressées")
-            don_i = CMD_XY_Nan_completion(don_i)
+            if max(don_i["Profil"] == 1):
+                don_i = CMD_XY_Nan_completion_solo(don_i)
+            else:
+                don_i = CMD_XY_Nan_completion(don_i)
         don_base,don_mes=CMD_sep_BM(don_i)
         #MESS_warn_mess("quatro")
-        
-        # print(don_i)
-        # print(don_mes)
         nc_data = don_raw.columns[col_z]
-        print(col_z)
-        print(nc_data)
         for i in range(nb_file):
             i_fich_mes = don_mes[don_mes["Num fich"] == i+1]
             i_fich_base = don_base[don_base["Num fich"] == i+1]
@@ -1082,7 +1092,6 @@ def CMD_interp(don,acq_GPS=True):
         else:
            ls_intrpX.append(np.linspace(Xdeb,Xfin,int(nb_pt)+2)[:-1])
            ls_intrpY.append(np.linspace(Ydeb,Yfin,int(nb_pt)+2)[:-1])
-          
         try :
             don['X_int']=pd.Series(np.concatenate(ls_intrpX))
             don['Y_int']=pd.Series(np.concatenate(ls_intrpY))
@@ -1291,6 +1300,12 @@ def CMD_detect_base_pos(don_c, seuil,trace=False):
     else : 
         MESS_err_mess("[DEV] Veuillez faire la détection de changements et ou profils avant d'exécuter ce sous programme")
     
+    # Un seul profil en continu
+    if max(don_int['b et p']) < 2:
+        don_int['Base']=0
+        don_int['Profil']=1
+        return(don_int.copy())
+    
     don_aux=don_int.groupby(nom_col)[ls_coord].mean().round(CONFIG.prec_data)
 
     if trace : 
@@ -1327,8 +1342,7 @@ def CMD_detect_base_pos(don_c, seuil,trace=False):
     for ic,ip in enumerate(ls_prof):
         ind_c=don_int.index[don_int[nom_col]==ip]
         don_int.loc[ind_c,'Profil']=ic+1
-        
-      
+    
     return(don_int.copy())
 
 # détection de changement basée sur le temps (un changement de profil ou un 
@@ -1582,7 +1596,6 @@ def CMD_intrp_prof(don_mes,acq_GPS=True):
         nom_col='Profil'
     else : 
         MESS_err_mess("[DEV] Veuillez faire la détection de changements et/ou profils avant d'exécuter ce sous programme")
-    
 # on parcours chaque profil
     for num_p in num_profs :
         ind_prof=don_mes.index[don_mes[nom_col]==num_p]
@@ -1667,6 +1680,78 @@ def CMD_XY_Nan_completion_old(X,Y):
     print('Valeurs remplacées : {}'.format(len(t2)))
     return(X.copy(),Y.copy())
 
+# Estime la position et le temps des points défectueux à l'aide de ses voisins, si aucun profil n'a pu être détecté.
+
+def CMD_XY_Nan_completion_solo(don):
+    """ [TA]\n
+    Estimates ``NaN`` points coordinates by linear regression from neighbors.
+    Others are left unchanged.
+    
+    Notes
+    -----
+    Procedure is cancelled if NaN on X and Y are from different positions (should be an issue of column splitting).\n
+    Is meant to be used if the prospection is not splitted in profiles. Otherwise, see ``CMD_XY_Nan_completion``.
+    Interpolation also corrects time.
+    
+    Parameters
+    ----------
+    don : dataframe
+        Active dataframe.
+    
+    Returns
+    -------
+    don : dataframe
+        Output dataframe.
+    
+    See Also
+    --------
+    ``CMD_init, CMD_XY_Nan_completion``
+    """
+    X = don["X_int"]
+    Y = don["Y_int"]
+    indXNan=X.index[X.isna()]
+    indYNan=Y.index[Y.isna()]
+    if len(indXNan)<1:
+        print('Aucune valeur à interpoler')
+        return don.copy()
+    if not np.all(indXNan==indYNan):
+        MESS_warn_mess("[DEV] NaN en X et NaN en Y n'ont pas les même position dans le tableau (pas d'effet)")
+        return don.copy()
+    
+    full_na = don.iloc[indXNan,:]
+    bloc_na_list = [d for _, d in full_na.groupby(full_na.index - np.arange(len(full_na)))]
+    print(bloc_na_list)
+    
+    for bloc_na in bloc_na_list:
+        bnai = bloc_na.index
+        l_n = bnai.size
+        if bnai[0] == 0: # Bloc au début
+            row1 = don.iloc[bnai[-1]+1]
+            row2 = don.iloc[bnai[-1]+2]
+            pas_x = row2["X_int"] - row1["X_int"]
+            pas_y = row2["Y_int"] - row1["Y_int"]
+            new_x = [row1["X_int"] - pas_x*i for i in range(1,l_n+1,-1)]
+            new_y = [row1["Y_int"] - pas_y*i for i in range(1,l_n+1,-1)]
+        elif bnai[-1] == len(don)-1: # Bloc à la fin
+            row1 = don.iloc[bnai[0]-2]
+            row2 = don.iloc[bnai[0]-1]
+            pas_x = row2["X_int"] - row1["X_int"]
+            pas_y = row2["Y_int"] - row1["Y_int"]
+            new_x = [row2["X_int"] + pas_x*i for i in range(1,l_n+1)]
+            new_y = [row2["Y_int"] + pas_y*i for i in range(1,l_n+1)]
+        else:
+            row1 = don.iloc[bnai[0]-1]
+            row2 = don.iloc[bnai[-1]+1]
+            pas_x = (row2["X_int"] - row1["X_int"]) / (l_n+1)
+            pas_y = (row2["Y_int"] - row1["Y_int"]) / (l_n+1)
+            new_x = [row1["X_int"] + pas_x*i for i in range(1,l_n+1)]
+            new_y = [row1["Y_int"] + pas_y*i for i in range(1,l_n+1)]
+        don.loc[bnai, "X_int"] = new_x
+        don.loc[bnai, "Y_int"] = new_y
+    
+    print('Valeurs remplacées : {}'.format(len(indXNan)))
+    return don.copy()
+
 # Estime la position et le temps des points défectueux à l'aide d'une régression linéaire des points de même profil.
 
 def CMD_XY_Nan_completion(don):
@@ -1693,7 +1778,7 @@ def CMD_XY_Nan_completion(don):
     
     See Also
     --------
-    ``CMD_pts_rectif``
+    ``CMD_init, CMD_pts_rectif``
     """
     X = don["X_int"]
     Y = don["Y_int"]
@@ -1854,6 +1939,7 @@ def CMD_decal_posLT(X,Y,profs,decL=0.,decT=0.):
     ls_Xc=[]
     ls_Yc=[]
     ls_prof=profs.unique()
+    print(ls_prof)
     for prof in ls_prof:
         ind_c=profs.index[profs==prof]
         XX=X.loc[ind_c].copy()
@@ -1862,6 +1948,10 @@ def CMD_decal_posLT(X,Y,profs,decL=0.,decT=0.):
         DY=YY.diff()
         DX1=DX.copy()
         DY1=DY.copy()
+        if len(DX1) == 1:
+            ls_Xc.append(XX)
+            ls_Yc.append(YY)
+            continue
     # pour avoir quelque chose de pas trop moche on fait la moyenne des 
     # décalages avec mouvement avant le point et après le point   
         DX.iloc[0:-1]=DX.iloc[1:]      
@@ -1926,6 +2016,7 @@ def CMD_dec_voies(don,ncx,ncy,nb_ecarts,TR_l,TR_t, gps_dec):
     for e in range(nb_ecarts):
         decx = gps_dec[0]-(TR_l[e]-TR_l[-1])/2
         decy = gps_dec[1]-(TR_t[e]-TR_t[-1])/2
+        print(don["Profil"])
         X, Y = CMD_decal_posLT(don["X_int"],don["Y_int"],don["Profil"],decL=decx,decT=decy)
         don[ncx[e]] = X.round(CONFIG.prec_coos)
         don[ncy[e]] = Y.round(CONFIG.prec_coos)
@@ -4449,8 +4540,9 @@ def DAT_light_format(file_list,sep,replace,output_file_list,nb_ecarts,restr,not_
     Notes
     -----
     Data columns are detected as long as they have the coil index in their name.
-    If some of them are still not to be included, use the exclusion parameter ``restr``.
-    For a less strict approach, see ``DAT_remove_cols``.
+    If some of them are still not to be included, use the exclusion parameter ``restr``.\n
+    For a less strict approach, see ``DAT_remove_cols``.\n
+    ``restr = ['']`` (which is supposed to be an empty list) is equivalent to ``None``.
     
     Parameters
     ----------
@@ -4465,7 +4557,7 @@ def DAT_light_format(file_list,sep,replace,output_file_list,nb_ecarts,restr,not_
     nb_ecarts : int
         Number of X and Y columns. The number of coils.
     restr : ``None`` or list of str
-        Exclusion strings: any data including one of the specified strings will be ignored.
+        Exclusion strings: any data including one of the specified strings will be ignored. If ``None``, is an empty list.
     ``[opt]`` not_in_file : bool, default : ``False``
         If call comes from script function instead of user.
     
@@ -4489,12 +4581,14 @@ def DAT_light_format(file_list,sep,replace,output_file_list,nb_ecarts,restr,not_
     """
     if output_file_list != None and len(file_list) != len(output_file_list) and not replace:
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
+    if restr in [[''],None]:
+        restr = []
     for ic, file in enumerate(file_list):
         try:
             df = pd.read_csv(file, sep=sep, dtype=object)
         except FileNotFoundError:
             MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
-
+            
         clean_df = pd.DataFrame()
         for e in range(nb_ecarts):
             try:
@@ -4839,9 +4933,9 @@ def TRANS_matrix_to_grd(file,fmt,output_file):
         grid = np.array(grid_dict["grid"][n])
         zmin = min(grid.flatten())
         zmax = max(grid.flatten())
-        data = {'nrow' : grid_dict["pxy"][0], 'ncol' : grid_dict["pxy"][1], 'xmin' : grid_dict["ext"][0], 'xmax' : grid_dict["ext"][1], 
+        data = {'ncol' : grid_dict["pxy"][0], 'nrow' : grid_dict["pxy"][1], 'xmin' : grid_dict["ext"][0], 'xmax' : grid_dict["ext"][1], 
                 'ymin' : grid_dict["ext"][2], 'ymax' : grid_dict["ext"][3], 'xsize' : grid_dict["step"][0], 'ysize' : grid_dict["step"][1], 
-                'zmin' : zmin, 'zmax' : zmax, 'values' : grid.T, 'blankvalue' : np.inf}
+                'zmin' : zmin, 'zmax' : zmax, 'values' : grid, 'blankvalue' : np.inf}
         if nb_data == 1:
             filename = output_file
         else:
@@ -4908,14 +5002,15 @@ def TRANS_grd_to_matrix(file_list,fmt,output_file):
             MESS_err_mess("Erreur de type : '{}'".format(e))
         except OSError as e:
             MESS_err_mess("Erreur de fichier : '{}'".format(e))
-        grid.append(np.array(data['values']).T.tolist())
+        grid.append(data['values'].tolist())
         ncx.append("x_"+str(ic+1))
         ncy.append("y_"+str(ic+1))
         ncz.append("z_"+str(ic+1))
         
     grid_save = {"grid" : grid, "ext" : [data['xmin'],data['xmax'],data['ymin'],data['ymax']], 
-                 "pxy" : [data['nrow'],data['ncol']], "step" : [data['xsize'],data['ysize']], 
+                 "pxy" : [data['ncol'],data['nrow']], "step" : [data['xsize'],data['ysize']], 
                  "ncx" : ncx, "ncy" : ncy, "ncz" : ncz}
+    
     if output_file == None:
         output_file = file[:-4] + "_mtx.json"
     with open(output_file, "w") as f:
@@ -4978,6 +5073,7 @@ def FIG_plot_data(file,sep,col_x,col_y,col_z):
     ------
     * File not found.
     * Wrong separator.
+    * Column is not numeric.
     """
     try:
         df = pd.read_csv(file, sep=sep)
@@ -5006,14 +5102,15 @@ def FIG_plot_data(file,sep,col_x,col_y,col_z):
         multi_col = True
     if col_z == None:
         col_z = df.columns.drop(ncx_t)
-        col_z = col_z.drop(ncy_t)
-    nc_data = col_z
+        nc_data = col_z.drop(ncy_t)
+    else:
+        nc_data = df.columns[col_z]
     nb_data = len(nc_data)
     nb_ecarts = len(ncx)
     nb_res = nb_data//nb_ecarts
     
     for e in range(nb_ecarts):
-        fig,ax=plt.subplots(nrows=1,ncols=nb_res,figsize=(nb_res*CONFIG.fig_width//2,CONFIG.fig_height))
+        fig,ax=plt.subplots(nrows=1,ncols=nb_res,figsize=(nb_res*CONFIG.fig_width//2,CONFIG.fig_height),squeeze=False)
         if multi_col:
             X = df[ncx_t]
             Y = df[ncy_t]
@@ -5023,13 +5120,16 @@ def FIG_plot_data(file,sep,col_x,col_y,col_z):
         for r in range(nb_res):
             n = e*nb_res + r
             Z = df[nc_data[n]]
-            Q5,Q95 = Z.dropna().quantile([0.05,0.95])
-            col = ax[r].scatter(X,Y,marker='s',c=Z,cmap='cividis',s=6,vmin=Q5,vmax=Q95)
-            plt.colorbar(col,ax=ax[r])
-            ax[r].title.set_text(nc_data[n])
-            ax[r].set_xlabel(ncx[e])
-            ax[r].set_ylabel(ncy[e])
-            ax[r].set_aspect('equal')
+            try:
+                Q5,Q95 = Z.dropna().quantile([0.05,0.95])
+            except TypeError:
+                MESS_err_mess("La colonne '{}' n'est pas numérique".format(nc_data[n]))
+            col = ax[0][r].scatter(X,Y,marker='s',c=Z,cmap='cividis',s=6,vmin=Q5,vmax=Q95)
+            plt.colorbar(col,ax=ax[0][r])
+            ax[0][r].title.set_text(nc_data[n])
+            ax[0][r].set_xlabel(ncx[e])
+            ax[0][r].set_ylabel(ncy[e])
+            ax[0][r].set_aspect('equal')
         plt.show(block=False)
         plt.pause(0.25)
         plt.savefig(CONFIG.script_path+"Output/FIG_" +str(e)+'.png')
@@ -5063,8 +5163,6 @@ def FIG_plot_grid(file):
     
     nb_ecarts = len(grid_dict["ncx"])
     nb_res = len(grid_dict["ncz"])//nb_ecarts
-    grid = np.array([])
-    #print(grid_dict["grid"][5])
     grid = np.array(grid_dict["grid"])
     
     plt.style.use('_mpl-gallery-nogrid')
@@ -5085,6 +5183,72 @@ def FIG_plot_grid(file):
         plt.pause(0.25)
         plt.savefig(CONFIG.script_path+"Output/FIG_" +str(e)+'.png')
         pickle.dump(fig, open(CONFIG.script_path+"Output/FIG_" +str(e)+'.pickle', 'wb'))
+        
+    keep_plt_for_cmd()
+
+# Plot en nuage de pts les positions des n voies
+
+def FIG_plot_pos(file,sep):
+    """ [TA]\n
+    Plots positions of each coil.
+    
+    Parameters
+    ----------
+    file : str
+        Dataframe file.
+    sep : str
+        Dataframe separator.
+    
+    Notes
+    -----
+    Coil position columns must be named as such : ``[X/Y] + _int_ + [coil_id]``.\n
+    Output figure can be heavy.
+    
+    Raises
+    ------
+    * File not found.
+    * Wrong separator.
+    * No positions for each coil.
+    """
+    try:
+        df = pd.read_csv(file, sep=sep)
+    except FileNotFoundError:
+        MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
+    
+    if len(df.columns) <= 1:
+        MESS_err_mess("Le fichier n'est pas lu correctement', le séparateur {} est-il correct ?".format(repr(sep)))
+    
+    color = ["blue","green","orange","magenta","red","cyan","black","yellow"]
+    ncx = []
+    ncy = []
+    cpt = 0
+    while True: # Programmassion
+        new_x = "X_int_"+str(cpt+1)
+        new_y = "Y_int_"+str(cpt+1)
+        try:
+            df[new_x]
+            ncx.append(new_x)
+            ncy.append(new_y)
+        except KeyError:
+            break
+        cpt += 1
+    if cpt == 0:
+        MESS_err_mess("Les données n'ont pas de coordonnées pour chaque voie, veuillez passer par 'CMD_init'")
+    
+    fig,ax=plt.subplots(nrows=1,ncols=1,figsize=(CONFIG.fig_width,CONFIG.fig_height))
+    for index, row in df.iterrows():
+        ax.plot(row[ncx],row[ncy],'-k')
+    for i in range(cpt):
+        ax.plot(df[ncx[i]],df[ncy[i]],'o',color=color[i%8],label="Bobine "+str(i+1))
+    ax.set_title("Positions des bobines")
+    ax.set_xlabel("X_int")
+    ax.set_ylabel("Y_int")
+    ax.set_aspect('equal')
+    plt.legend()
+    plt.show(block=False)
+    plt.pause(0.25)
+    plt.savefig(CONFIG.script_path+"Output/FIG_pos.png")
+    pickle.dump(fig, open(CONFIG.script_path+"Output/FIG_pos.pickle", 'wb'))
         
     keep_plt_for_cmd()
 

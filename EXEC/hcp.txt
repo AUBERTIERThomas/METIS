@@ -1,0 +1,7 @@
+CMD_exec_known_device
+0
+file_list="hcpmini-Tr.dat,hcpmini-Tr2.dat,hcpmini-Tr3.dat"
+sup_na=False
+choice=True
+regr=True
+light_restr=[]

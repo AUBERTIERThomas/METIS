@@ -384,12 +384,17 @@ def GUI_main_other():
             root.destroy()
         GUI_FIG_plot_grid()
     
+    def on_FIG_pp_button_pressed():
+        if not keep_prev_ui:
+            root.destroy()
+        GUI_FIG_plot_pos()
+    
     def on_EXEC_button_pressed():
         if not keep_prev_ui:
             root.destroy()
         GUI_EXEC()
     
-    canvas.create_rectangle(CONFIG.tk_width//2-575, CONFIG.tk_height-575, CONFIG.tk_width//2+575, CONFIG.tk_height-25, fill="#d9c09c", width=0)
+    canvas.create_rectangle(CONFIG.tk_width//2-725, CONFIG.tk_height-575, CONFIG.tk_width//2+725, CONFIG.tk_height-25, fill="#d9c09c", width=0)
     b1 = tk.Button(root, text = 'TRANS_df_\nto_matrix', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_TRANS_dtm_button_pressed)
     b1_c = canvas.create_window( CONFIG.tk_width//2-450,CONFIG.tk_height-550, anchor = "n",window = b1)
     b2 = tk.Button(root, text = 'TRANS_\nmatrix_to_df', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_TRANS_mtd_button_pressed)
@@ -399,13 +404,15 @@ def GUI_main_other():
     b4 = tk.Button(root, text = 'TRANS_grd_\nto_matrix', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_TRANS_gtm_button_pressed)
     b4_c = canvas.create_window( CONFIG.tk_width//2+450,CONFIG.tk_height-550, anchor = "n",window = b4)
     b5 = tk.Button(root, text = 'FIG_display_\nfig', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_FIG_df_button_pressed)
-    b5_c = canvas.create_window( CONFIG.tk_width//2-450,CONFIG.tk_height-250, anchor = "n",window = b5)
+    b5_c = canvas.create_window( CONFIG.tk_width//2-600,CONFIG.tk_height-250, anchor = "n",window = b5)
     b6 = tk.Button(root, text = 'FIG_plot_\ndata', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_FIG_pd_button_pressed)
-    b6_c = canvas.create_window( CONFIG.tk_width//2-150,CONFIG.tk_height-250, anchor = "n",window = b6)
+    b6_c = canvas.create_window( CONFIG.tk_width//2-300,CONFIG.tk_height-250, anchor = "n",window = b6)
     b7 = tk.Button(root, text = 'FIG_plot_\ngrid', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_FIG_pg_button_pressed)
-    b7_c = canvas.create_window( CONFIG.tk_width//2+150,CONFIG.tk_height-250, anchor = "n",window = b7)
-    b8 = tk.Button(root, text = 'EXEC', font=('Terminal', int(CONFIG.tk_b_font_size*1.5), 'bold'), compound="center", image = button_im, command=on_EXEC_button_pressed)
-    b8_c = canvas.create_window( CONFIG.tk_width//2+450,CONFIG.tk_height-250, anchor = "n",window = b8)
+    b7_c = canvas.create_window( CONFIG.tk_width//2,CONFIG.tk_height-250, anchor = "n",window = b7)
+    b8 = tk.Button(root, text = 'FIG_plot_\npos', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_FIG_pp_button_pressed)
+    b8_c = canvas.create_window( CONFIG.tk_width//2+300,CONFIG.tk_height-250, anchor = "n",window = b8)
+    b9 = tk.Button(root, text = 'EXEC', font=('Terminal', int(CONFIG.tk_b_font_size*1.5), 'bold'), compound="center", image = button_im, command=on_EXEC_button_pressed)
+    b9_c = canvas.create_window( CONFIG.tk_width//2+600,CONFIG.tk_height-250, anchor = "n",window = b9)
     br = tk.Button(root, text = 'Retour', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", command=on_return_button_pressed)
     br_c = canvas.create_window( 50,25, anchor = "nw",window = br)
     bs = tk.Button(root, image = settings_im, command=EXEC_settings)
@@ -699,7 +706,7 @@ def GUI_FIG_plot_data(from_EXEC=None):
 
     label_list = ["file","sep","col_x","col_y","col_z"]
     type_list = ["str","str","int[]","int[]","int[]"]
-    default_list = ["*","\\t","None","None","None"]
+    default_list = ["*","\\t","[0]","[1]","None"]
     
     EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "FIG_plot_data", "FIG_", "Affichage et enregistrement de figures (nuage de points)", GUI_main_other, from_EXEC)
     
@@ -714,6 +721,18 @@ def GUI_FIG_plot_grid(from_EXEC=None):
     default_list = ["*"]
     
     EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "FIG_plot_grid", "FIG_", "Affichage et enregistrement de figures (grille)", GUI_main_other, from_EXEC)
+    
+    root.mainloop()
+
+def GUI_FIG_plot_pos(from_EXEC=None):
+
+    root, canvas, bg_im, button_im, settings_im = LOAD_root("FIG_plot_pos")
+
+    label_list = ["file","sep"]
+    type_list = ["str","str"]
+    default_list = ["*","\\t"]
+    
+    EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "FIG_plot_pos", "FIG_pos", "Affichage des positions pour chaque bobine", GUI_main_other, from_EXEC)
     
     root.mainloop()
 

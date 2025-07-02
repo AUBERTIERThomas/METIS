@@ -14,12 +14,16 @@ Created on Thu Jun  5 10:53:05 2025
 
 
 ### === Chemins === ###
+# datapath : Chemin contenant les fichiers de données (pour éviter de le recopier à chaque fois)
+# json_path : Chemin contenant les bases d'appareils/de constantes
+# script_path : Chemin contenant les fichiers .py CMD (et le reste de l'infrastructure)
 #data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/donnees SG/2018_CMDm/2018_CMDm_zone1_test/"
 #data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/donnees SG/2018_CMD/2018_CMD_zone2_test/"
 data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/CMD mini explorer 3L GPS/"
 #data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/CMD explorer GPS/HCP/"
+data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/Divers/"
 json_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/JSONs/"
-script_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/Code python JT/"
+script_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/CMD_code/"
 ### =============== ###
 
 ### === Précisions === ###
@@ -33,11 +37,11 @@ fig_height = 9 # Hauteur des figures mpl [9]
 ### ================== ###
 
 ### === Tkinter === ###
-ver = "6-1" # Version du programme appelé par l'interface
+ver = "7" # Version du programme appelé par l'interface
 
 sc_name = ":1" # Valeur obtenue avec la commande "echo $DISPLAY"
-tk_width = 1600 # Largeur des fenêtres principales [1920]
-tk_height = 900 # Hauteur des fenêtres principales [1080]
+tk_width = 1920 # Largeur des fenêtres principales [1920]
+tk_height = 1080 # Hauteur des fenêtres principales [1080]
 tk_width_mpl = tk_width*0.52 # Largeur des figures (images) [tk_width*0.52]
 tk_height_mpl = tk_height*0.82 # Hauteur des figures (images) [tk_height*0.82]
 

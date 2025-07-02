@@ -164,7 +164,7 @@ def read_surfer7bin(filename):
         ymin = yll
         xmax = xmin + xsize*(ncol-1)
         ymax = ymin + ysize*(nrow-1)
-
+        
         # Data section
         tag_id = struct.unpack('4s', file.read(4))[0]  # str
         if tag_id != b'DATA':
@@ -484,6 +484,7 @@ def write_surfer7bin(filename, data, version=2):
     zmin = data['zmin']
     zmax = data['zmax']
     values = data['values']
+    
 
     if nrow is None:
         nrow = values.shape[0]
