@@ -1,0 +1,7 @@
+CMD_exec_known_device
+0
+file_list="cmd_GPS_survey_missing_coordinates.dat"
+sup_na=False
+choice=False
+regr=False
+light_restr=[Inv]

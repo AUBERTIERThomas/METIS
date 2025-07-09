@@ -23,8 +23,8 @@ import CONFIG
 import EM_CMD
 
 v = [1, 2, 3, 4]
-#v = [-4, 3, 1, 150]
-#v = [-2, 5, -10, 20]
+v = [-4, 3, 1, 150]
+v = [-2, 5, -10, 20]
 #v = [-9, 10, 15, 15]
 #v = [0, -5, -9, 2]
 
@@ -215,7 +215,7 @@ def CMD_inverse_regr(X,Y,choice):
 def CMD_mse(X,Y,c):
     
     new_Y = c[0] + c[1]*X + c[2]*X**(1/2) + c[3]*X**(1/3)
-    mse = sum(np.abs(new_Y - Y))
+    mse = sum((new_Y - Y)**2)
     return mse
     
 
@@ -276,20 +276,20 @@ def CMD_convergence_inv_step(X,Y,coef_list,mse,cc,verif=False):
             fin = True
     return coef_list, prev_mse
 
-def coeffs_relation(X,Y,linear,choice,conv,nb_conv=50):
+def coeffs_relation(X,Y,m_type="linear",choice=False,conv=True,nb_conv=50):
     
     fig,ax=plt.subplots(nrows=1,ncols=1,figsize=(CONFIG.fig_width,CONFIG.fig_height))
     ax.plot(X,Y,'+',label="Points initiaux")
     ax.set_xlabel(r"signal(ph)")
     ax.set_ylabel(r"$\sigma$")
-    if linear:
+    if m_type == "linear":
         l_r = linregress(X,Y)
         print(l_r.intercept, l_r.slope)
         ax.plot(X,l_r.intercept+X*l_r.slope,'o',ms=1,label="Régression linéaire")
         ax.set_title("Modèle linéaire VS nuage de points")
         plt.legend()
         return [l_r.intercept, l_r.slope]
-    else:
+    elif m_type == "inverse_3":
         if choice:
             l = ["linear","theilsen","huber"]
         else:
@@ -359,16 +359,16 @@ def coeffs_relation(X,Y,linear,choice,conv,nb_conv=50):
         print(fc)
         return fc
         
-def testouh(n,min_,max_,err_var,rc,linear=True,choice=False,conv=False):
+def testouh(n,min_,max_,err_var,rc,m_type="linear",choice=False,conv=False):
     X = np.linspace(min_,max_,n)
     Y = rc[3]*X**(1/3) + rc[2]*X**(1/2) + rc[1]*X + rc[0]
     fact = (max(Y)-min(Y))/(max(X)-min(X))
     for i in range(n):
         X[i] += (np.random.normal(0,1))*err_var
         Y[i] += (np.random.normal(0,1))*err_var*fact
-    coeffs_relation(X,Y,linear,choice,conv)
+    coeffs_relation(X,Y,m_type,choice,conv)
 
 
-classic_regr(500,-3,13,1,[6, 11, -14, 1.5])
+#classic_regr(500,-3,13,1,[6, 11, 0.01, 0])
 #inverse_regr(500,0.1,10,3,[0, 1, 1, 20])
-#testouh(10000,0.1,5,0.4,v,linear=False,choice=False,conv=True)
+testouh(10000,0.1,5,0.4,v,m_type="inverse_3",choice=False,conv=True)

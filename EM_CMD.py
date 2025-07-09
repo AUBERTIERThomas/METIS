@@ -11,6 +11,7 @@ module py
 import os
 import glob
 import sys
+import platform
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,6 +21,7 @@ import scipy.interpolate as scii
 import gstlearn as gl
 import gstlearn.plot as gp
 from sklearn.linear_model import (HuberRegressor,TheilSenRegressor)
+from sklearn.metrics import mean_squared_error
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import PolynomialFeatures
 import random
@@ -45,6 +47,10 @@ import grd
 GUI = CONFIG.ui_popups_from_cmd # Si on utilise l'interface graphique
 FROM_GI_PY = False
 GUI_VAR_LIST = []
+OS_KERNEL = platform.system()
+"""
+OS_KERNEL : str, {``"Windows``, ``Linux``, ``Darwin``, ``Java``"}
+"""
 
 # Détecte si le programme est lancé depuis Spyder
 
@@ -108,11 +114,12 @@ else:
     blink_color = '\33[5m'
 error_color = '\33[0;1;31m' 
 warning_color = '\33[0;1;33m' 
-code_color = '\33[0;1;36m'
 if spyder:
+    code_color = '\33[0;1;34m'
     success_color = '\33[0;1;32m'
-    success_low_color = '\33[0;32m'
+    success_low_color = '\33[0;1;36m'
 else:
+    code_color = '\33[0;1;36m'
     success_color = '\33[0;1;92m'
     success_low_color = '\33[0;92m'
 title_color = '\33[0;1;4;33m' 
@@ -124,10 +131,11 @@ type_color = '\33[35m'
 
 class MyJSONEncoder(json.JSONEncoder):
     """ [TA]\n
-    Modify the JSON indent rule for readability.
+    Modify the JSON indent rule for readability (`Constantes.json`).
     """
     def iterencode(self, o, _one_shot=False):
         dict_lvl = 0
+        list_lvl = 0
         for s in super(MyJSONEncoder, self).iterencode(o, _one_shot=_one_shot):
             if s.startswith('{'):
                 dict_lvl += 1
@@ -135,6 +143,12 @@ class MyJSONEncoder(json.JSONEncoder):
             elif s.startswith('}'):
                 dict_lvl -= 1
                 s = s.replace('}', '\n'+dict_lvl*"  "+'}')
+            elif s.startswith('['):
+                list_lvl += 1
+            elif s.startswith(']'):
+                list_lvl -= 1
+            elif s.startswith(',') and list_lvl == 8:
+                s = s.replace(',', ',\n'+dict_lvl*"  ")
             yield s
 
 # Message d'erreur
@@ -849,8 +863,8 @@ def CMD_init(app_data,file_list,sep,sup_na,regr,corr_base,not_in_file=False):
     nb_res = 2
     const_GPS = 2
     if app_data["GPS"] :
-        n_col_X='Northing'
-        n_col_Y='Easting'
+        n_col_X='Easting'
+        n_col_Y='Northing'
     else :
         n_col_X='x[m]'
         n_col_Y='y[m]'
@@ -864,7 +878,6 @@ def CMD_init(app_data,file_list,sep,sup_na,regr,corr_base,not_in_file=False):
             const_GPS += 1
         except KeyError:
             pass
-    print(const_GPS)
     
     ls_base = []
     ls_mes = []
@@ -902,17 +915,59 @@ def CMD_init(app_data,file_list,sep,sup_na,regr,corr_base,not_in_file=False):
             don_i = CMD_detec_profil_carre(don_raw)
             
         if sup_na:
-            don_i.dropna(subset = [n_col_X,n_col_Y],inplace=True)
+            don_i.dropna(subset = [n_col_X,n_col_Y,"X_int","Y_int"],inplace=True)
             don_i.reset_index(drop=True,inplace=True)
         else:
-            MESS_warn_mess("Les données NaN seront redressées")
-            if max(don_i["Profil"] == 1):
+            if max(don_i["Profil"]) == 1:
                 don_i = CMD_XY_Nan_completion_solo(don_i)
             else:
                 don_i = CMD_XY_Nan_completion(don_i)
+        if max(don_i["Profil"]) == 1:
+            don_i = CMD_detec_pseudoprof(don_i,"X_int","Y_int",l_p=None,verif=True)
+            correct = False
+            while correct == False:
+                if GUI:
+                    MESS_input_GUI(["La détection de profils est-elle correcte ?","","~r~ Oui","~r~ Tenter sans donner de segments (option de base)"
+                                     "Sinon rentrer les coordonnées des points formant les segments passant par les centres des profils",
+                                     "Exemple : 50,20 82.5,0 100,-15 crée deux segments","~t~"])
+                    try:
+                        fin, inp = GUI_VAR_LIST
+                        if inp == "":
+                            inp = ["y","n"][fin]
+                    except:
+                        MESS_warn_mess("Veuillez sélectionner un réponse")
+                        continue
+                else:
+                    MESS_input_mess(["La détection de profils est-elle correcte ?","","y : Oui","n : Tenter sans donner de segments (option de base)"
+                                     "Sinon rentrer les coordonnées des points formant les segments passant par les centres des profils",
+                                     "Exemple : 50,20 82.5,0 100,-15 crée deux segments"])
+                    inp = input()
+                try:
+                    if inp == "y":
+                        correct = True
+                    elif inp == "n":
+                        don_i = CMD_detec_pseudoprof(don_i,"X_int","Y_int",l_p=None,verif=True)
+                    else:
+                        pts = re.split(r"[ ]+",inp)
+                        vect = [[int(c) for c in re.split(r",",pt)] for pt in pts]
+                        if len(vect) < 2:
+                            MESS_warn_mess("Choisir au moins deux points !")
+                        else:
+                            don_i = CMD_detec_pseudoprof(don_i,"X_int","Y_int",l_p=vect,verif=True)
+                except:
+                    MESS_warn_mess("Réponse non reconnue !")
+            plt.close('all')
         don_base,don_mes=CMD_sep_BM(don_i)
-        #MESS_warn_mess("quatro")
         nc_data = don_raw.columns[col_z]
+        if not don_base.empty:
+            d_nf,d_bp,d_t,d_min = CMD_synthBase(don_base,nc_data,CMDmini=(max(app_data["TR"])<2))
+            don_base = d_min.transpose()
+            don_base["Num fich"] = d_nf
+            don_base["temps (s)"] = d_t
+            don_base["b et p"] = d_bp
+            don_base["Base"] = d_t.index+1
+            don_base["Profil"] = 0
+        #MESS_warn_mess("quatro")
         for i in range(nb_file):
             i_fich_mes = don_mes[don_mes["Num fich"] == i+1]
             i_fich_base = don_base[don_base["Num fich"] == i+1]
@@ -931,7 +986,9 @@ def CMD_init(app_data,file_list,sep,sup_na,regr,corr_base,not_in_file=False):
                 correct = False
                 while correct == False:
                     if GUI:
-                        MESS_input_GUI(["fichier {} : redressement ?".format(file_list[i]),"","~r~ Oui (tous les profils)","~r~ Non ~!~","","Oui, à partir du profil k, ou jusqu'au profil -k (-1 est le dernier profil)","Ignore le choix précédent si non vide","~t~","","Le premier profil est indiqué en bleu"])
+                        MESS_input_GUI(["fichier {} : redressement ?".format(file_list[i]),"","~r~ Oui (tous les profils)","~r~ Non ~!~","",
+                                        "Oui, à partir du profil k, ou jusqu'au profil -k (-1 est le dernier profil)","Ignore le choix précédent si non vide","~t~","",
+                                        "Le premier profil est indiqué en bleu"])
                         try:
                             fin, inp = GUI_VAR_LIST
                             if inp == "":
@@ -940,7 +997,8 @@ def CMD_init(app_data,file_list,sep,sup_na,regr,corr_base,not_in_file=False):
                             MESS_warn_mess("Veuillez sélectionner un réponse")
                             continue
                     else:
-                        MESS_input_mess(["fichier {} : redressement ?".format(file_list[i]),"","y : Oui (tous les profils)","k >= 0 : Oui, à partir du profil k","k < 0 : Oui, jusqu'au profil -k (-1 est le dernier profil)","n : Non","","Le premier profil est indiqué en bleu"])
+                        MESS_input_mess(["fichier {} : redressement ?".format(file_list[i]),"","y : Oui (tous les profils)","k >= 0 : Oui, à partir du profil k",
+                                         "k < 0 : Oui, jusqu'au profil -k (-1 est le dernier profil)","n : Non","","Le premier profil est indiqué en bleu"])
                         inp = input()
                     try:
                         if inp == "n":
@@ -954,8 +1012,8 @@ def CMD_init(app_data,file_list,sep,sup_na,regr,corr_base,not_in_file=False):
                         correct = True
                     except ValueError:
                         MESS_warn_mess("Réponse non reconnue !")
-                    except IndexError:
-                        MESS_warn_mess("Le profil {} n'existe pas !".format(inp))
+                    except IndexError as e:
+                        MESS_warn_mess("Le profil {} n'existe pas !".format(inp),e)
                 plt.close(fig)
                 
             if corr_base:
@@ -964,8 +1022,6 @@ def CMD_init(app_data,file_list,sep,sup_na,regr,corr_base,not_in_file=False):
                 except IndexError:
                     MESS_warn_mess("Base externe au fichier {}, pas d'ajustement".format(file_list[i]))
             i_fich_mes = CMD_dec_voies(i_fich_mes,ncx,ncy,app_data["nb_ecarts"],app_data["TR_l"],app_data["TR_t"],app_data["GPS_dec"])
-            if not i_fich_base.empty:
-                i_fich_base = CMD_dec_voies(i_fich_base,ncx,ncy,app_data["nb_ecarts"],app_data["TR_l"],app_data["TR_t"],app_data["GPS_dec"])
             ls_mes.append(i_fich_mes)
             ls_base.append(i_fich_base)
             
@@ -984,7 +1040,8 @@ def CMD_init(app_data,file_list,sep,sup_na,regr,corr_base,not_in_file=False):
             X = final_df[ncx[e]]
             Y = final_df[ncy[e]]
             for r in range(nb_res):
-                Z = final_df[nc_data[e]]
+                n = e*nb_res + r
+                Z = final_df[nc_data[n]]
                 Q5,Q95 = Z.quantile([0.05,0.95])
                 col = ax[r].scatter(X,Y,marker='s',c=Z,cmap='cividis',s=6,vmin=Q5,vmax=Q95)
                 plt.colorbar(col,ax=ax[r],shrink=0.7)
@@ -1438,10 +1495,46 @@ def CMD_num_prof(don, acq_GPS=True):
     return(don.copy())
     
 # semble fonctionner le 14/11/2024
+# Résume une base en un point
   
-def CMD_synthBase(don,col_calc,CMDmini=True):
-    """ [JT]\n
-    *** OUTDATED ***
+def CMD_synthBase(don,nc_data,CMDmini=True):
+    """ [JT] + [TA]\n
+    Resume each base by one single line.\n
+    It contains all data pointed by ``nc_data``, its profile/base index and its time.\n
+    Does not return a single dataframe, is managed by ``CMD_init``.
+    
+    Parameters
+    ----------
+    don : dataframe
+        Active base dataframe.
+    nc_data : list of str
+        Names of every Z columns (actual data).
+    ``[opt]`` CMDmini : bool, default : ``True``
+        If bases were taken in the air (device's 0). 
+    
+    Returns
+    -------
+    pd_num_fich : pd.Series
+        ``"Num fich"`` column (file order).
+    pd_bp : pd.Series
+        ``"b et p"`` column (base + profile index).
+    pd_tps : pd.Series
+        ``"temps (s)"`` column (base + profile index).
+    * ``CMDmini = True``
+        pd_inf : pd.Series
+            Data columns for lowest values (device's 0).
+    * ``CMDmini = False``
+        pd_valmd : pd.Series
+            Data columns for average values, since all points are on the ground.
+    
+    Notes
+    -----
+    Subfunction of ``CMD_init``.\n
+    If ``CMDmini = False``, the result will not give enough information to remove the device's 0, although the variations between bases will stand.
+    
+    See also
+    --------
+    ``CMD_init, CMD_evol_profils``
     """ 
     if not('Base' in don.columns) :
         MESS_err_mess("[DEV] Veuillez créer une colonne des numéro de base avec CMD_detect_base")
@@ -1449,20 +1542,19 @@ def CMD_synthBase(don,col_calc,CMDmini=True):
         don['temps (s)']=CMD_time(don)
     num_base=don['Base'].unique()
     num_base=num_base[num_base>0]    
-    ls_tps,ls_val=[],[]
+    ls_num_fich,ls_bp,ls_tps,ls_val=[],[],[],[]
     for n_base in num_base :
         ind_c=don.index[don['Base']==n_base]
         tps_c=don.loc[ind_c,'temps (s)'].median()
-        Q5=don.loc[ind_c,col_calc].quantile(0.05)
-        Q95=don.loc[ind_c,col_calc].quantile(0.95)
+        Q5=don.loc[ind_c,nc_data].quantile(0.05)
+        Q95=don.loc[ind_c,nc_data].quantile(0.95)
         valb_c=(Q95+Q5)/2.
+        ls_num_fich.append(don.loc[ind_c[0],"Num fich"])
+        ls_bp.append(don.loc[ind_c[0],"b et p"])
         ls_tps.append(tps_c),ls_val.append(valb_c)
      
-        
     pd_valmd=pd.concat(ls_val,axis=1)
     ls_sup,ls_inf=[],[]
-    
-    
           
     for n_base in num_base :
         ind_c=don.index[don['Base']==n_base]
@@ -1470,7 +1562,7 @@ def CMD_synthBase(don,col_calc,CMDmini=True):
         bas='ND'
         ls_s,ls_i=[],[]
         for ic,sc in enumerate(seuil) :
-            dat_c=don.loc[ind_c,col_calc[ic]].copy()
+            dat_c=don.loc[ind_c,nc_data[ic]].copy()
             prem=dat_c.index[0]
             ind1=dat_c.index[dat_c>sc]
             ind2=dat_c.index[dat_c<sc]
@@ -1480,16 +1572,18 @@ def CMD_synthBase(don,col_calc,CMDmini=True):
         ls_sup.append(pd.Series(ls_s))
         ls_inf.append(pd.Series(ls_i))
     
-    pd_sup=pd.concat(ls_sup,axis=1)
-    pd_inf=pd.concat(ls_inf,axis=1)
+    pd_sup=pd.concat(ls_sup,axis=1).round(CONFIG.prec_data)
+    pd_inf=pd.concat(ls_inf,axis=1).round(CONFIG.prec_data)
     pd_sup.index=seuil.index
-    pd_inf.index=seuil.index        
+    pd_inf.index=seuil.index 
+    pd_num_fich=pd.Series(ls_num_fich)  
+    pd_bp=pd.Series(ls_bp)     
     pd_tps=pd.Series(ls_tps)
     
     if CMDmini :
-        return(pd_tps,pd_sup,pd_inf)
+        return(pd_num_fich,pd_bp,pd_tps,pd_inf)
     else :
-        return(pd_tps,pd_valmd,None)
+        return(pd_num_fich,pd_bp,pd_tps,pd_valmd)
     
                 
 def CMD_sep_BM(don):
@@ -1553,6 +1647,204 @@ def CMD_detec_profil_carre(don):
             prof_nb += 1
         don.loc[index, "Profil"] = prof_nb
         don.loc[index, "b et p"] = prof_nb
+    
+    return don.copy()
+
+def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=10,min_conseq=8,verif=False):
+    """ [TA]\n
+    Given a database with continuous timestamps, estimate profiles by finding one point (called `center`) per profile, possibly at the center.\n
+    Each prospection point is then assigned to the closest center in term of index to form pseudo-profiles.\n
+    By default, perform a linear regression and select the closest points as centers. For more flexibility, one can set a range of points which will create segments with ``l_p``.\n
+    This procedure is to be used only if no other profile detection method has been successful.
+    
+    Notes
+    -----
+    It is advised to check if the result is coherent by setting ``verif = True``.\n
+    If many centers are missing, raise ``tn`` and / or ``tn_c``. On the contrary, lowering them also works.\n
+    If you can expect profiles of less than 8 points, try lowering ``min_conseq``. If some profiles are detected twice, you can raise it.\n
+    Profiles found this way are not neccesarely straight. To improve the detection, try setting 
+    
+    Parameters
+    ----------
+    don : dataframe
+        Profile dataframe.
+    X_n : str
+        Name of X column.
+    Y_n : str
+        Name of Y column.
+    ``[opt]`` l_p : ``None`` or list of [float, float], default : ``None``
+        List of points coordinates for segments. If ``None``, perform a linear regression instead.
+    ``[opt]`` tn : int, default : ``10``
+        Number of nearest points used to determinate the max distance treshold.
+    ``[opt]`` tn_c : int, default : ``10``
+        Multiplier of median distance of the ``tn`` nearest points used to determinate the max distance treshold.
+    ``[opt]`` min_conseq : int, default : ``8``
+        Minimal index distance that is allowed between two found centers.
+    ``[opt]`` verif : bool, default : ``False``
+        Enables plotting.
+
+    Returns
+    -------
+    don : dataframe
+        Updated profile dataframe
+    
+    Raises
+    ------
+    * ``l_p`` vector too small.
+    
+    See also
+    --------
+    ``CMD_init, CMD_detec_profil_carre, CMD_detect_chgt`` 
+    """
+    for label in ["Profile","Base","b et p"]:
+        try:
+            don.drop(columns=label)
+        except:
+            pass
+    
+    try:
+        don[X_n], don[Y_n]
+    except KeyError:
+        MESS_err_mess('Les colonnes "{}" et/ou "{}" n\'existent pas'.format(X_n,Y_n))
+    
+    nb_pts = len(don)
+    regr = (l_p == None)
+    
+    dist_list = []
+    
+    if regr:
+        lin_tab_i = np.array(don.index)
+        lin_tab_x = np.array(don[X_n])
+        lin_tab_y = np.array(don[Y_n])
+        lin_reg_x = linregress(lin_tab_i,lin_tab_x)
+        lin_reg_y = linregress(lin_tab_i,lin_tab_y)
+        
+        eq = [lin_reg_x.slope, lin_reg_x.intercept, lin_reg_y.slope, lin_reg_y.intercept]
+        
+        for index, row in don.iterrows():
+            dist_list.append(np.abs(eq[2]*(row[X_n]-eq[1]) - eq[0]*(row[Y_n]-eq[3])))
+    else:
+        l_p = np.array(l_p)
+        if len(l_p) < 2:
+            MESS_err_mess("Le vecteur de points 'l_p' doit au moins en contenir 2 pour créer un segment")
+        for index, row in don.iterrows():
+            d_l = []
+            for p1,p2 in zip(l_p,l_p[1:]):
+                p3 = np.array([row[X_n],row[Y_n]])
+                ba = p1 - p2
+                lba = np.linalg.norm(ba)
+                bc = p3 - p2
+                lbc = np.linalg.norm(bc)
+                angle_1 = np.degrees(np.arccos(np.dot(ba, bc) / (lba * lbc)))
+                if angle_1 >= 90.0:
+                    d_l.append(lbc)
+                    continue
+                ac = p3 - p1
+                lac = np.linalg.norm(ac)
+                ab = -ba
+                lab = lba
+                angle_2 = np.degrees(np.arccos(np.dot(ab, ac) / (lab * lac)))
+                if angle_2 >= 90.0:
+                    d_l.append(lac)
+                    continue
+                d_l.append(np.abs(np.cross(ab,ac)/lba))
+            dist_list.append(min(d_l))
+    
+    m1_list = []
+    up = True
+    for ic,d in enumerate(dist_list[:-1]):
+        new_up = (d < dist_list[ic+1])
+        if new_up and not up:
+            m1_list.append(ic)
+        up = new_up
+    
+    #print(m1_list)
+    m2_list = []
+    top_n = sorted([dist_list[i] for i in m1_list], key = lambda x: x, reverse = False)[:tn]
+    min_med = sum(top_n)/tn * tn_c
+    
+    for m in m1_list:
+        #print(dist_list[m], " ", min_med)
+        if dist_list[m] < min_med:
+            m2_list.append(m)
+    
+    min_list = []
+    if regr:
+        max_conseq = (2*nb_pts)//len(m2_list)
+    else:
+        max_conseq = np.inf
+    l_min = len(m2_list)
+    i = 0
+    j = 1
+    while j < l_min:
+        d = m2_list[j] - m2_list[i]
+        if d > max_conseq:
+            min_list.append(m2_list[i])
+            nb_new_points = int(d*2//max_conseq)-1
+            for n in range(1,nb_new_points+1):
+                min_list.append(m2_list[i]+((m2_list[j]-m2_list[i])*n)//(nb_new_points+1))
+            i = j
+            j += 1
+        if d < min_conseq:
+            if dist_list[m2_list[j]] < dist_list[m2_list[i]]:
+                min_list.append(m2_list[j])
+                i = j
+            elif m2_list[i] not in min_list:
+                min_list.append(m2_list[i])
+            j += 1
+        else:
+            if m2_list[i] not in min_list:
+                min_list.append(m2_list[i])
+            i = j
+            j += 1
+    if i == l_min-1:
+        min_list.append(m2_list[-1])
+    
+    don["Profil"] = 0
+    don["Base"] = 0
+    l_min = len(min_list)
+    for index, row in don.iterrows():
+        ind = -1
+        for ic, m in enumerate(min_list[1:]):
+            if m > index:
+                if m-index > index-min_list[ic]:
+                    ind = ic+1
+                else:
+                    ind = ic+2
+                break
+        if ind == -1:
+            ind = l_min
+        don.loc[index,"Profil"] = ind   
+    don["b et p"] = don["Profil"]
+    
+    if verif:
+        print(min_list)
+        index_list = range(nb_pts)
+        fig,ax = plt.subplots(nrows=1,ncols=3,figsize=(CONFIG.fig_width,CONFIG.fig_height),squeeze=False)
+        ax[0][0].plot(index_list,dist_list,'-')
+        ax[0][0].plot([index_list[i] for i in min_list],[dist_list[i] for i in min_list],'xr')
+        ax[0][0].set_xlabel("Index")
+        ax[0][0].set_ylabel("Distance")
+        ax[0][0].set_title("Évolution de la distance à la droite")
+        ax[0][1].plot(don[X_n],don[Y_n],'x')
+        if regr:
+            ax[0][1].plot([eq[0]*i+eq[1] for i in index_list],[eq[2]*i+eq[3] for i in index_list],'-k')
+        else:
+            ax[0][1].plot(l_p[:,0],l_p[:,1],'-k')
+        ax[0][1].plot([don[X_n][index_list[i]] for i in min_list],[don[Y_n][index_list[i]] for i in min_list],'xr')
+        ax[0][1].set_aspect('equal')
+        ax[0][1].set_xlabel(X_n)
+        ax[0][1].set_ylabel(Y_n)
+        ax[0][1].set_title("Centres et droite")
+        ax[0][1].ticklabel_format(useOffset=False)
+        ax[0][2].scatter(don[X_n],don[Y_n],marker='x',c=don["Profil"]%8, cmap='nipy_spectral')
+        ax[0][2].set_aspect('equal')
+        ax[0][2].set_xlabel(X_n)
+        ax[0][2].set_ylabel(Y_n)
+        ax[0][2].set_title("Division en pseudo-profils")
+        ax[0][2].ticklabel_format(useOffset=False)
+        plt.show(block=False)
+        plt.pause(0.25)
     
     return don.copy()
 
@@ -1720,7 +2012,7 @@ def CMD_XY_Nan_completion_solo(don):
     
     full_na = don.iloc[indXNan,:]
     bloc_na_list = [d for _, d in full_na.groupby(full_na.index - np.arange(len(full_na)))]
-    print(bloc_na_list)
+    #print(bloc_na_list)
     
     for bloc_na in bloc_na_list:
         bnai = bloc_na.index
@@ -1793,7 +2085,10 @@ def CMD_XY_Nan_completion(don):
         MESS_warn_mess("[DEV] NaN en X et NaN en Y n'ont pas les même position dans le tableau (pas d'effet)")
         return don.copy()
     
-    ind_aux = indc[indc.diff()!=1.]-1
+    try:
+        ind_aux = indc[indc.diff()!=1.]-1
+    except AttributeError:
+        MESS_err_mess("ERREUR PANDAS : nécessite au minimum la version 2.1.0 (et python 3.10).")
     for i_d in ind_aux:
         prof = don.loc[i_d,'b et p']
         bloc = don.loc[don['b et p'] == prof]
@@ -1804,18 +2099,19 @@ def CMD_XY_Nan_completion(don):
         if bloc_notna_l == 1:
             MESS_warn_mess("Un des profils ne possède qu'un unique point connu : régression impossible.")
         else:
-            lin_tab1 = np.array([[index, row["temps (s)"]] for index, row in bloc_notna.iterrows()])
-            lin_tab2 = np.array([[index, row["X_int"]] for index, row in bloc_notna.iterrows()])
-            lin_tab3 = np.array([[index, row["Y_int"]] for index, row in bloc_notna.iterrows()])
+            lin_tab_i = np.array(bloc_notna.index)
+            lin_tab1 = np.array(bloc_notna["temps (s)"])
+            lin_tab2 = np.array(bloc_notna["X_int"])
+            lin_tab3 = np.array(bloc_notna["Y_int"])
             # La régression ne marche pas avec deux points, mais on peut en créer un troisième
             if bloc_notna_l == 2:
-                lin_tab1 = np.concatenate([lin_tab1,[[sum(lin_tab1[:,0])/len(lin_tab1[:,0]),sum(lin_tab1[:,1])/len(lin_tab1[:,1])]]])
-                lin_tab2 = np.concatenate([lin_tab2,[[sum(lin_tab2[:,0])/len(lin_tab2[:,0]),sum(lin_tab2[:,1])/len(lin_tab2[:,1])]]])
-                lin_tab3 = np.concatenate([lin_tab3,[[sum(lin_tab3[:,0])/len(lin_tab3[:,0]),sum(lin_tab3[:,1])/len(lin_tab3[:,1])]]])
+                lin_tab1 = np.concatenate([lin_tab1,[sum(lin_tab1[:,1])/len(lin_tab1[:,1])]])
+                lin_tab2 = np.concatenate([lin_tab2,[sum(lin_tab2[:,1])/len(lin_tab2[:,1])]])
+                lin_tab3 = np.concatenate([lin_tab3,[sum(lin_tab3[:,1])/len(lin_tab3[:,1])]])
             
-            lin_reg1 = linregress(lin_tab1)
-            lin_reg2 = linregress(lin_tab2)
-            lin_reg3 = linregress(lin_tab3)
+            lin_reg1 = linregress(lin_tab_i,lin_tab1)
+            lin_reg2 = linregress(lin_tab_i,lin_tab2)
+            lin_reg3 = linregress(lin_tab_i,lin_tab3)
 
             for index, row in bloc_na.iterrows():
                 c = lin_reg1.intercept + lin_reg1.slope*index
@@ -1876,17 +2172,18 @@ def CMD_pts_rectif(don,ind_deb=None,ind_fin=None):
             MESS_warn_mess("Un des profils ne possède qu'un unique point connu : régression impossible.")
         else:
             # lin_tab1 = np.array([[index, row["temps (s)"]] for index, row in bloc.iterrows()])
-            lin_tab2 = np.array([[index, row["X_int"]] for index, row in bloc.iterrows()])
-            lin_tab3 = np.array([[index, row["Y_int"]] for index, row in bloc.iterrows()])
+            lin_tab_i = np.array(bloc.index)
+            lin_tab2 = np.array(bloc["X_int"])
+            lin_tab3 = np.array(bloc["Y_int"])
             # La régression ne marche pas avec deux points, mais on peut en créer un troisième
             if bloc_l == 2:
-                # lin_tab1 = np.concatenate([lin_tab1,[[sum(lin_tab1[:,0])/len(lin_tab1[:,0]),sum(lin_tab1[:,1])/len(lin_tab1[:,1])]]])
-                lin_tab2 = np.concatenate([lin_tab2,[[sum(lin_tab2[:,0])/len(lin_tab2[:,0]),sum(lin_tab2[:,1])/len(lin_tab2[:,1])]]])
-                lin_tab3 = np.concatenate([lin_tab3,[[sum(lin_tab3[:,0])/len(lin_tab3[:,0]),sum(lin_tab3[:,1])/len(lin_tab3[:,1])]]])
+                # lin_tab1 = np.concatenate([lin_tab1,[sum(lin_tab1[:,1])/len(lin_tab1[:,1])]])
+                lin_tab2 = np.concatenate([lin_tab2,[sum(lin_tab2[:,1])/len(lin_tab2[:,1])]])
+                lin_tab3 = np.concatenate([lin_tab3,[sum(lin_tab3[:,1])/len(lin_tab3[:,1])]])
             
             # lin_reg1 = linregress(lin_tab1)
-            lin_reg2 = linregress(lin_tab2)
-            lin_reg3 = linregress(lin_tab3)
+            lin_reg2 = linregress(lin_tab_i,lin_tab2)
+            lin_reg3 = linregress(lin_tab_i,lin_tab3)
             
             for index, row in bloc.iterrows():
                 # c = lin_reg1.intercept + lin_reg1.slope*index
@@ -1939,7 +2236,7 @@ def CMD_decal_posLT(X,Y,profs,decL=0.,decT=0.):
     ls_Xc=[]
     ls_Yc=[]
     ls_prof=profs.unique()
-    print(ls_prof)
+    #print(ls_prof)
     for prof in ls_prof:
         ind_c=profs.index[profs==prof]
         XX=X.loc[ind_c].copy()
@@ -2016,7 +2313,7 @@ def CMD_dec_voies(don,ncx,ncy,nb_ecarts,TR_l,TR_t, gps_dec):
     for e in range(nb_ecarts):
         decx = gps_dec[0]-(TR_l[e]-TR_l[-1])/2
         decy = gps_dec[1]-(TR_t[e]-TR_t[-1])/2
-        print(don["Profil"])
+        #print(don["Profil"])
         X, Y = CMD_decal_posLT(don["X_int"],don["Y_int"],don["Profil"],decL=decx,decT=decy)
         don[ncx[e]] = X.round(CONFIG.prec_coos)
         don[ncy[e]] = Y.round(CONFIG.prec_coos)
@@ -2221,6 +2518,7 @@ def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,nb=30,tol_inte
         if d_moy > d_caract*tol_inter or d_max < d_caract*tol_intra:
             return don2.copy(), False
         
+        # Calcul de la différence / 
         #data2[dat_to_test] = [x+0 for x in data2[dat_to_test]]
         diff = []
         mult = []
@@ -2270,7 +2568,8 @@ def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,nb=30,tol_inte
                             MESS_warn_mess("Veuillez sélectionner un réponse")
                             continue
                     else:
-                        MESS_input_mess(["Valider l'ajustement ?","","y : Oui (continuer avec)","n : Non (conserver la donnée initiale)","r : Réessayer (relance un nouvel ajustement sur la même donnée)"])
+                        MESS_input_mess(["Valider l'ajustement ?","","y : Oui (continuer avec)","n : Non (conserver la donnée initiale)",
+                                         "r : Réessayer (relance un nouvel ajustement sur la même donnée)"])
                         inp = input()
                     if inp == "n":
                         correct = True
@@ -2723,12 +3022,13 @@ def CMD_evol_profils(don,bas,nom_fich,col_z,nb_ecarts,diff=True,auto_adjust=True
 
 # Fonction principale de la mise en grille (choix de la méthode)
 
-def CMD_grid(col_x,col_y,col_z,file_list,sep,output_file,m_type,radius,prec,seuil,i_method,no_crop,all_models,plot_pts,matrix):
+def CMD_grid(col_x,col_y,col_z,file_list,sep,output_file,m_type,radius,prec,step,seuil,i_method,no_crop,all_models,plot_pts,matrix):
     """ [TA]\n
     From a data file, proposes gridding according to the method used.\n
     If ``m_type='h'``, then a heatmap of the point density is created. Useful for determining the threshold ``seuil``.\n
     If ``m_type='i'``, grid interpolation is performed using one of the following algorithms: ``nearest``, ``linear``, or ``cubic``.\n
     If ``m_type='k'``, a variogram selection process will then be runned to select the kriging parameters. Only cells detected by the previous algorithm will be considered.\n
+    To define the dimensions of the grid, you can either set its size (``prec``) or its step (``step```).\n
     Be careful not to run kriging on a large dataset or a grid that is too precise, as this may result in the kriging process never being completed.
     
     Notes
@@ -2757,6 +3057,8 @@ def CMD_grid(col_x,col_y,col_z,file_list,sep,output_file,m_type,radius,prec,seui
         Detection radius around each tile for ``NaN`` completion.
     prec : int
         Grid size of the biggest axis. The other one is deducted by proportionality.
+    step : ``None`` or float
+        Step between each tile, according to the unit used by the position columns. If not ``None``, ignore ``prec`` value.
     seuil : float
         Exponent of the function used to compute the detection window coefficients. If negative, will be set to 0 but widen the acceptance.
     i_method : str, ``None`` or {``'nearest'``, ``'linear'``, ``'cubic'``}
@@ -2813,7 +3115,7 @@ def CMD_grid(col_x,col_y,col_z,file_list,sep,output_file,m_type,radius,prec,seui
             don = don_raw.copy()[::(don_l//1000)+1]
         else:
             don = don_raw
-        if prec >= 300:
+        if prec >= 300 and step == None:
             correct = False
             while correct == False:
                 if GUI:
@@ -2864,10 +3166,10 @@ def CMD_grid(col_x,col_y,col_z,file_list,sep,output_file,m_type,radius,prec,seui
     
     ncx, ncy, col_T, nb_data, nb_ecarts, nb_res = TOOL_manage_cols(don,col_x,col_y,col_z)
     
-    grid, ext, pxy = CMD_dat_to_grid(don,ncx,ncy,nb_ecarts,nb_res,radius,prec,seuil,heatmap=(m_type=='h'))
+    grid, ext, pxy = CMD_dat_to_grid(don,ncx,ncy,nb_ecarts,nb_res,radius,prec,step,seuil,heatmap=(m_type=='h'))
     
     if m_type == 'k':
-        grid_k = CMD_kriging(don,ncx,ncy,ext,pxy,col_T,nb_data,nb_ecarts,nb_res,prec,all_models=all_models,verif=False)
+        grid_k = CMD_kriging(don,ncx,ncy,ext,pxy,col_T,nb_data,nb_ecarts,nb_res,all_models=all_models,verif=False)
         grid_k_final = np.array([[[np.nan for j in range(pxy[1])] for i in range(pxy[0])] for n in range(nb_data)])
         for e in range(nb_ecarts):
             for j in range(pxy[1]):
@@ -2901,7 +3203,7 @@ def CMD_grid(col_x,col_y,col_z,file_list,sep,output_file,m_type,radius,prec,seui
                     MESS_warn_mess("Réponse non reconnue !")
         elif i_method not in i_method_list:
             MESS_err_mess("Méthode non reconnue ({})".format(i_method_list))
-        grid_i = CMD_scipy_interp(don,ncx,ncy,ext,pxy,col_T,nb_data,nb_ecarts,nb_res,prec,i_method)
+        grid_i = CMD_scipy_interp(don,ncx,ncy,ext,pxy,col_T,nb_ecarts,nb_res,i_method)
         for e in range(nb_ecarts):
             for j in range(pxy[1]):
                 for i in range(pxy[0]):
@@ -2916,7 +3218,7 @@ def CMD_grid(col_x,col_y,col_z,file_list,sep,output_file,m_type,radius,prec,seui
 # Transpose les données sur une grille rectangulaire, avec au maximum prec cases par ligne/colonne.
 # Complexité : O(n) sur le nombre de données, O(n^2) sur prec, O(n^2) sur radius.
 
-def CMD_dat_to_grid(don,ncx,ncy,nb_ecarts,nb_res,radius,prec,seuil,heatmap=False,verif=False):
+def CMD_dat_to_grid(don,ncx,ncy,nb_ecarts,nb_res,radius,prec,step,seuil,heatmap=False,verif=False):
     """ [TA]\n
     Put raw data on a grid, then determine which tile should be removed (with ``NaN`` value).\n
     Removal procedure is detailled in the ``CMD_calc_coeff`` description.
@@ -2947,6 +3249,8 @@ def CMD_dat_to_grid(don,ncx,ncy,nb_ecarts,nb_res,radius,prec,seuil,heatmap=False
         Detection radius around each tile for ``NaN`` completion.
     prec : int
         Grid size of the biggest axis. The other one is deducted by proportionality.
+    step : ``None`` or float
+        Step between each tile, according to the unit used by the position columns. If not ``None``, ignore ``prec`` value.
     seuil : float
         Exponent of the function used to compute the detection window coefficients. If negative, will be set to 0 but widen the acceptance.
     ``[opt]`` heatmap : bool, default : ``False``
@@ -2959,10 +3263,10 @@ def CMD_dat_to_grid(don,ncx,ncy,nb_ecarts,nb_res,radius,prec,seuil,heatmap=False
     -------
     grid_final : np.ndarray (dim 3) of float
         For each data column, contains the grid values (``0`` if tile is taken, ``NaN`` if not)
-    ext : list of 4 floats
+    ext : [float, float, float, float]
         Extend of the grid. Contains ``[min_X, max_X, min_Y, max_Y]``.
-    pxy : list of 4 floats
-        Steps of the grid for each axis. Contains ``[pas_X, pas_Y]``.
+    pxy : [float, float]
+        Size of the grid for each axis. Contains ``[prec_X, prec_Y]``.
     
     Raises
     ------
@@ -2995,19 +3299,25 @@ def CMD_dat_to_grid(don,ncx,ncy,nb_ecarts,nb_res,radius,prec,seuil,heatmap=False
         print("min_Y = ",min_Y)
     diff_X = max_X-min_X
     diff_Y = max_Y-min_Y
-    if diff_X > diff_Y:
-        prec_X = prec
-        prec_Y = int(prec*(diff_Y/diff_X))
+    if step == None:
+        if diff_X > diff_Y:
+            prec_X = prec
+            prec_Y = int(prec*(diff_Y/diff_X))
+        else:
+            prec_Y = prec
+            prec_X = int(prec*(diff_X/diff_Y))
+        pas_X = diff_X/prec_X
+        pas_Y = diff_Y/prec_Y
     else:
-        prec_Y = prec
-        prec_X = int(prec*(diff_X/diff_Y))
-    pas_X = diff_X/prec_X
-    pas_Y = diff_Y/prec_Y
-    
+        pas_X = step
+        pas_Y = step
+        prec_X = int(diff_X/pas_X)+1
+        prec_Y = int(diff_Y/pas_Y)+1
+
     gridx = [min_X + pas_X*i for i in range(prec_X)]
     gridy = [min_Y + pas_Y*j for j in range(prec_Y)]
     
-    grid_conv, seuil, seuil_, quot = CMD_calc_coeff(seuil,radius,prec)
+    grid_conv, seuil, seuil_, quot = CMD_calc_coeff(seuil,radius)
     
     grid = np.array([[[0 for i in range(prec_X)] for j in range(prec_Y)] for e in range(nb_ecarts)])
     
@@ -3051,9 +3361,8 @@ def CMD_dat_to_grid(don,ncx,ncy,nb_ecarts,nb_res,radius,prec,seuil,heatmap=False
             else:
                 try:
                     seuil = float(inp)
-                    grid_conv, seuil, seuil_, quot = CMD_calc_coeff(seuil,radius,prec)
+                    grid_conv, seuil, seuil_, quot = CMD_calc_coeff(seuil,radius)
                     grid_final = CMD_heatmap_grid_calc(grid[0],grid_conv,prec_X,prec_Y,quot)
-                    print(quot)
                     CMD_heatmap_plot(don,grid_final,grid[0],ncx[0],ncy[0],[min_X,max_X,min_Y,max_Y],[prec_X,prec_Y],seuil_)
                 except:
                     MESS_warn_mess("Réponse non reconnue !")
@@ -3083,7 +3392,7 @@ def CMD_dat_to_grid(don,ncx,ncy,nb_ecarts,nb_res,radius,prec,seuil,heatmap=False
 
 # Calcul de la grille de coefficients
 
-def CMD_calc_coeff(seuil,radius,prec):
+def CMD_calc_coeff(seuil,radius):
     """ [TA]\n
     Create the window for the grid.\n
     Removal procedure uses a circular window of radius ``radius``. Each tile is given a proximity coefficient from the center from 0 to 1.
@@ -3099,8 +3408,6 @@ def CMD_calc_coeff(seuil,radius,prec):
     ----------
     radius : int
         Detection radius around each tile for ``NaN`` completion.
-    prec : int
-        Grid size of the biggest axis. The other one is deducted by proportionality.
     seuil : float
         Exponent of the function used to compute the detection window coefficients. If negative, will be set to 0 but widen the acceptance.
     
@@ -3209,10 +3516,10 @@ def CMD_heatmap_plot(don,grid_final,grid,ncx,ncy,ext,pxy,seuil):
         Names of every X columns.
     ncy : list of str
         Names of every Y columns.
-    ext : list of 4 floats
+    ext : [float, float, float, float]
         Extend of the grid. Contains ``[min_X, max_X, min_Y, max_Y]``.
-    pxy : list of 4 floats
-        Steps of the grid for each axis. Contains ``[pas_X, pas_Y]``.
+    pxy : [float, float]
+        Size of the grid for each axis. Contains ``[prec_X, prec_Y]``.
     seuil : float
         Exponent of the function used to compute the detection window coefficients. If negative, will be set to 0 but widen the acceptance.
 
@@ -3259,7 +3566,7 @@ def CMD_heatmap_plot(don,grid_final,grid,ncx,ncy,ext,pxy,seuil):
 
 # Effectue l'interpolation scipy selon le modèle choisi
 
-def CMD_scipy_interp(don,ncx,ncy,ext,pxy,nc_data,nb_data,nb_ecarts,nb_res,prec,i_method):
+def CMD_scipy_interp(don,ncx,ncy,ext,pxy,nc_data,nb_ecarts,nb_res,i_method):
     """ [TA]\n
     Interpolate data following one given method (``i_method``).\n
     If ``i_method`` starts with ``"RBF_"``, it is part of the radial basis function.
@@ -3272,20 +3579,16 @@ def CMD_scipy_interp(don,ncx,ncy,ext,pxy,nc_data,nb_data,nb_ecarts,nb_res,prec,i
         Names of every X columns.
     ncy : list of str
         Names of every Y columns.
-    ext : list of 4 floats
+    ext : [float, float, float, float]
         Extend of the grid. Contains ``[min_X, max_X, min_Y, max_Y]``.
-    pxy : list of 4 floats
-        Steps of the grid for each axis. Contains ``[pas_X, pas_Y]``.
+    pxy : [float, float]
+        Size of the grid for each axis. Contains ``[prec_X, prec_Y]``.
     nc_data : list of str
         Names of every Z columns (actual data).
-    nb_data : int
-        Number of Z columns. The number of data.
     nb_ecarts : int
         Number of X and Y columns. The number of coils.
     nb_res : int
         The number of data per coil.
-    prec : int
-        Grid size of the biggest axis. The other one is deducted by proportionality.
     i_method : str, {``'nearest'``, ``'linear'``, ``'cubic'``, ``'RBF_linear'``, ``'RBF_thin_plate_spline'``, ``'RBF_cubic'``, ``'RBF_quintic'``, \
     ``'RBF_multiquadric'``, ``'RBF_inverse_multiquadric'``, ``'RBF_inverse_quadratic'``, ``'RBF_gaussian'``}
         Interpolation method from scipy.
@@ -3297,8 +3600,12 @@ def CMD_scipy_interp(don,ncx,ncy,ext,pxy,nc_data,nb_data,nb_ecarts,nb_res,prec,i
     
     Notes
     -----
-    scipy has a automatic built-in method for convex cropping the grid, but the process will use the ``CMD_dat_to_grid`` crop.
+    scipy has a automatic built-in method for convex cropping the grid, but the process will use the ``CMD_dat_to_grid`` crop.\n
     The last 4 methods of RBF are not to be used as of now. Otherwise, the ``epsilon`` parameter has to be modified.
+    
+    Raises
+    ------
+    * Columns contain NaN (probably not interpolated).
     
     See also
     --------
@@ -3318,25 +3625,27 @@ def CMD_scipy_interp(don,ncx,ncy,ext,pxy,nc_data,nb_data,nb_ecarts,nb_res,prec,i
         pos_data = don[[ncx[e],ncy[e]]].to_numpy()
         for r in range(nb_res):
             n = e*nb_res + r
-            print("Tour ",n+1,"/",nb_data)
             val_data = list(don[nc_data[n]])
-            if gd:
-                grid_interp.append(scii.griddata(pos_data, val_data, (gridx, gridy), method=i_method))
-            else:
-                flat = gridxy.reshape(2, -1).T
-                grid_flat = scii.RBFInterpolator(pos_data, val_data, kernel=i_method[4:], epsilon=1)(flat)
-                grid_res = np.array([[np.nan for j in range(pxy[1])] for i in range(pxy[0])])
-                for ic,gf in enumerate(grid_flat):
-                    i = ic//pxy[1]
-                    j = ic%pxy[1]
-                    grid_res[i][j] = gf
-                grid_interp.append(grid_res)
+            try:
+                if gd:
+                    grid_interp.append(scii.griddata(pos_data, val_data, (gridx, gridy), method=i_method))
+                else:
+                    flat = gridxy.reshape(2, -1).T
+                    grid_flat = scii.RBFInterpolator(pos_data, val_data, kernel=i_method[4:], epsilon=1)(flat)
+                    grid_res = np.array([[np.nan for j in range(pxy[1])] for i in range(pxy[0])])
+                    for ic,gf in enumerate(grid_flat):
+                        i = ic//pxy[1]
+                        j = ic%pxy[1]
+                        grid_res[i][j] = gf
+                    grid_interp.append(grid_res)
+            except ValueError:
+                MESS_err_mess('NaN détecté dans les colonnes "{}", "{}" et/ou "{}"'.format(ncx[e],ncy[e],nc_data[n]))
         
     return grid_interp
 
 # Effectue le kriging
 
-def CMD_kriging(don,ncx,ncy,ext,pxy,nc_data,nb_data,nb_ecarts,nb_res,prec,all_models=False,verif=False):
+def CMD_kriging(don,ncx,ncy,ext,pxy,nc_data,nb_data,nb_ecarts,nb_res,all_models=False,verif=False):
     """ [TA]\n
     Main loop for kriging.\n
     Set the right columns for X, Y and Z, asks for both experimental and theoretical variograms
@@ -3349,10 +3658,10 @@ def CMD_kriging(don,ncx,ncy,ext,pxy,nc_data,nb_data,nb_ecarts,nb_res,prec,all_mo
         Names of every X columns.
     ncy : list of str
         Names of every Y columns.
-    ext : list of 4 floats
+    ext : [float, float, float, float]
         Extend of the grid. Contains ``[min_X, max_X, min_Y, max_Y]``.
-    pxy : list of 4 floats
-        Steps of the grid for each axis. Contains ``[pas_X, pas_Y]``.
+    pxy : [float, float]
+        Size of the grid for each axis. Contains ``[prec_X, prec_Y]``.
     nc_data : list of str
         Names of every Z columns (actual data).
     nb_data : int
@@ -3361,8 +3670,6 @@ def CMD_kriging(don,ncx,ncy,ext,pxy,nc_data,nb_data,nb_ecarts,nb_res,prec,all_mo
         Number of X and Y columns. The number of coils.
     nb_res : int
         The number of data per coil.
-    prec : int
-        Grid size of the biggest axis. The other one is deducted by proportionality.
     ``[opt]`` all_models : bool, default = ``False``
         Add advanced models to selection. Some are expected to crash.
     ``[opt]`` verif : bool, default : ``False``
@@ -3917,7 +4224,7 @@ def CMD_grid_plot(don,grid_final,ncx,ncy,ext,pxy,nc_data,nb_ecarts,nb_res,output
         Names of every X columns.
     ncy : list of str
         Names of every Y columns.
-    ext : list of 4 floats
+    ext : [float, float, float, float]
         Extend of the grid. Contains ``[min_X, max_X, min_Y, max_Y]``.
     pxy : list of 4 floats
         Steps of the grid for each axis. Contains ``[pas_X, pas_Y]``.
@@ -4013,32 +4320,89 @@ def CMD_grid_plot(don,grid_final,ncx,ncy,ext,pxy,nc_data,nb_ecarts,nb_res,output
 
 # Estime les coefficients de la relation quasi-linéaire sur la conductivité
 
-def CMD_coeffs_relation(X,Y,linear,choice,verif=False):
+def CMD_coeffs_relation(X,Y,m_type="linear",choice=False,conv=True,nb_conv=50,plot=False):
+    """ [TA]\n
+    Given two arrays ``X`` and ``Y``, compute the coefficients of the chosen regression.\n
+    To be used in the context of finding a formula for a physical relation.
     
-    if verif:
+    Parameters
+    ----------
+    X : np.array of float
+        X axis of relation.
+    Y : np.array of float
+        Y axis of relation.
+    ``[opt]`` m_type : str, {``"linear"``, ``"poly_3"``, ``"inverse_3"``}, default = ``"linear"``
+        Type of wanted relation.\n
+        * ``"linear"`` is a simple linear regression.
+            .. math::
+                a + bx
+        * ``"poly_3"`` is a polynomial regression of degree 3.
+            .. math::
+                a + bx + cx^{2} + dx^{3}
+        * ``"inverse_3"`` is a symetrical relation of ``"poly_3"``.
+            .. math::
+                a + bx + cx^{\\frac{1}{2}} + dx^{\\frac{1}{3}}
+    ``[opt]`` choice : bool, default : ``False``
+        Allows the user to chose which regression estimator fits the best (between numpy's `polyfit` as 'linear' \
+        and sklearn's `TheilSenRegressor` and `HuberRegressor`). If ``False``, choose `HuberRegressor`. Ignored if ``m_type = linear``.
+    ``[opt]`` conv : bool, default : ``True``
+        If ``m_type = inverse_3``, uses an iterative method to estimate the coefficients. Otherwise, uses a simple linear system.\n
+        The iterative method usually gives better results but is a bit slower.
+    ``[opt]`` nb_conv : int, default : ``50``
+        If ``conv = True``, represent the number of points used for the iterative method. Taking more points is slower but more precise.
+    ``[opt]`` plot : bool, default : ``False``
+        Plots all steps.
+    
+    Returns
+    -------
+    model : list of float
+        List of found coefficients for the chosen method (2 for linear, else 4).
+    
+    Notes
+    -----
+    [DEV] The ``conv`` parameter may be removed if one of the two procedure is deemed better in all cases.
+    
+    See also
+    --------
+    ``FORTRAN_new_const, CMD_poly_regr, CMD_convergence_inv_poly``
+    """
+    if plot or (choice and m_type != "linear"):
         fig,ax=plt.subplots(nrows=1,ncols=1,figsize=(CONFIG.fig_width,CONFIG.fig_height))
         ax.plot(X,Y,'+',label="Points initiaux")
-    if linear:
+        ax.set_xlabel(r"signal(ph)")
+        ax.set_ylabel(r"$\sigma$")
+    if m_type == "linear":
         l_r = linregress(X,Y)
-        if verif:
-            print(l_r.intercept, l_r.slope)
+        if plot:
             ax.plot(X,l_r.intercept+X*l_r.slope,'o',ms=1,label="Régression linéaire")
+            ax.set_title("Modèle linéaire VS nuage de points")
             plt.legend()
         return [l_r.intercept, l_r.slope]
     else:
-        l = ["linear","theilsen","huber"]
-        p_r = CMD_inverse_regr(X,Y,choice)
         if choice:
-            p_rx = []
+            l = ["linear","theilsen","huber"]
+        else:
+            l = ["huber"]
+        if m_type == "poly_3":
+            p_r = CMD_poly_regr(X,Y,choice)
+            p_r_list = []
             for i,c in enumerate(p_r):
-                p_rx.append(c[0]+c[1]*Y+c[2]*Y**2+c[3]*Y**3)
-                if verif:
-                    ax.plot(p_rx[i],Y,"o",ms=1,label=l[i])
-            if verif:
-                plt.legend()
-                plt.show(block=False)
-                plt.pause(0.25)
-            
+                p_r_list.append(c[0]+c[1]*X+c[2]*X**2+c[3]*X**3)
+                if plot or choice:
+                    ax.plot(X,p_r_list[i],"o",ms=1,label=l[i])
+        else:
+            p_r = CMD_poly_regr(Y,X,choice)
+            p_r_list = []
+            for i,c in enumerate(p_r):
+                p_r_list.append(c[0]+c[1]*Y+c[2]*Y**2+c[3]*Y**3)
+                if plot or choice:
+                    ax.plot(p_r_list[i],Y,"o",ms=1,label=l[i])
+        if plot or choice:
+            ax.set_title("Modèles VS nuage de points")
+            plt.legend()
+            plt.show(block=False)
+            plt.pause(0.25)
+        if choice:
             correct = False
             while correct == False:
                 if GUI:
@@ -4053,42 +4417,83 @@ def CMD_coeffs_relation(X,Y,linear,choice,verif=False):
                     inp = input()
                 try:
                     inp = int(inp)
-                    model = p_rx[inp]
+                    if m_type == "poly_3":
+                        model = p_r[inp]
+                    else:
+                        model = p_r_list[inp]
                     correct = True
                 except ValueError:
                     MESS_warn_mess("Réponse non reconnue !")
                 except IndexError:
                     MESS_warn_mess("Le modèle {} n'existe pas !".format(inp))
-        else:
-            model = p_r[0][0]+p_r[0][1]*Y+p_r[0][2]*Y**2+p_r[0][3]*Y**3
-        if verif:
             plt.close(fig)
+        else:
+            if m_type == "poly_3":
+                model = p_r[0]
+            else:
+                model = p_r[0][0]+p_r[0][1]*Y+p_r[0][2]*Y**2+p_r[0][3]*Y**3
+        
+        if m_type == "poly_3":
+            return list(model)
         
         nb_pts = len(Y)
-        npc_l = np.array([0,nb_pts//3,2*nb_pts//3,nb_pts-1])
-        X_c = model[npc_l]
-        X_c_l = np.array([[1,xi,xi**(1/2),xi**(1/3)] for xi in X_c])
-        Y_c = Y[npc_l]
-        fc = np.linalg.solve(X_c_l, Y_c)
+        if conv:
+            mc = len(Y)/(nb_conv**2)
+            npc_l = np.array([int(mc*i**2) for i in range(nb_conv)])
+            X_c = model[npc_l]
+            Y_c = Y[npc_l]
+            fc = CMD_convergence_inv_poly(Y_c,X_c,nb_conv) # Inversion X et Y
+        else:
+            npc_l = np.array([0,nb_pts//3,2*nb_pts//3,nb_pts-1])
+            X_c = model[npc_l]
+            X_c_l = np.array([[1,xi,xi**(1/2),xi**(1/3)] for xi in X_c])
+            Y_c = Y[npc_l]
+            fc = np.linalg.solve(X_c_l, Y_c)
         
-        if verif:
+        if plot:
             X_plot = np.linspace(min(model),max(model),100)
             fig,ax=plt.subplots(nrows=1,ncols=1,figsize=(CONFIG.fig_width,CONFIG.fig_height))
             ax.plot(model,Y,"o",ms=4,label="Estimation")
             ax.plot(X_plot,fc[0]+fc[1]*X_plot+fc[2]*X_plot**(1/2)+fc[3]*X_plot**(1/3),"-",label="Modèle inverse")
-            ax.set_title("Modèle final")
+            ax.set_title("Allure de la relation")
+            ax.set_xlabel(r"signal(ph)")
+            ax.set_ylabel(r"$\sigma$")
             plt.legend()
             plt.show(block=False)
             plt.pause(0.25)
-            print(fc)
         return fc
 
-# Effectue l'interpolation robuste sur le nuage de points transposé sur un modèle polynomial de degré 3
-
-def CMD_inverse_regr(X,Y,choice):
+def CMD_poly_regr(X,Y,choice):
+    """ [TA]\n
+    Given two arrays ``X`` and ``Y``, compute the coefficients of the polynomial regression.\n
+    To be used in the context of finding a formula for a physical relation.
     
-    x = Y.copy()
-    y = X.copy()
+    Parameters
+    ----------
+    X : np.array of float
+        X axis of relation.
+    Y : np.array of float
+        Y axis of relation.
+    ``[opt]`` choice : bool, default : ``False``
+        Allows the user to chose which regression estimator fits the best (between numpy's `polyfit`\
+        and sklearn's `TheilSenRegressor` and `HuberRegressor`). If ``False``, choose `HuberRegressor`
+    
+    Returns
+    -------
+    coefs_list : list of float
+        List of found coefficients for the chosen method (2 for linear, else 4).
+    
+    Notes
+    -----
+    Subfunction of ``CMD_coeffs_relation``.\n
+    sklearn's estimators are glitchy and returns half the value of degree 0 coefficient. Hence it is manually doubled
+    
+    See also
+    --------
+    ``CMD_coeffs_relation, sklearn.preprocessing.PolynomialFeatures, sklearn.pipeline.make_pipeline``
+    """
+    x = X.copy()
+    y = Y.copy()
 
     coefs_list = []
     xd = x[:,np.newaxis]
@@ -4108,10 +4513,160 @@ def CMD_inverse_regr(X,Y,choice):
         model = make_pipeline(poly, e)
         model.fit(xd, y)
         coefs = e.coef_
-        coefs[0] *= 2 # On a rien vu et la magie opère !
+        coefs[0] *= 2
         coefs_list.append(coefs)
             
     return coefs_list
+
+def CMD_mse(X,Y,c):
+    """ [TA]\n
+    Compute the mean square error between the ``Y`` of the polynomial model (target) and the ``new_Y`` of the current inverse model.
+    Is the main convergence critera for the iterative method.
+    
+    Parameters
+    ----------
+    X : np.array of float
+        X axis of relation.
+    Y : np.array of float
+        Y axis of relation.
+    c : [float, float, float, float]
+        List of coefficients of the current inverse model.
+    
+    Returns
+    -------
+    mse : float
+        Mean square error between ``Y`` and ``new_Y``.
+    
+    Notes
+    -----
+    Subfunction of ``CMD_convergence_inv_poly`` and ``CMD_convergence_inv_step``.\n
+    """
+    new_Y = c[0] + c[1]*X + c[2]*X**(1/2) + c[3]*X**(1/3)
+    mse = sum((new_Y - Y)**2)
+    return mse
+    
+
+def CMD_convergence_inv_poly(X,Y,nb_pts,nb_tours=1000,force_fin=25,verif=False):
+    """ [TA]\n
+    Given two arrays ``X`` and ``Y``, converges to a transposed polynomial formula with an inverse polynomial formula (see ``CMD_coeffs_relation``, ``"inverse_3"``).
+    
+    Parameters
+    ----------
+    X : np.array of float
+        X axis of relation.
+    Y : np.array of float
+        Y axis of relation.
+    nb_pts : int
+        Number of points used for the iterative method (length of ``X`` and ``Y``). Taking more points is slower but more precise.
+    ``[opt]`` nb_tours : int, default : ``1000``
+        Number of loops for each iterative cycle. At the end, check if mse is lower that the ``fin_mse`` threshold. Otherwise, redo a cycle.
+    ``[opt]`` force_fin : int, default : ``25``
+        Number of maximum cycles. Upon reach, return the final result regardless of its relevance.
+    ``[opt]`` verif : bool, default : ``False``
+        Prints some relevant informations each cycle for tesing purposes.
+    
+    Returns
+    -------
+    best_cl : list of float
+        List of best found coefficients.
+    
+    Notes
+    -----
+    Subfunction of ``CMD_coeffs_relation``.\n
+    Description of the method :\n
+    The algorithm is a probabilistic iterative method minimizing the mean square error between the target ``Y`` and the current model (``CMD_mse``).
+    For each step, one of the four coefficients is chosen randomly. It is set to a value which is in a local minimum for mse.
+    If the current model is better, we keep it. Else, its is kept with a certain probability (``CMD_convergence_inv_step``).
+    The overall best model is saved as ``best_cl``.
+    The maximum number of steps is ``nb_tours * force_fin``.
+    
+    See also
+    --------
+    ``CMD_coeffs_relation, CMD_convergence_inv_step, CMD_mse``
+    """
+    coef_list = [float(min(X)), float((max(Y)-min(Y))/(max(X)-min(X))), 0, 0]
+    current_coef = 3
+    diff_y = max(Y)-min(Y)
+    fin = False
+    fin_mse = diff_y/5
+    if verif:
+        print("fin : ",fin_mse)
+    best_mse = np.inf
+    best_cl = coef_list.copy()
+    cpt = 0
+    while not fin:
+        for i in range(nb_tours):
+            mse = CMD_mse(X,Y,coef_list)
+            r = np.random.randint(4)
+            coef_list, mse = CMD_convergence_inv_step(X,Y,coef_list,mse,current_coef)
+            current_coef = r
+            if best_mse > mse:
+                best_mse = mse
+                best_cl = coef_list.copy()
+            cpt += 1
+        if verif:
+            print(best_mse)
+        if best_mse < fin_mse or cpt >= nb_tours*force_fin:
+            fin = True
+    if verif:
+        print(cpt," ",fin_mse," ",best_mse)
+    return best_cl
+    
+def CMD_convergence_inv_step(X,Y,coef_list,mse,cc):
+    """ [TA]\n
+    Perform one step of the iterative method.
+    Converges to the best mean square error by incrementing the chosen parameter (of index ``cc``) by a fixed value until mse increases.\n
+    Then, go the other way with a step twice as small, until the step is small enough.
+    
+    Parameters
+    ----------
+    X : np.array of float
+        X axis of relation.
+    Y : np.array of float
+        Y axis of relation.
+    coefs_list : list of float
+        List of current coefficients.
+    mse : float
+        Mean square error with the initial configuration.
+    cc : int, {``0``, ``1``, ``2``, ``3``}
+        Index of the coefficient to iterate on.
+    
+    Returns
+    -------
+    best_cl : list of float
+        List of best found coefficients.
+    
+    Notes
+    -----
+    Subfunction of ``CMD_convergence_inv_poly``.\n
+
+    See also
+    --------
+    ``CMD_convergence_inv_poly, CMD_mse``
+    """
+    cl_cpy = coef_list.copy()
+    sign = True
+    fin = False
+    prev_mse = mse
+    step = 1
+    while not fin:
+        mse = CMD_mse(X,Y,cl_cpy)
+        if mse > prev_mse:
+            sign = not sign
+            step /= 2
+            r = np.random.random()
+            if r > np.exp(-(mse/prev_mse)*3):
+                cl_cpy[cc] = coef_list[cc]
+            else:
+                prev_mse = mse
+                coef_list[cc] = cl_cpy[cc]
+        else:
+            prev_mse = mse
+            coef_list[cc] = cl_cpy[cc]
+        cl_cpy[cc] += (int(not sign) - int(sign))*step
+        if step < 0.01:
+            fin = True
+    return coef_list, prev_mse
 
 # Change la date dans un fichier .dat
 
@@ -4153,7 +4708,7 @@ def DAT_change_date(file_list,date_str,sep,replace,output_file_list,not_in_file=
     * ``file_list`` and ``output_file_list`` are different sizes.
     * Invalid date.
     """
-    if output_file_list != None and len(file_list) != len(output_file_list) and not replace:
+    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and not not_in_file:
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     for ic, file in enumerate(file_list):
         try:
@@ -4229,7 +4784,7 @@ def DAT_pop_and_dec(file_list,colsup,sep,replace,output_file_list,not_in_file=Fa
     * Wrong separator or column not found.
     * ``file_list`` and ``output_file_list`` are different sizes.
     """
-    if output_file_list != None and len(file_list) != len(output_file_list) and not replace:
+    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and not not_in_file:
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     for ic, file in enumerate(file_list):
         try:
@@ -4291,7 +4846,7 @@ def DAT_switch_cols(file_list,col_a,col_b,sep,replace,output_file_list,not_in_fi
     * Wrong separator or column not found.
     * ``file_list`` and ``output_file_list`` are different sizes.
     """
-    if output_file_list != None and len(file_list) != len(output_file_list) and not replace:
+    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and not not_in_file:
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     for ic, file in enumerate(file_list):
         try:
@@ -4369,7 +4924,7 @@ def DAT_remove_cols(file_list,colsup_list,keep,sep,replace,output_file_list,not_
     --------
     ``DAT_light_format``
     """
-    if output_file_list != None and len(file_list) != len(output_file_list) and not replace:
+    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and not not_in_file:
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     for ic, file in enumerate(file_list):
         try:
@@ -4453,7 +5008,7 @@ def DAT_remove_data(file_list,colsup_list,i_min,i_max,sep,replace,output_file_li
     --------
     ``DAT_min_max_col``
     """
-    if output_file_list != None and len(file_list) != len(output_file_list) and not replace:
+    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and not not_in_file:
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     if i_min > i_max:
         MESS_err_mess("La ligne de fin ({}) et avant celle du début ({})".format(i_max,i_min))
@@ -4488,7 +5043,7 @@ def DAT_remove_data(file_list,colsup_list,i_min,i_max,sep,replace,output_file_li
 
 # Permet d'afficher les valeurs extrêmes d'une colonne, pour potentiellement détecter des données à retirer
 
-def DAT_min_max_col(file_list,col_list,n,sep):
+def DAT_min_max_col(file_list,col_list,sep,n):
     """ [TA]\n
     Prints the top and bottom ``n`` values of the requested columns.
     To be used to find extreme values that are due to glitches.
@@ -4499,10 +5054,10 @@ def DAT_min_max_col(file_list,col_list,n,sep):
         List of files to process.
     col_list: list of str
         Column names.
-    n : int
-        Number of top values to print.
     sep : str
         Dataframe separator.
+    n : int
+        Number of top values to print.
     
     Raises
     ------
@@ -4579,7 +5134,7 @@ def DAT_light_format(file_list,sep,replace,output_file_list,nb_ecarts,restr,not_
     --------
     ``DAT_remove_cols``
     """
-    if output_file_list != None and len(file_list) != len(output_file_list) and not replace:
+    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and not not_in_file:
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     if restr in [[''],None]:
         restr = []
@@ -4657,7 +5212,7 @@ def DAT_change_sep(file_list,sep,new_sep,replace,output_file_list,not_in_file=Fa
     * File not found.
     * ``file_list`` and ``output_file_list`` are different sizes.
     """
-    if output_file_list != None and len(file_list) != len(output_file_list) and not replace:
+    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and not not_in_file:
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     for ic, file in enumerate(file_list):
         try:
@@ -4942,15 +5497,14 @@ def TRANS_matrix_to_grd(file,fmt,output_file):
             spl = output_file.split(".")
             filename = spl[0]+"_"+str(n+1)+"."+spl[1]
         try:
-            match fmt:
-                case 'surfer6bin':
-                    grd.write_surfer6bin(filename, data)
-                case 'surfer6ascii':
-                    grd.write_surfer6ascii(filename, data)
-                case 'surfer7bin':
-                    grd.write_surfer7bin(filename, data)
-                case _:
-                    MESS_err_mess('Format de fichier inconnu : {}'.format(fmt))
+            if fmt == 'surfer6bin':
+                grd.write_surfer6bin(filename, data)
+            elif fmt == 'surfer6ascii':
+                grd.write_surfer6ascii(filename, data)
+            elif fmt == 'surfer7bin':
+                grd.write_surfer7bin(filename, data)
+            else:
+                MESS_err_mess('Format de fichier inconnu : {}'.format(fmt))
         except TypeError as e:
             MESS_err_mess("Erreur de type : '{}'".format(e))
 
@@ -4989,15 +5543,14 @@ def TRANS_grd_to_matrix(file_list,fmt,output_file):
     ncz = []
     for ic,file in enumerate(file_list):
         try:
-            match fmt:
-                case 'surfer6bin':
-                    data = grd.read_surfer6bin(file)
-                case 'surfer6ascii':
-                    data = grd.read_surfer6ascii(file)
-                case 'surfer7bin':
-                    data = grd.read_surfer7bin(file)
-                case _:
-                    MESS_err_mess('Format de fichier inconnu : {}'.format(fmt))
+            if fmt ==  'surfer6bin':
+                data = grd.read_surfer6bin(file)
+            elif fmt ==  'surfer6ascii':
+                data = grd.read_surfer6ascii(file)
+            elif fmt ==  'surfer7bin':
+                data = grd.read_surfer7bin(file)
+            else:
+                MESS_err_mess('Format de fichier inconnu : {}'.format(fmt))
         except TypeError as e:
             MESS_err_mess("Erreur de type : '{}'".format(e))
         except OSError as e:
@@ -5267,7 +5820,7 @@ def JSON_add_device(app_name,config,nb_ecarts,freq_list,gps,gps_dec,TR_l,TR_t,he
     ----------
     app_name : str
         Device name. Can be anything.
-    config : str, {``"HCP"``, ``"VCP"``, ``"PRP_CS"``, ``"PRP_DEM"``, ``"PAR"``, ``"CUS"``}
+    config : str, {``"HCP"``, ``"VCP"``, ``VVCP``,``"PRP_CS"``, ``"PRP_DEM"``, ``"PAR"``, ``"CUS"``}
         Coil configuration.
     nb_ecarts : int
         Number of X and Y columns. The number of coils.
@@ -5321,7 +5874,7 @@ def JSON_add_device(app_name,config,nb_ecarts,freq_list,gps,gps_dec,TR_l,TR_t,he
     #     "app_list": []
     #    }
     
-    config_list = ["HCP","VCP","PRP_CS","PRP_DEM","PAR","CUS"]
+    config_list = ["HCP","VCP","VVCP","PRP_CS","PRP_DEM","PAR","CUS"]
     if config not in config_list:
         MESS_err_mess("La configuration choisie est inconnue ({})".format(config_list))
     if len(TR_l) != nb_ecarts:
@@ -5349,6 +5902,7 @@ def JSON_add_device(app_name,config,nb_ecarts,freq_list,gps,gps_dec,TR_l,TR_t,he
     new_app["nb_ecarts"] = nb_ecarts
     new_app["TR_l"] = TR_l
     new_app["TR_t"] = TR_t
+    new_app["TR"] = [np.sqrt(TR_l[i]**2 + TR_t[i]**2) for i in range(nb_ecarts)]
     new_app["height"] = height
     new_app["freq_list"] = freq_list
     new_app["bucking_coil"] = bucking_coil
@@ -5518,7 +6072,7 @@ def JSON_print_device_selected(app,nc):
 # Récupère les constantes associées à l'appareil.
 # Les créent si elles n'existent pas.
 
-def JSON_add_coeff(config,TR,height,freq_list):
+def JSON_add_coeff(app_data):
     """ [TA]\n
     Create dictionary with requested components about the device.\n
     If the parameters are already in the ``JSONs/Constantes.json`` file, then it simply takes the results.
@@ -5530,44 +6084,42 @@ def JSON_add_coeff(config,TR,height,freq_list):
     
     Parameters
     ----------
-    config : str, {``"HCP"``, ``"VCP"``, ``"PRP_CS"``, ``"PRP_DEM"``, ``"PAR"``, ``"CUS"``}
-        Coil configuration.
-    TR : list of float
-        Total distance between each coil and the transmitter coil, on lateral axis.
-    height : float
-        Height of the device during the prospection.
-    freq_list : list of int
-        Frequences of each coil. If all are the same, can be of length 1.
+    app_data : dict
+        Dictionary of device data
     
     Returns
     -------
     dict_const : dict
         Dictionary with the initial parameters and the affiliated constants.
+    
+    Raises
+    ------
+    A lot, but everything is handled by ``try`` keywords.
+    
+    See also
+    --------
+    ``JSON_add_device``
     """
     const_list = {}
     with open(CONFIG.json_path+"Constantes.json", 'r') as f:
        const_list = json.load(f)
     
     ### À DÉCOMMENTER POUR RÉINITIALISER LE FICHIER ###
-    #const_list ={}
+    const_list ={}
     
     new_const = {}
-    new_const["config"] = [[config, {}]]
-    new_const["config"][0][1]["TR"] = [[TR, {}]]
-    new_const["config"][0][1]["TR"][0][1]["height"] = [[height, {}]]
-    new_const["config"][0][1]["TR"][0][1]["height"][0][1]["freq_list"] = [[freq_list, {}]]
-    
-    # INSÉRER FONCTION FORTRAN #
-    #os.system
-
-    # new_const["config"][1]["TR"][1]["height"][1]["freq_list"][1] = fortran.coeffs()
-    
-    new_const["config"][0][1]["TR"][0][1]["height"][0][1]["freq_list"][0][1] = {"sigma_a_ph": [[0,0,0,0],[0,0,0,0],[0,0,0,0]],
-                                                                     "Kph_a_ph": [0,0,0],
-                                                                     "sigma_a_qu": [0,0,0],
-                                                                     "Kph_a_qu": 0 }
+    new_const["config"] = [[app_data["config"], {}]]
+    new_const["config"][0][1]["TR"] = [[app_data["TR"], {}]]
+    new_const["config"][0][1]["TR"][0][1]["height"] = [[app_data["height"], {}]]
+    new_const["config"][0][1]["TR"][0][1]["height"][0][1]["freq_list"] = [[app_data["freq_list"], {}]]
     
     # OK j'avoue j'assume moyen cette merde mais ça marche complètement
+    # On parcourt un arbre où chaque embranchement est une valeur du paramètre de l'étage.
+    # La structure a comme étage de haut en bas : "config", "TR", "height", "freq_list".
+    # On commence à parcourir "config". Si la config est nouvelle, on calcule les coeffs par Fortran, puis on insère une branche contenant les trois autres paramètres et en feuille les valeurs des constantes.
+    # Sinon, on se rend dans la config connue, et on cherche sur "TR" etc.
+    # Si à la fin on a trouvé une occurence pour chacun des paramètres, ça veut dire que les constantes ont déjà été calculées pour cette appareil. On la prend et on insère rien dans le .json.
+    # On trie par ordre alpha ou croissant la base pour la lisibilité (ne change pas la vitesse de recherche).
     try:
         ic1 = [e[0] for e in const_list["config"]].index(new_const["config"][0][0])
         #print("(1)", [e[0] for e in const_list["config"]])
@@ -5588,21 +6140,28 @@ def JSON_add_coeff(config,TR,height,freq_list):
                     #print("(4)", [e[0] for e in const_list_part["freq_list"]])
                     new_const_part = new_const_part["freq_list"][0][1]
                     const_list_part = const_list_part["freq_list"][ic4][1]
-                    MESS_warn_mess("Résultat ({}, {}) déjà ajouté".format(config,TR))
+                    # Constante déjà calculée
+                    new_const["config"][0][1]["TR"][0][1]["height"][0][1]["freq_list"][0][1] = const_list_part
                 except ValueError:
-                    const_list["config"][ic1][1]["TR"][ic2][1]["height"][ic3][1]["freq_list"].append(new_const_part["freq_list"])
-                    const_list["config"][ic1][1]["TR"][ic2][1]["height"][ic3][1]["freq_list"] = sorted(const_list["config"][ic1][1]["TR"][ic2][1]["height"][ic3][1]["freq_list"], key=lambda x: x[0])
+                    new_const["config"][0][1]["TR"][0][1]["height"][0][1]["freq_list"][0][1] = FORTRAN_new_const(app_data)
+                    const_list["config"][ic1][1]["TR"][ic2][1]["height"][ic3][1]["freq_list"].append(new_const_part["freq_list"][0])
+                    const_list["config"][ic1][1]["TR"][ic2][1]["height"][ic3][1]["freq_list"] = \
+                        sorted(const_list["config"][ic1][1]["TR"][ic2][1]["height"][ic3][1]["freq_list"], key=lambda x: "".join(str(s) for s in x[0]))
             except ValueError:
+                new_const["config"][0][1]["TR"][0][1]["height"][0][1]["freq_list"][0][1] = FORTRAN_new_const(app_data)
                 const_list["config"][ic1][1]["TR"][ic2][1]["height"].append(new_const_part["height"][0])
                 const_list["config"][ic1][1]["TR"][ic2][1]["height"] = sorted(const_list["config"][ic1][1]["TR"][ic2][1]["height"], key=lambda x: float(x[0]))
         except ValueError:
+            new_const["config"][0][1]["TR"][0][1]["height"][0][1]["freq_list"][0][1] = FORTRAN_new_const(app_data)
             const_list["config"][ic1][1]["TR"].append(new_const_part["TR"][0])
-            const_list["config"][ic1][1]["TR"] = sorted(const_list["config"][ic1][1]["TR"], key=lambda x: x[0])
+            const_list["config"][ic1][1]["TR"] = sorted(const_list["config"][ic1][1]["TR"], key=lambda x: "".join(str(s) for s in x[0])) # Petite technique pour trier des listes ;)
     except ValueError:
+        new_const["config"][0][1]["TR"][0][1]["height"][0][1]["freq_list"][0][1] = FORTRAN_new_const(app_data)
         const_list["config"].append(new_const["config"][0])
         const_list["config"] = sorted(const_list["config"], key=lambda x: x[0])
     except KeyError or IndexError:
         MESS_warn_mess("Base de résultat réinitialisée")
+        new_const["config"][0][1]["TR"][0][1]["height"][0][1]["freq_list"][0][1] = FORTRAN_new_const(app_data)
         const_list = new_const
     # except:
     #     MESS_err_mess("Une erreur inconnue s'est produite (JSON_add_coeff)")
@@ -5623,9 +6182,208 @@ def JSON_add_coeff(config,TR,height,freq_list):
     
     #print(dict_const)
     return dict_const
+    
+# Calcule puis ajoute les constantes liées à l'appareil choisi.
 
+def FORTRAN_new_const(app_data):
+    """ [TA]\n
+    Uses Fortran to compute a dataframe of constants values.\n
+    Then estimates the coefficients of a linear of polynomial relation for each coil.
+    
+    Parameters
+    ----------
+    app_data : dict
+        Dictionary of device data
+    
+    Returns
+    -------
+    const_dict : dict
+        Dictionary of constants.
+    
+    Notes
+    -----
+    Subfunction of ``JSON_add_coeff``.\n
+    The error code ``32512`` of ``os.system`` is for unknown command.
+    It should pop up if ``wine`` is not installed on Linux, as ``.exe`` files are not compatible by default.\n
+    macOS (``Darwin``) has not been tested yet (no Apple device).
+    
+    Raises
+    ------
+    * [Linux] `wine` is not installed.
+    * Fortran executable fails.
+    * Unknown OS.
+    
+    See also
+    --------
+    ``JSON_add_coeff, FORTRAN_constab, CMD_coeffs_relation``
+    """
+    os.chdir(CONFIG.script_path)
+    fortran_folder = "Fortran/"
+    output_file = fortran_folder+"_config_.cfg"
+    fortran_exe = fortran_folder+"test.exe"
+    var = 21
+    FORTRAN_constab(output_file,app_data,variation=var,S_rau=1,S_eps_r=1,S_kph=0,S_kqu=0,F_rau=1001,F_eps_r=None,F_kph=0.01,F_kqu=0.001)
+    if OS_KERNEL == "Linux":
+        error_code = os.system("wine {} {}".format(fortran_exe,"test.cfg"))
+        if error_code == 32512:
+            MESS_err_mess("[Linux] Nécessite d'installer \"wine\" pour lire un .exe")
+    elif OS_KERNEL == "Windows":
+        error_code = os.system("start {} {}".format(fortran_exe,output_file))
+    elif OS_KERNEL == "Darwin":
+        error_code = os.system("./{} -f {}".format(fortran_exe,output_file))
+    else:
+        MESS_err_mess("PAS IMPLÉMENTÉ POUR L'OS '{}'".format(OS_KERNEL))
+    if error_code:
+        MESS_err_mess("[Fortran] ERREUR")
+    
+    don = pd.read_csv(fortran_folder+"test.cfg"[:-4]+".dat",sep='\s+',header=None)
+    #print(don)
+    const_dict = {"sigma_a_ph": [], "Kph_a_ph": [], "sigma_a_qu": [], "Kph_a_qu": 0}
+    for i in range(app_data["nb_ecarts"]):
+        const_dict["sigma_a_ph"].append(CMD_coeffs_relation(np.array(1/don.iloc[:,0]),np.array(don.iloc[:,4]),m_type="poly_3"))
+        const_dict["Kph_a_ph"].append(CMD_coeffs_relation(1/don.iloc[:,0],don.iloc[:,5],m_type="linear")[1])
+        const_dict["sigma_a_qu"].append(CMD_coeffs_relation(don.iloc[var**2:,2],don.iloc[var**2:,4],m_type="linear")[1])
+    
+    return const_dict
 
+# Construit le fichier d'entrée du Fortran.
 
+def FORTRAN_constab(output_file,app_data,variation=None,S_rau=1,S_eps_r=1,S_kph=0,S_kqu=0,F_rau=None,F_eps_r=None,F_kph=None,F_kqu=None):
+    """ [TA]\n
+    Construct a file that contains the mandatory data for the Fortran file.\n
+    
+    Parameters
+    ----------
+    app_data : dict
+        Dictionary of device data
+    
+    Returns
+    -------
+    output_file : str
+        File that will contain the informations for the Fortran file.
+    app_data : dict
+        Dictionary of device data
+    ``[opt]`` variation : ``None`` or int, default = ``None``
+        Number of different values for each moving parameter. The maximum values are
+            * 1 parameter : ``10000``.
+            * 2 parameters : ``100``.
+            * 3 parameters : ``21``.
+            * 4 parameters : ``10``.
+    ``[opt]`` S_rau : int, default = ``1``
+        Starting value for :math:`\\rho`.
+    ``[opt]`` S_eps_r : int, default = ``1``
+        Starting value for :math:`\\epsilon_{r}`.
+    ``[opt]`` S_kph : int, default = ``0``
+        Starting value for :math:`k_{ph}`.
+    ``[opt]`` S_kqu : int, default = ``0``
+        Starting value for :math:`k_{qu}`.
+    ``[opt]`` F_rau : ``None`` or int, default = ``None``
+        Ending value for :math:`\\rho`. If ``None``, :math:`\\rho` is constant.
+    ``[opt]`` F_eps_r : ``None`` or int, default = ``None``
+        Ending value for :math:`\\epsilon_{r}`. If ``None``, :math:`\\epsilon_{r}` is constant.
+    ``[opt]`` F_kph : ``None`` or int, default = ``None``
+        Ending value for :math:`k_{ph}`. If ``None``, :math:`k_{ph}` is constant.
+    ``[opt]`` F_kqu : ``None`` or int, default = ``None``
+        Ending value for :math:`k_{qu}`. If ``None``, :math:`k_{qu}` is constant.
+    
+    Notes
+    -----
+    Subfunction of ``FORTRAN_new_const``.\n
+    The indents are mandatory for the Fortran executable.\n
+    At least one of the 4 ``F_{arg}`` should be set.
+    
+    
+    Raises
+    ------
+    * Unknown configuration.
+    * Values are too big (goes beyond the maximum allocated space).
+    * No parameters are marked as varying.
+    * The number of computation lines goes beyond 10000.
+    
+    See also
+    --------
+    ``FORTRAN_new_const``
+    """
+    with open(output_file, 'w') as f:
+        f.write(" # Geometrie(s) d'appareil\n")
+        nb_spaces = 2 - len(str(app_data["nb_ecarts"]))
+        if nb_spaces < 0:
+            MESS_err_mess("Le nombre de bobines ne peut pas dépasser 99 ! (c'est beaucoup)")
+        f.write(" "*nb_spaces+"{}\n".format(app_data["nb_ecarts"]))
+        try:
+            config_id = next(i for i,c in enumerate(["CUS","PRP_CS","???","HCP","PAR","VCP","PAR","VVCP","PRP_DEM"]) if c == app_data["config"])
+        except StopIteration:
+            MESS_err_mess("Configuration inconnue")
+        nb_spaces = 2 - len(str(config_id)) # Est toujours égal à 1 pour l'instant
+        for i in range(app_data["nb_ecarts"]):
+            f.write(" "*nb_spaces+"{}\n".format(config_id))
+            f.write(" "*(2 - len(str(int(app_data["TR"][i]))))+"{:.2f}\n".format(app_data["TR"][i]))
+            f.write(" "*(2 - len(str(int(app_data["height"]))))+"{:.2f}\n".format(app_data["height"]))
+        
+        f.write(" # Parametres utiles pour CSTM\n")
+        f.write(" 0.00\n")
+        f.write(" 0.00\n")
+        f.write(" 0.00\n")
+        f.write("90.00\n")
+        f.write(" 1.00\n")
+        f.write(" 0.00\n")
+        
+        f.write(" # Tableau de frequence(s)\n")
+        nb_spaces = 2 - len(str(len(app_data["freq_list"])))
+        if nb_spaces < 0:
+            MESS_err_mess("Le nombre de fréquences ne peut pas dépasser 99 ! (c'est beaucoup)")
+        f.write(" "*nb_spaces+"{}\n".format(len(app_data["freq_list"])))
+        for freq in app_data["freq_list"]:
+            nb_spaces = 7 - len(str(int(freq)))
+            if nb_spaces < 0:
+                MESS_err_mess("La fréquences ne peut pas dépasser 9999999 Hz ! (c'est beaucoup)")
+            f.write(" "*nb_spaces+"{:.2f}\n".format(freq))
+        
+        f.write(" # Terrain 1D\n")
+        nb_var = int(F_rau!=None)+int(F_eps_r!=None)+int(F_kph!=None)+int(F_kqu!=None)
+        if nb_var == 0:
+            MESS_err_mess("Sélectionnez au moins un paramètre à varier {rau,eps_r,kph,kqu}")
+        f.write(" "+"{}\n".format(nb_var))
+        limit_var = [10000,100,21,10]
+        if variation == None:
+            variation = limit_var[nb_var-1]
+        else:
+            if variation > limit_var[nb_var-1]:
+                MESS_err_mess("Le nombre d'itérations totale doit être inférieur à variation**[nb params] : {}".format(limit_var[nb_var-1]))
+        nb_spaces = 5 - len(str(variation))
+        f.write(" "*nb_spaces+"{}\n".format(variation))
+        S_var_list = [S_rau,S_eps_r,S_kph,S_kqu]
+        F_var_list = [F_rau,F_eps_r,F_kph,F_kqu]
+        nb_spaces_var = [4,7,5,5]
+        for ic,p in enumerate(F_var_list):
+            if p != None:
+                f.write(" "*3+"{}".format(ic+1))
+        f.write("\n")
+        for ic,p in enumerate(S_var_list):
+            if ic <= 1:
+                nb_spaces = nb_spaces_var[ic] - len(str(int(p)))
+                if nb_spaces < 0:
+                    MESS_err_mess("Valeur de départ trop grande ({})".format(p))
+                f.write(" "*nb_spaces+"{:.2f}".format(p))
+            else:
+                f.write(" "*nb_spaces_var[ic]+"{:.5E}".format(p))
+        f.write("\n")
+        for ic,p in enumerate(F_var_list):
+            if p != None:
+                if ic <= 1:
+                    nb_spaces = nb_spaces_var[ic] - len(str(int(p)))
+                    if nb_spaces < 0:
+                        MESS_err_mess("Valeur de départ trop grande ({})".format(p))
+                    f.write(" "*nb_spaces+"{:.2f}".format(p))
+                else:
+                    f.write(" "*nb_spaces_var[ic]+"{:.5E}".format(p))
+            else:
+                if ic <= 1:
+                    nb_spaces = nb_spaces_var[ic] - len(str(int(S_var_list[ic])))
+                    f.write(" "*nb_spaces+"{:.2f}".format(S_var_list[ic]))
+                else:
+                    f.write(" "*nb_spaces_var[ic]+"{:.5E}".format(S_var_list[ic]))
+        
 
 
 

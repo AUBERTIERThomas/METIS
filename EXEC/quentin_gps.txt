@@ -1,7 +1,7 @@
 CMD_exec_known_device
-8
-file_list="cmd_grid_survey_interpolated.dat"
+0
+file_list="cmd_GPS_survey.dat"
 sup_na=False
-choice=True
+choice=False
 regr=False
 light_restr=[Inv]

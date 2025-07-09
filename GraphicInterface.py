@@ -11,6 +11,7 @@ import tkinter.ttk as ttk
 import subprocess
 import os
 import glob
+import platform
 import matplotlib.pyplot as plt
 from matplotlib.backend_bases import key_press_handler
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,NavigationToolbar2Tk)
@@ -23,6 +24,10 @@ import CONFIG
 
 """ ATTENTION : Pour que les figures suite aux affichages tkinter marchent correctement, il faut changer le backend de matplotlib dans les options de spyder :
     Outils -> Préférences -> Console IPython -> Graphiques -> Sortie Graphique : Tk ou Automatique"""
+
+# --- Type d'OS
+
+OS_KERNEL = platform.system()
 
 # --- Variables de couleur en héxa
 
@@ -49,6 +54,8 @@ def LOAD_root(title,mm=False):
     ----------
     title : str
         Window name (shown at the top).
+    ``[opt]`` mm : bool, default : ``False``
+        If the window is the main menu (different background).
     
     Returns
     -------
@@ -753,9 +760,19 @@ def GUI_EXEC():
 def EXEC_help(help_name=None):
     
     if help_name == None:
-        os.system("gnome-terminal -e 'bash -c \"python3 Traitement_CMD_v"+CONFIG.ver+".py; exec bash\"'")
+        command = "python3 Traitement_CMD_v"+CONFIG.ver+".py"
     else:
-        os.system("gnome-terminal -e 'bash -c \"python3 Traitement_CMD_v"+CONFIG.ver+".py CMD_help "+str(help_name)+"; exec bash\"'")
+        command = "python3 Traitement_CMD_v"+CONFIG.ver+".py CMD_help "+str(help_name)
+    
+    if OS_KERNEL == "Linux":
+        os.system("gnome-terminal -- bash -c \"{}; exec bash\"".format(command))
+    elif OS_KERNEL == "Windows":
+        os.system("start /wait cmd /k {}".format(command))
+    elif OS_KERNEL == "Darwin":
+        os.system("osascript -e 'tell app \"Terminal\" to activate' -e 'tell app \"Terminal\" to do script \"{}\"'".format(command))
+    else:
+        print("PAS IMPLÉMENTÉ POUR L'OS '{}'".format(OS_KERNEL))
+    
 
 def EXEC_settings():
     
@@ -982,12 +999,14 @@ def EXEC_credits():
 def EXEC_launch_command(func_name,var_list,label_list,default_list,func_prefix):
     
     if func_name == "EXEC":
-        if var_list:
+        print(var_list)
+        if not var_list:
             file_name = "_cmd_.txt"
         else:
-            file_name = str(var_list[0].get()).split("=")[1]
+            file_name = str(var_list[0].get())
         with open("EXEC/"+file_name, 'r') as cmd_file:
             fn = cmd_file.readlines()
+            print(fn)
             if not fn or fn[0][:-1] in ["","0","EXEC","CMD_help"]:
                 print("Fonction inutile pour l'interface graphique")
                 return None
@@ -1015,9 +1034,23 @@ def EXEC_launch_command(func_name,var_list,label_list,default_list,func_prefix):
     if func_prefix != None and clear_old_outputs:
         os.system("rm -f Output/"+func_prefix+"*")
     if keep_cmd or func_prefix == None or func_prefix == "":
-        os.system("gnome-terminal -e 'bash -c \"" + command_to_execute + "; exec bash\"'")
+        if OS_KERNEL == "Linux":
+            os.system("gnome-terminal -- bash -c \"{}; exec bash\"".format(command_to_execute))
+        elif OS_KERNEL == "Windows":
+            os.system("start /wait cmd /k {}".format(command_to_execute))
+        elif OS_KERNEL == "Darwin":
+            os.system("osascript -e 'tell app \"Terminal\" to activate' -e 'tell app \"Terminal\" to do script \"{}\"'".format(command_to_execute))
+        else:
+            print("PAS IMPLÉMENTÉ POUR L'OS '{}'".format(OS_KERNEL))
     else:
-        os.system("gnome-terminal -e '" + command_to_execute + "'")
+        if OS_KERNEL == "Linux":
+            os.system("gnome-terminal -e '{}'".format(command_to_execute))
+        elif OS_KERNEL == "Windows":
+            os.system("start /wait cmd /c {}".format(command_to_execute))
+        elif OS_KERNEL == "Darwin":
+            os.system("osascript -e 'tell app \"Terminal\" to activate' -e 'tell app \"Terminal\" to do script \"{}\"'".format(command_to_execute))
+        else:
+            print("PAS IMPLÉMENTÉ POUR L'OS '{}'".format(OS_KERNEL))
 
 # Affiche les figures résultat de la commande
 

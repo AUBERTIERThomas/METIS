@@ -1,7 +1,0 @@
-CMD_exec_known_device
-8
-file_list="cmd_grid_survey_interpolated.dat"
-sup_na=False
-choice=True
-regr=False
-light_restr=[Inv]
