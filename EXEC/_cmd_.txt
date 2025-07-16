@@ -1,14 +1,1 @@
-CMDEX_grid
-0,4,8
-1,5,9
-2,3,6,7,10,11
-file_list=res_clean.dat
-output_file=matrixed.json
-radius=5
-prec=100
-step=0.5
-seuil=-0.5
-no_crop=False
-all_models=False
-plot_pts=False
-matrix=True
+0

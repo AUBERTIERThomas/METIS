@@ -26,7 +26,7 @@ def freeze_wouw():
     ax.set_ylabel("y")
     ax.set_aspect('equal')
     plt.show(block=False)
-    plt.pause(0.25)
+    plt.pause(0.0001)
 
     inp = input()
 

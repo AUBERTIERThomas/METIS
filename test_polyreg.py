@@ -19,6 +19,9 @@ from sklearn.metrics import mean_squared_error
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import PolynomialFeatures
 
+import sys
+import pandas as pd
+
 import CONFIG
 import EM_CMD
 
@@ -219,7 +222,7 @@ def CMD_mse(X,Y,c):
     return mse
     
 
-def CMD_convergence_inv_poly(X,Y,nb_pts,nb_tours=1000,force_fin=25,verif=False,verif_plus=False):
+def CMD_convergence_inv_poly(X,Y,nb_pts,nb_tours=1000,force_fin=25,verif=True,verif_plus=False):
     
     coef_list = [float(min(X)), float((max(Y)-min(Y))/(max(X)-min(X))), 0, 0]
     current_coef = 3
@@ -257,7 +260,7 @@ def CMD_convergence_inv_step(X,Y,coef_list,mse,cc,verif=False):
     step = 1
     while not fin:
         mse = CMD_mse(X,Y,cl_cpy)
-        if verif:
+        if verif and mse == mse:
             print("[",cc,"] ",prev_mse," ",mse," ",step)
         if mse > prev_mse:
             sign = not sign
@@ -334,8 +337,11 @@ def coeffs_relation(X,Y,m_type="linear",choice=False,conv=True,nb_conv=50):
             mc = len(Y)/(nb_conv**2)
             npc_l = np.array([int(mc*i**2) for i in range(nb_conv)])
             print(npc_l)
-            X_c = model[npc_l]
-            Y_c = Y[npc_l]
+            #X_c = model[npc_l]
+            Y_c = np.linspace(min(Y),max(Y),100)
+            X_c = np.linspace(min(model),max(model),100)
+            #Y_c = Y[npc_l]
+            
             fc = CMD_convergence_inv_poly(X_c,Y_c,nb_conv)
         else:
             npc_l = np.array([0,nb_pts//3,2*nb_pts//3,nb_pts-1])
@@ -349,7 +355,7 @@ def coeffs_relation(X,Y,m_type="linear",choice=False,conv=True,nb_conv=50):
         ax.plot(model,Y,"o",ms=4,label="Estimation")
         ax.plot(X_plot,fc[0]+fc[1]*X_plot+fc[2]*X_plot**(1/2)+fc[3]*X_plot**(1/3),"-",label="Modèle inverse")
         #ax.plot(v[0]+v[1]*X_plot+v[2]*X_plot**(1/2)+v[3]*X_plot**(1/3), X_plot,"-",label="symétrique")
-        ax.plot(X_plot, v[0]+v[1]*X_plot+v[2]*X_plot**(1/2)+v[3]*X_plot**(1/3),"-",label="techniquement le vrai")
+        #ax.plot(X_plot, v[0]+v[1]*X_plot+v[2]*X_plot**(1/2)+v[3]*X_plot**(1/3),"-",label="techniquement le vrai")
         ax.set_title("Allure de la relation")
         ax.set_xlabel(r"signal(ph)")
         ax.set_ylabel(r"$\sigma$")
@@ -371,4 +377,27 @@ def testouh(n,min_,max_,err_var,rc,m_type="linear",choice=False,conv=False):
 
 #classic_regr(500,-3,13,1,[6, 11, 0.01, 0])
 #inverse_regr(500,0.1,10,3,[0, 1, 1, 20])
-testouh(10000,0.1,5,0.4,v,m_type="inverse_3",choice=False,conv=True)
+#testouh(10000,0.1,5,0.4,v,m_type="inverse_3",choice=False,conv=True)
+
+
+fich = "Fortran/test.dat"
+don = pd.read_csv(fich,sep='\s+',header=None)
+print(don)
+
+fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(16,9),squeeze=False)
+#ax[0][0].plot(don.iloc[441:,2],don.iloc[441:,4],'x')
+#ax[0][0].plot(don.iloc[:,4],1/don.iloc[:,0],'x')
+X = np.array(don.iloc[:,4])
+X -= min(X)
+Y = np.array(1/don.iloc[:,0])
+# for i,c in enumerate(Y):
+#     if c!=c:
+#         print(i,c)
+c = coeffs_relation(X,Y,m_type="inverse_3",choice=False,conv=False,nb_conv=50)
+ax[0][0].plot(X,c[0]+X*c[1]+X**(1/2)*c[2]+X**(1/3)*c[3],'x')
+
+
+
+
+
+

@@ -193,6 +193,11 @@ def GUI_main_CMDEX():
             root.destroy()
         GUI_main_menu()
     
+    def on_bc_button_pressed():
+        if not keep_prev_ui:
+            root.destroy()
+        GUI_CMDEX_ball_calibr()
+    
     def on_i_button_pressed():
         if not keep_prev_ui:
             root.destroy()
@@ -213,15 +218,17 @@ def GUI_main_CMDEX():
             root.destroy()
         GUI_CMDEX_grid()
       
-    canvas.create_rectangle(CONFIG.tk_width//2-275, CONFIG.tk_height-575, CONFIG.tk_width//2+275, CONFIG.tk_height-25, fill="#d9c09c", width=0)
-    b1 = tk.Button(root, text = 'CMDEX_init', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_i_button_pressed)
-    b1_c = canvas.create_window( CONFIG.tk_width//2-150,CONFIG.tk_height-550, anchor = "n",window = b1)
-    b2 = tk.Button(root, text = 'CMDEX_\nevol_profils', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_ep_button_pressed)
-    b2_c = canvas.create_window( CONFIG.tk_width//2+150,CONFIG.tk_height-550, anchor = "n",window = b2)
-    b3 = tk.Button(root, text = 'CMDEX_\nfrontiere', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_f_button_pressed)
-    b3_c = canvas.create_window( CONFIG.tk_width//2-150,CONFIG.tk_height-250, anchor = "n",window = b3)
-    b4 = tk.Button(root, text = 'CMDEX_grid', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_k_button_pressed)
-    b4_c = canvas.create_window( CONFIG.tk_width//2+150,CONFIG.tk_height-250, anchor = "n",window = b4)
+    canvas.create_rectangle(CONFIG.tk_width//2-425, CONFIG.tk_height-575, CONFIG.tk_width//2+425, CONFIG.tk_height-25, fill="#d9c09c", width=0)
+    b1 = tk.Button(root, text = 'CMDEX_ball_\ncalibr', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_bc_button_pressed)
+    b1_c = canvas.create_window( CONFIG.tk_width//2-300,CONFIG.tk_height-550, anchor = "n",window = b1)
+    b2 = tk.Button(root, text = 'CMDEX_init', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_i_button_pressed)
+    b2_c = canvas.create_window( CONFIG.tk_width//2,CONFIG.tk_height-550, anchor = "n",window = b2)
+    b3 = tk.Button(root, text = 'CMDEX_\nevol_profils', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_ep_button_pressed)
+    b3_c = canvas.create_window( CONFIG.tk_width//2+300,CONFIG.tk_height-550, anchor = "n",window = b3)
+    b4 = tk.Button(root, text = 'CMDEX_\nfrontiere', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_f_button_pressed)
+    b4_c = canvas.create_window( CONFIG.tk_width//2-150,CONFIG.tk_height-250, anchor = "n",window = b4)
+    b5 = tk.Button(root, text = 'CMDEX_grid', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_k_button_pressed)
+    b5_c = canvas.create_window( CONFIG.tk_width//2+150,CONFIG.tk_height-250, anchor = "n",window = b5)
     br = tk.Button(root, text = 'Retour', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", command=on_return_button_pressed)
     br_c = canvas.create_window( 50,25, anchor = "nw",window = br)
     bs = tk.Button(root, image = settings_im, command=EXEC_settings)
@@ -316,6 +323,11 @@ def GUI_main_DAT():
             root.destroy()
         GUI_DAT_change_sep()
     
+    def on_fd_button_pressed():
+        if not keep_prev_ui:
+            root.destroy()
+        GUI_DAT_fuse_data()
+    
     def on_fb_button_pressed():
         if not keep_prev_ui:
             root.destroy()
@@ -333,13 +345,15 @@ def GUI_main_DAT():
     b5 = tk.Button(root, text = 'DAT_remove_\ndata', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_rd_button_pressed)
     b5_c = canvas.create_window( CONFIG.tk_width//2+600,CONFIG.tk_height-550, anchor = "n",window = b5)
     b6 = tk.Button(root, text = 'DAT_min_\nmax_col', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_mmc_button_pressed)
-    b6_c = canvas.create_window( CONFIG.tk_width//2-450,CONFIG.tk_height-250, anchor = "n",window = b6)
+    b6_c = canvas.create_window( CONFIG.tk_width//2-600,CONFIG.tk_height-250, anchor = "n",window = b6)
     b7 = tk.Button(root, text = 'DAT_light_\nformat', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_lf_button_pressed)
-    b7_c = canvas.create_window( CONFIG.tk_width//2-150,CONFIG.tk_height-250, anchor = "n",window = b7)
+    b7_c = canvas.create_window( CONFIG.tk_width//2-300,CONFIG.tk_height-250, anchor = "n",window = b7)
     b8 = tk.Button(root, text = 'DAT_change_\nsep', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_cs_button_pressed)
-    b8_c = canvas.create_window( CONFIG.tk_width//2+150,CONFIG.tk_height-250, anchor = "n",window = b8)
-    b9 = tk.Button(root, text = 'DAT_fuse_\nbases', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_fb_button_pressed)
-    b9_c = canvas.create_window( CONFIG.tk_width//2+450,CONFIG.tk_height-250, anchor = "n",window = b9)
+    b8_c = canvas.create_window( CONFIG.tk_width//2,CONFIG.tk_height-250, anchor = "n",window = b8)
+    b9 = tk.Button(root, text = 'DAT_fuse_\ndata', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_fd_button_pressed)
+    b9_c = canvas.create_window( CONFIG.tk_width//2+300,CONFIG.tk_height-250, anchor = "n",window = b9)
+    b10 = tk.Button(root, text = 'DAT_fuse_\nbases', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_fb_button_pressed)
+    b10_c = canvas.create_window( CONFIG.tk_width//2+600,CONFIG.tk_height-250, anchor = "n",window = b10)
     br = tk.Button(root, text = 'Retour', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", command=on_return_button_pressed)
     br_c = canvas.create_window( 50,25, anchor = "nw",window = br)
     bs = tk.Button(root, image = settings_im, command=EXEC_settings)
@@ -449,9 +463,21 @@ def GUI_CMD_exec_new_device(from_EXEC=None):
 
     label_list = ["app_name","config","nb_ecarts","freq_list","GPS","GPS_dec","TR_l","TR_t","height","bucking_coil","coeff_construct","file_list","file_list_rev","sep","output_file","output_file_base","light_restr","split","sup_na","regr","corr_base","choice"]
     type_list = ["str","str","int","float[]","bool","float[]","float[]","float[]","float","int","float","str[]","str[]","str","str","str","str[]","bool","bool","bool","bool","bool"]
-    default_list = ["*","*","*","*","True","[0.0,0.0]","array of 0.0","array of 0.0","0.1","0","1.0","None","None",'\\t',"\"res.dat\"","\"res_B.dat\"","None","False","True","False","True","False"]
+    default_list = ["*","*","*","*","True","[0.0,0.0]","None","None","0.1","0","1.0","None","None",'\\t',"\"res.dat\"","\"res_B.dat\"","None","False","True","False","True","False"]
     
     EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "CMD_exec_new_device", "CMD_", "Traitement CMD (nouvel appareil)", GUI_main_CMD, from_EXEC)
+    
+    root.mainloop()
+
+def GUI_CMDEX_ball_calibr(from_EXEC=None):
+
+    root, canvas, bg_im, button_im, settings_im = LOAD_root("CMDEX_ball_calibr")
+
+    label_list = ["ball_file","config","TR","radius","z","x_min","x_max","sep","y","step","bucking_coil"]
+    type_list = ["str","str","int[]","int","int","int","int","str","int","int","int"]
+    default_list = ["*","*","*","*","*","*","*","\\t","0","5","0"]
+    
+    EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "CMDEX_ball_calibr", "", "Calibration à la boule", GUI_main_CMDEX, from_EXEC)
     
     root.mainloop()
 
@@ -495,9 +521,9 @@ def GUI_CMDEX_grid(from_EXEC=None):
 
     root, canvas, bg_im, button_im, settings_im = LOAD_root("CMDEX_grid")
 
-    label_list = ["col_x","col_y","col_z","file_list","sep","output_file","m_type","radius","prec","seuil","i_method","no_crop","all_models","plot_pts","matrix"]
-    type_list = ["int[]","int[]","int[]","str[]","str","str","str","int","int","float","str","bool","bool","bool","bool"]
-    default_list = ["*","*","*","None",'\\t',"None","None","0","100","0.0","None","False","False","False","False"]
+    label_list = ["col_x","col_y","col_z","file_list","sep","output_file","m_type","radius","prec","seuil","i_method","only_nan","no_crop","all_models","plot_pts","matrix"]
+    type_list = ["int[]","int[]","int[]","str[]","str","str","str","int","int","float","str","bool","bool","bool","bool","bool"]
+    default_list = ["*","*","*","None",'\\t',"None","None","0","100","0.0","None","True","False","False","False","False"]
     
     EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "CMDEX_grid", "CMDEX_g_", "Mise en grille des données", GUI_main_CMDEX, from_EXEC)
     
@@ -521,7 +547,7 @@ def GUI_JSON_add_devices(from_EXEC=None):
 
     label_list = ["app_name","config","nb_ecarts","freq_list","GPS","GPS_dec","TR_l","TR_t","height","bucking_coil","coeff_construct"]
     type_list = ["str","str","int","float[]","bool","float[]","float[]","float[]","float","int","float"]
-    default_list = ["*","*","*","*","True","[0.0,0.0]","array of 0.0","array of 0.0","0.1","0","1.0"]
+    default_list = ["*","*","*","*","True","[0.0,0.0]","None","None","0.1","0","1.0"]
     
     EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "JSON_add_devices", "", "Ajouter un appareil", GUI_main_JSON, from_EXEC)
     
@@ -607,7 +633,7 @@ def GUI_DAT_min_max_col(from_EXEC=None):
     type_list = ["str[]","str[]","str","int"]
     default_list = ["*","*","\\t","10"]
     
-    EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "DAT_min_max_col", "", "Affichage des données extrêmes", GUI_main_DAT, from_EXEC)
+    EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "DAT_min_max_col", "", "Affichage des données extrêmes d'un fichier.dat", GUI_main_DAT, from_EXEC)
     
     root.mainloop()
 
@@ -632,6 +658,18 @@ def GUI_DAT_change_sep(from_EXEC=None):
     default_list = ["*","*","*","False","None"]
     
     EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "DAT_change_sep", "", "Changement du séparateur dans un fichier .dat", GUI_main_DAT, from_EXEC)
+    
+    root.mainloop()
+
+def GUI_DAT_fuse_data(from_EXEC=None):
+
+    root, canvas, bg_im, button_im, settings_im = LOAD_root("DAT_fuse_data")
+
+    label_list = ["file_list","sep","output_file"]
+    type_list = ["str[]","str","str"]
+    default_list = ["*","\\t","None"]
+    
+    EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "DAT_fuse_data", "", "Fusion de données dans un même fichier .dat", GUI_main_DAT, from_EXEC)
     
     root.mainloop()
 
@@ -965,7 +1003,7 @@ def EXEC_g_infos():
     canvas.create_text( 55, 95, font=('Times', -20, 'bold'), text = "CMD -> Traitement général, avec de nombreuses étapes", anchor = "nw", fill='#606000')
     canvas.create_text( 55, 120, font=('Times', -20, 'bold'), text = "CMDEX -> Morceau de traitement, dédié à une tâche spécifique", anchor = "nw", fill='#606000')
     canvas.create_text( 55, 145, font=('Times', -20, 'bold'), text = "JSON -> Gestion des appareils enregistrés (Appareil.json)", anchor = "nw", fill='#606000')
-    canvas.create_text( 55, 170, font=('Times', -20, 'bold'), text = "DAT -> Manipulations sur fichier .dat", anchor = "nw", fill='#606000')
+    canvas.create_text( 55, 170, font=('Times', -20, 'bold'), text = "DAT -> Fonctions utilitaires sur fichier .dat, à utiliser en amont", anchor = "nw", fill='#606000')
     canvas.create_text( 55, 195, font=('Times', -20, 'bold'), text = "Divers -> Autres fonctions (affichage, changement de format...)", anchor = "nw", fill='#606000')
     canvas.create_text( 55, 245, font=('Times', -20, 'bold'), text = "Pour plus d'informations, veuillez consulter l'aide", anchor = "nw", fill='brown')
     
@@ -1075,7 +1113,7 @@ def EXEC_refresh_data(root, canvas, prefix):
         # figx.set_figwidth(size[0]*rescale)
         # figx.set_figheight(size[1]*rescale)
         plt.show(block=blocking_figs)
-        plt.pause(0.25)
+        plt.pause(CONFIG.fig_render_time)
         # fig_l.append(tk.Tk(screenName=CONFIG.sc_name))
         # fig_l[ic].title('Figure '+str(ic+1))
         

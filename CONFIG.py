@@ -34,6 +34,7 @@ prec_data = 2 # Précision (chiffres après la virgule) des données "mesures" [
 ### === MatPlotLib === ###
 fig_width = 16 # Largeur des figures mpl [16]
 fig_height = 9 # Hauteur des figures mpl [9]
+fig_render_time = 0.25 # Temps (en s) consacré à charger la figure (uniquement celles en cours d'exécution) [0.25]
 ### ================== ###
 
 ### === Tkinter === ###
