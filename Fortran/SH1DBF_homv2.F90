@@ -30,8 +30,10 @@
 ! distance entre la réceptrice principale et la bucking si ce rapport est inférieur à 1 alors il y a bucking
 ! pour l'utilisation avec fichier d'entrée dans la ligne de commande, il faut reboucler toute l'initialisation
 ! par fichier OK le 02/07/2025
+! rajout des calculs pour les verticaux dans rep1Dv2 OK le 16/07/2025
+! reste à faire  :
+! harmoniser les différents passage de boucle (pour que les événements d'écriture des entêtes soient OK)
 !
-
 
 
 !--------------------------------------------------------------------------------------------------
@@ -46,6 +48,7 @@
 ! mais une fois fait, pour un module, copier coller et traduction sont rapides (et faisable par n'importe qui)
 ! 
 ! à faire : checker que tous les formats sont bien dans le module E_S
+!           créer une fonction pour les formats multiples (avec comme entrée n et le format simple)
 !--------------------------------------------------------------------------------------------------
 
 module E_S
@@ -56,17 +59,18 @@ module E_S
     &'fr"//e_ai//"quence (Hz) : ',F10.2)"
     character(len=*) , parameter :: fmt1="(a4,', hauteur Tx ',F4.2,4X,' HAUTEUR Rx',F5.2,2X,'fr"//e_ai//"quence (Hz) : ',F10.2)"
     character(len=*) , parameter :: fmt2="('fr"//e_ai//"quence',F10.2,' Hz',3X,'valeur du champ secondaire : ',E15.8,3X,E15.8)"
-    character(len=*) , parameter :: fmt2b="(F10.2,3X,E15.8,3X,E15.8)"
+    character(len=*) , parameter :: fmt2b="(2x,F10.2,3X,E15.8,3X,E15.8)"
     
     character(len=*) , parameter :: fmt3="('Rau : ',F7.2,'ohm.m - Epsilon r :',F9.2,'/Kph(1000Hz) : ',E12.5,&
     &' uSI - Kqu : ',E12.5,' uSI/Valeur du champ secondaire : ',E15.8,3X,E15.8)"
-    character(len=*) , parameter :: fmt3b="(2X,F7.2,3X,F9.2,3X,E12.5,3X,E12.5,3X,E15.8,3X,E15.8)"
-    character(len=*) , parameter :: fmt3c="(2X,F7.2,3X,F9.2,3X,E12.5,3X,E12.5)"
-    character(len=*), parameter :: fmt3d="(2X,F7.2,3X,F9.2,3X,E12.5,3X,E12.5,3X,E15.8,3X,E15.8,3X,F7.2)"
+    character(len=*) , parameter :: fmt3b="(2x,F7.2,3X,F9.2,3X,E12.5,3X,E12.5,3X,E15.8,3X,E15.8)"
+    character(len=*) , parameter :: fmt3c="(2x,F7.2,3X,F9.2,3X,E12.5,3X,E12.5)"
+    character(len=*), parameter :: fmt3d="(2x,F7.2,3X,F9.2,3X,E12.5,3X,E12.5,3X,E15.8,3X,E15.8,3X,F7.2)"
+    character(len=*), parameter :: fmt3e="(2x,F7.2,3X,F9.2,3X,E12.5,3X,E12.5,4(3X,E15.8))"
     character(len=*) , parameter :: fmt4="('"//e_ai//"paisseur (m) :',F5.2,2X,'valeur du champ secondaire : ',&
     &E15.8,3X,E15.8)"
-    character(len=*) , parameter :: fmt4b="(2X,F5.2,3X,E15.8,3X,E15.8)"
-    character(len=*) , parameter :: fmt5="(2X,F5.2,3X,E15.8,3X,E15.8)"
+    character(len=*) , parameter :: fmt4b="(2x,F5.2,3X,E15.8,3X,E15.8)"
+    character(len=*) , parameter :: fmt5="(2x,F5.2,3X,E15.8,3X,E15.8)"
     
     character(1) :: i_choix
     logical :: f_init
@@ -202,9 +206,9 @@ module appareil
         integer::tai
         character(3)::ext
 
-        frm_tl="("//I2char(nconf)//"f5.2)"
-        frm_h="("//I2char(nconf)//"f5.2)"
-        frm_ib="("//I2char(nconf)//"I2)"
+        frm_tl="("//I2char(nconf)//"(2x,f5.2))"
+        frm_h="("//I2char(nconf)//"(2x,f5.2))"
+        frm_ib="("//I2char(nconf)//"(2x,I2))"
         if (present(nomfich)) then
             tai=len(nomfich)
             ext=nomfich(tai-3:tai)
@@ -253,9 +257,9 @@ module appareil
             read(46,'(I2)') nconf
             allocate(tl(nconf),he(nconf),hr(nconf),ibob(nconf),h_bobe(nconf),v_bobe(nconf))
             allocate(dxr(nconf),dyr(nconf),h_bobr(nconf),v_bobr(nconf),buck(nconf))
-            frm_tl="("//I2char(nconf)//"f5.2)"
-            frm_h="("//I2char(nconf)//"f5.2)"
-            frm_ib="("//I2char(nconf)//"I2)"
+            frm_tl="("//I2char(nconf)//"(2x,f5.2))"
+            frm_h="("//I2char(nconf)//"(2x,f5.2))"
+            frm_ib="("//I2char(nconf)//"(2x,I2))"
             read(46,frm_ib) ibob
             read(46,frm_tl) tl
             read(46,frm_tl) buck
@@ -305,7 +309,7 @@ module appareil
                     Hr(i)=he(i)
                     dxr(i)=tl(i)
                     dyr(i)=0
-                    WRITE(*,fmt0) label(ibob(i)),TL(i),He(i)
+                    if (premier_ab) WRITE(*,fmt0) label(ibob(i)),TL(i),He(i)
                     select case (ibob_cour)
                     case(1)
                     ! Tx horizontale suivant x
@@ -350,7 +354,7 @@ module appareil
                         h_bobr(i)=0.
                         v_bobr(i)=0.
                     case(9)
-                    ! Tx horizontale suivant Y
+                        ! Tx horizontale suivant Y
                         h_bobe(i)=90.
                         v_bobe(i)=0.
                     ! Rx horizontale suivant Y
@@ -363,7 +367,8 @@ module appareil
                     tl(i)=abs(hr(i)-he(i))
                     dxr(i)=0
                     dyr(i)=0
-                    WRITE(*,fmt1)label(ibob(i)),He(i),Hr(i)
+                    if (premier_ab) WRITE(*,fmt1)label(ibob(i)),He(i),Hr(i)
+
                 case(0)
                     write(*,*) 'pas encore impl'//e_ai//'ment'//e_ai
                 end select
@@ -388,7 +393,7 @@ module appareil
         if (present(nomfich)) then
             tai=len(nomfich)
             ext=nomfich(tai-3:tai)
-            fmt_f="("//i2char(nfreq)//"F10.2)"
+            fmt_f="("//i2char(nfreq)//"(2x,F10.2))"
             select case (ext)
             case('frq')
                 open(unit=47,file=nomfich)
@@ -423,7 +428,7 @@ module appareil
             open(unit=48,file=nomfich)
             read(48,'(I2)') nfreq
             allocate(f(nfreq))
-            fmt_f="("//i2char(nfreq)//"F10.2)"
+            fmt_f="("//i2char(nfreq)//"(2x,F10.2))"
             read(48,fmt_f) f
         else
             phr="l'appareil"
@@ -434,7 +439,7 @@ module appareil
                 if (nfreq>0) exit
             enddo
             allocate(f(nfreq))
-            fmt_f="("//i2char(nfreq)//"F10.2)"
+            fmt_f="("//i2char(nfreq)//"(2x,F10.2))"
             if (nfreq/=1) then
                 do
                     write(*,*) 'mode de rentr'//e_ai//'e :'
@@ -491,6 +496,7 @@ module propriete_1D
 ! pour gérer les terrain homogène en entrée sortie (un peu cracra je sais)        
         real*8,allocatable, dimension (:,:) :: pcour
         integer, dimension(:) , allocatable :: col_p
+        character :: i_var
 
         integer :: NCOU
         integer, parameter :: nmax=10
@@ -535,6 +541,7 @@ module propriete_1D
                     write(49,'(I5)') np(2)
                     frm_cc="("//I2char(n)//"(2X,i2))"
                     write(49,frm_cc) col_p
+                    write(49,'(A2)') i_var
                     write(49,fmt3c) pcour(:,1)
                     write(49,fmt3c) pcour(:,np(2))
                     close(49)
@@ -578,6 +585,7 @@ module propriete_1D
                     allocate(col_p(n),pcour(4,np))
                     frm_cc="("//I2char(n)//"(2X,i2))"
                     read(50,frm_cc) col_p
+                    read(50,'(A2)') i_var
                     read(50,fmt3c) pcour(:,1)
                     read(50,fmt3c) pcour(:,np)
                     close(50)
@@ -689,6 +697,8 @@ module propriete_1D
 ! Pour fonctionner, il faut que He_c,F_c,Tl_c et hr_c soient initialisés
 ! elle initialise  p_cour,a_cour et b_cour
 ! plusieurs questions sur la valeur de p avec l'introduction de epsilon (au 1 juillet 2020)
+! si on prend une formule de P incluant eps, les différences apparaissent au dessus de 50000Hz
+! dans les programme sHF de A. Tabbagh pas de modification de P même à haute fréquence
 !--------------------------------------------------------------------------------------------------
         subroutine set_ABP()
             implicit none
@@ -1106,39 +1116,39 @@ end function Z1D
             case(1)
                 T1=HANKSGC(1,b_cour,FUN0,1)
                 QT=-DCMPLX(b_cour*b_cour*b_cour,0.)*T1
-                if (premier_c) write(*,fmt0) label(ibob_c),TL_c,He_c,F_c
+                if (premier_c.and.premier_ab) write(*,fmt0) label(ibob_c),TL_c,He_c,F_c
             !Type SH3
             case(2)
                 T0=HANKSGC(0,b_cour,FUN0,1)
                 T2=HANKSGC(1,b_cour,FUN2,1)
                 QT=DCMPLX(b_cour*b_cour/3.,0.)*(T0*dcmplx(3.*b_cour,0.)-T2)
-                if (premier_c) write(*,fmt0)label(ibob_c),TL_c,He_c,f_c
+                if (premier_c.and.premier_ab) write(*,fmt0)label(ibob_c),TL_c,He_c,f_c
             !HCP OK
             case(3)
                 T0=HANKSGC(0,b_cour,FUN0,1)
                 QT=DCMPLX(b_cour*b_cour*b_cour,0.)*T0
-                if (premier_c) write(*,fmt0)label(ibob_c),TL_c,He_c,f_c
+                if (premier_c.and.premier_ab) write(*,fmt0)label(ibob_c),TL_c,He_c,f_c
             !Coax
             case(4)
                 T0=HANKSGC(0,b_cour,FUN0,1)
                 T2=HANKSGC(1,b_cour,FUN2,1)
                 QT=DCMPLX(b_cour*b_cour,0.)*(T0*dcmplx(b_cour,0.)-T2)
-                if (premier_c) write(*,fmt0)label(ibob_c),TL_c,He_c,f_c
+                if (premier_c.and.premier_ab) write(*,fmt0)label(ibob_c),TL_c,He_c,f_c
             !VCP
             case(5)
                 T2=HANKSGC(1,b_cour,FUN2,1)
                 QT=DCMPLX(b_cour*b_cour,0.)*T2
-                if (premier_c) write(*,fmt0)label(ibob_c),TL_c,He_c,f_c
+                if (premier_c.and.premier_ab) write(*,fmt0)label(ibob_c),TL_c,He_c,f_c
             !VCX
             case(6)
                 T0=CIB0(a_cour,FUN0)
                 QT=-T0*b_cour
-                if (premier_c) write(*,fmt1)label(ibob_c),He_c,Hr_c,f_c
+                if (premier_c.and.premier_ab) write(*,fmt1)label(ibob_c),He_c,Hr_c,f_c
             !VVCP
             case(7)
                 T0=CIB0(a_cour,FUN0)
                 QT= T0*b_cour*DCMPLX(.5,0.)
-                if (premier_c) write(*,fmt1)label(ibob_c),He_c,Hr_c,f_c
+                if (premier_c.and.premier_ab) write(*,fmt1)label(ibob_c),He_c,Hr_c,f_c
             !Perp Dual EM type Cs multiplié par -1
             case(8)
                 
@@ -1159,6 +1169,10 @@ end function Z1D
 ! le cas custom fera le calcul complet avec les orientaiton des bobines en H et V
 ! peut être qu'il sera intéressant de "shunté" le calcul complet des champs, pour optimiser le 
 ! temps de calcul
+! attention, il y adivergence de scalcul en TH quand on est en distance horizontale nulle 
+! (réceptrice à la verticale de l'émettrice)
+! on doit fair ele court circuit pour custom
+! bricolage de court circuit pour VCX et VVCP
 !--------------------------------------------------------------------------------------------------
 
     subroutine rep1Dv2(qt)
@@ -1176,31 +1190,64 @@ end function Z1D
         r2=dxr_c*dxr_c+dyr_c*dyr_c
         r=sqrt(r2)
         r3=r2*r
+! on calcule la distance entre Tx et Rx
+        rnorm2=r2+(hr_c-he_c)*(hr_c-he_c)
+        rnorm=sqrt(rnorm2)
+        rnorm3=rnorm*rnorm2
+
 !        write(*,*) gam0_2
+        select case (ibob_c)
+!  le calcul pour les verticaux es tun peut particulier car il y des simplifications (la distance hhorizontal
+!  est nulle)
+!  pour le vertical coaxiale, il n'y a que la composante z qui nous intéresse (mais en théorie il y a une 
+!  composante horizontale au champ aussi)
+        case(6)
+            H_zx=(0.,0.)
+            H_zy=(0.,0.)
+            H_zz=-1*CIB0(a_cour,FUN0)*b_cour/rnorm3
+            H_xx=(0.,0.)
+            H_xy=(0.,0.)
+            H_xz=H_zx
+            H_yx=H_xy
+            H_yy=(0.,0.)
+            H_yz=H_zy
+! même simplification qu'au dessus
+        case(7)
+            H_zx=(0.,0.)
+            H_zy=(0.,0.)
+            H_zz=(0.,0.)
+            H_xx=CIB0(a_cour,FUN0)*cmplx(0.5,0.)*b_cour/rnorm3
+            H_xy=(0.,0.)
+            H_xz=H_zx
+            H_yx=H_xy
+            H_yy=(0.,0.)
+            H_yz=H_zy
+        
+        
+        case default
 ! les 3 composantes du champ d'un dipôle vertical
-        H_zx=-1*c1*dxr_c/r*hanksgc(1,r,funZx,1)
-        H_zy=-1*c1*dyr_c/r*hanksgc(1,r,funZy,1)
-        H_zz=c1*hanksgc(0,r,funZz,1)
+            H_zx=-1*c1*dxr_c/r*hanksgc(1,r,funZx,1)
+            H_zy=-1*c1*dyr_c/r*hanksgc(1,r,funZy,1)
+            H_zz=c1*hanksgc(0,r,funZz,1)
 
 !        write(*,*) 'Hzx : ',H_zx
 !        write(*,*) 'Hzy : ',H_zy
 !        write(*,*) 'Hzz : ',H_zz
 ! les 3 composantes du champ d'un dipôle horizontal suivant X
-        H_xx=-1*C1*(gam0_2*hanksgc(0,r,FunXx1,1)+(dxr_c*dxr_c-dyr_c*dyr_c)/r3*hanksgc(1,r,funXx2,1))
-        H_xx=H_xx+C1*dxr_c*dxr_c/r2*hanksgc(0,r,funXx3,1)
-        H_xy=C1*dxr_c*dyr_c/r2*(2/r*hanksgc(1,r,FunXy1,1)-hanksgc(0,r,funXy2,1))
-        H_xz=-1*C1*dxr_c/r*hanksgc(1,r,FunXz,1)
+            H_xx=-1*C1*(gam0_2*hanksgc(0,r,FunXx1,1)+(dxr_c*dxr_c-dyr_c*dyr_c)/r3*hanksgc(1,r,funXx2,1))
+            H_xx=H_xx+C1*dxr_c*dxr_c/r2*hanksgc(0,r,funXx3,1)
+            H_xy=C1*dxr_c*dyr_c/r2*(2/r*hanksgc(1,r,FunXy1,1)-hanksgc(0,r,funXy2,1))
+            H_xz=-1*C1*dxr_c/r*hanksgc(1,r,FunXz,1)
 ! les 3 composantes du champ d'un dipôle horizontal suivant Y 
-        H_yx=H_xy
-        H_yy=-1*C1*(gam0_2*hanksgc(0,r,FunXx1,1)+(dyr_c*dyr_c-dxr_c*dxr_c)/r3*hanksgc(1,r,funXx2,1))
-        H_yy=H_yy+C1*dyr_c*dyr_c/r2*hanksgc(0,r,funXx3,1)
-        H_yz=-1*C1*dyr_c/r*hanksgc(1,r,FunXz,1)
-        
+            H_yx=H_xy
+            H_yy=-1*C1*(gam0_2*hanksgc(0,r,FunXx1,1)+(dyr_c*dyr_c-dxr_c*dxr_c)/r3*hanksgc(1,r,funXx2,1))
+            H_yy=H_yy+C1*dyr_c*dyr_c/r2*hanksgc(0,r,funXx3,1)
+            H_yz=-1*C1*dyr_c/r*hanksgc(1,r,FunXz,1)
+        end select
+      
+            
 
-! on calcule la distance entre Tx et Rx
-        rnorm2=r2+(hr_c-he_c)*(hr_c-he_c)
-        rnorm=sqrt(rnorm2)
-        rnorm3=rnorm*rnorm2
+
 ! On attribue les coeffcients en fonction des dispositifs
 ! (à faire implicitement pour les dispositifs classiques)
         CTx=0.
@@ -1221,7 +1268,7 @@ end function Z1D
             CTz=cos(54.736*D2R)
             CRx=-1*sin(54.736*D2R)
             CRz=cos(54.736*D2R)
-        ! vu avec Alain, la valeur est en fait une valeur de normalisaiton prise 
+        ! vu avec Alain, la valeur est en fait une valeur de normalisation prise 
         ! comme la valeur du champ primaire en HCP donc cnorm vaux 1 partout
             cnorm=1
         ! HCP et VCX OK HCP pas VCX
@@ -1249,7 +1296,7 @@ end function Z1D
             cnorm=1.
         ! cas général
         !ici il faut implémenter la formule de cnorm générique liée à la position de la réceptrice
-        !en fait on peut prendr ecomme principe que c'est le champ primaire HCP qui fait foi
+        !en fait on peut prendre comme principe que c'est le champ primaire HCP qui fait foi
         !donc on utilise de nouveau 1
         case(0)
             CTx=cos(h_bobe_c*D2R)*cos(v_bobe_c*D2R)
@@ -1261,7 +1308,7 @@ end function Z1D
             Cn_aux=CTx*Dxr_c+CTy*Dyr_c+CTz*(hr_c-he_c)
             Cn_aux=Cn_aux/rnorm
 !            cnorm=sqrt(1+3*Cn_aux*Cn_aux)
-            cnorm=1
+            cnorm=1.
         end select
 
 ! on applique les coefficients à l'émission
@@ -1635,7 +1682,7 @@ module menu_general
         character(1) :: i_sav
         character(20)::corp
         character(24)::nomfich_f,nomfich_g,nomfich_t,nomfich_s
-        double complex :: res
+        double complex :: res,res1
 
 
         if (present(nomfich)) then
@@ -1661,7 +1708,7 @@ module menu_general
             read(*,*) n_p
             write(*,*) 'combien de valeurs de param'//e_gr//'tres voulez vous explorer (max=',maxiter,'it'//e_ai//'ration)'
             write(*,*) 'Soit ',floor(maxiter**(1/4.)),' pour 4 param'//e_gr//'tres, ',floor(maxiter**(1/3.)),' pour 3 param'&
-            &//e_gr//'tres'
+&//e_gr//'tres'
             write(*,*) 'et ',floor(sqrt(real(maxiter))),' pour 2 param'//e_gr//'tres'
             read(*,*) nb_p
             allocate(col_p(n_p))
@@ -1697,17 +1744,30 @@ module menu_general
                 write(*,*) 'rentrer le maximum de ',nom_param(col_p(i_c))
                 read(*,*) pcour(col_p(i_c),nb_p)
             enddo
+            write(*,*)'variation linéaire (1) ou g'//e_ai//'om'//e_ai//'trique (2) ?'
+            read(*,*) i_var
         endif
 
         do i_c=1,4 
             pcmin=pcour(i_c,1)
             pcmax=pcour(i_c,nb_p)
-            pcpas=(pcmax-pcmin)/(nb_p-1)
-        !   pcpas= (pcmax/pcmin)**(1./(nb_p-1))
-            do i_pas=2,nb_p-1
-                pcour(i_c,i_pas)=pcour(i_c,i_pas-1)+pcpas
-            enddo
+            if (i_var=='1') then
+                pcpas=(pcmax-pcmin)/(nb_p-1)
+                do i_pas=2,nb_p-1
+                    pcour(i_c,i_pas)=pcour(i_c,i_pas-1)+pcpas
+                enddo
+            else
+                if (pcmin == pcmax) then 
+                    pcpas=1.
+                else
+                    pcpas=(pcmax/pcmin)**(1./float(nb_p-1))
+                endif
+                do i_pas=2,nb_p-1
+                    pcour(i_c,i_pas)=pcour(i_c,i_pas-1)*pcpas
+                enddo
+            endif            
         enddo
+        write(*,fmt3c) pcour
         write(*,*) 'initialisation pcour OK'
         write(*,*) 'nombre de param'//e_gr//'tres qui varient : ',n_p
         write(*,*) 'nombre de variations par param'//e_gr//'tres : ',nb_p
@@ -1778,9 +1838,11 @@ module menu_general
                     ibob_c=ibob(i_c)
                     call set_gam_sus_sig()
                     call set_abp()
-                    call rep1Dv2(res)
+                    call rep1D(res)
+                    call rep1Dv2(res1)
+!                    write(*,fmt3e) pcour2(:,i_t),res,res1
                     if (present(nomfich)) then
-                        write(30,fmt3b) pcour2(:,i_t),res
+                        write(30,fmt3b) pcour2(:,i_t),res1
                     else
                         if (premier_ab .and. premier_c) then
                             write(*,*) "sauvegarde dans un fichier ? (oui :1)"
@@ -1793,15 +1855,15 @@ module menu_general
                          end if
                         if (i_sav=='1') then
                             if (nconf/=1) then
-                                write(30,fmt3d) pcour2(:,i_t),res,tl_c
+                                write(30,fmt3d) pcour2(:,i_t),res1,tl_c
                             else
-                                write(30,fmt3b) pcour2(:,i_t),res
+                                write(30,fmt3b) pcour2(:,i_t),res1
                             endif
                         else
                             if (nconf/=1) then
-                                write(*,fmt3d) pcour2(:,i_t),res,tl_c
+                                write(*,fmt3d) pcour2(:,i_t),res1,tl_c
                             else
-                                write(30,fmt3b) pcour2(:,i_t),res
+                                write(*,fmt3b) pcour2(:,i_t),res1
                             endif
                         endif
                     endif

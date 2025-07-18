@@ -19,12 +19,13 @@ import EM_CMD
 
 _Func_Name_List = ["CMD_help","CMD_exec_known_device","CMD_exec_new_device","CMDEX_ball_calibr","CMDEX_init",
                    "CMDEX_evol_profils","CMDEX_frontiere","CMDEX_grid","CMDEX_calibration","JSON_print_devices",
-                   "JSON_add_device","JSON_remove_device","DAT_change_date","DAT_pop_and_dec","DAT_switch_cols",
-                   "DAT_remove_cols","DAT_remove_data","DAT_min_max_col","DAT_light_format","DAT_change_sep",
-                   "DAT_fuse_data","DAT_fuse_bases","TRANS_df_to_matrix","TRANS_matrix_to_df","TRANS_matrix_to_grd",
-                   "TRANS_grd_to_matrix","FIG_display_fig","FIG_plot_data","FIG_plot_grid","FIG_plot_pos","EXEC"]
+                   "JSON_add_device","JSON_remove_device","JSON_modify_device","DAT_change_date","DAT_pop_and_dec",
+                   "DAT_switch_cols","DAT_remove_cols","DAT_remove_data","DAT_stats","DAT_light_format",
+                   "DAT_change_sep","DAT_no_gps_pos","DAT_fuse_data","DAT_fuse_bases","TRANS_df_to_matrix",
+                   "TRANS_matrix_to_df","TRANS_matrix_to_grd","TRANS_grd_to_matrix","FIG_display_fig","FIG_plot_data",
+                   "FIG_plot_grid","FIG_plot_pos","EXEC"]
 
-def main(app_data,file_list,file_list_rev,sep,output_file,output_file_base,light_restr,split,sup_na,regr,corr_base,choice):
+def main(app_data,file_list,file_list_rev,sep,output_file,output_file_base,light_restr,split,sup_na,regr,corr_base,no_base,choice):
     """ [TA]\n
     As its name would suggest, is the main function for the global CMD process.\n
     Can be called from ``CMD_exec_known_device`` or ``CMD_exec_new_device``.
@@ -57,6 +58,8 @@ def main(app_data,file_list,file_list_rev,sep,output_file,output_file_base,light
         Whether profiles should be linearized in the ``EM_CMD.CMD_init`` function.
     corr_base : bool
         Whether profiles should be adjusted from bases values in the ``EM_CMD.CMD_init`` function.
+    no_base : bool
+        If no file contains bases, while having clear profiles. Will only consider profiles.    
     choice : bool
         Enables manual acceptance of each adjustment in the ``EM_CMD.CMD_frontiere_loop`` function.
     
@@ -76,14 +79,6 @@ def main(app_data,file_list,file_list_rev,sep,output_file,output_file_base,light
     --------
     ``EM_CMD.CMD_init, EM_CMD.CMD_frontiere_loop, EM_CMD.DAT_light_format``
     """
-    nomrep1="CMD explorer GPS/VCP"
-    nomrep2="CMD explorer GPS/HCP"
-    nomrep3="CMD mini explorer 3L GPS"
-    nomrep4="C:/Data_equivalent/prospection/Tournoisis_Amelie_Laurent/\
-    2024/cmd explorer/VCP"
-    nomrep5="C:/Data_equivalent/prospection/Tournoisis_Amelie_Laurent/\
-    2024/CMD miniexplorer/VVCP"
-
     nomrep = CONFIG.data_path
 
     os.chdir(nomrep)
@@ -103,31 +98,9 @@ def main(app_data,file_list,file_list_rev,sep,output_file,output_file_base,light
     nb_fich = len(ls_nomfich)
     if nb_fich > 8:
         EM_CMD.MESS_warn_mess('Le nombre de fichiers est élevé ({}) : il est conseillé de fractionner le traitement pour obtenir de meilleurs résultats'.format(nb_fich))
-
-    # il faut gérer différentes choses comme la recherche de base ou la présence
-    # d'un GPS. C'est le rôle des booléens suivants
-    # qu'on pourra traduire sous forme d'interface si nécessaire
-    Base=True
-    # init_geom=False
-
-
-    # ici on a les différents paramètre des différentes géométries
-    # on pourrait utiliser un dictionnaire
-
-    # decal6L=np.round(TR_l6L/2.-0.75,3)
-    # decal3L=np.round(TR_l3L/2.-0.59,3)
-    # decalex=np.round(TR_lex/2.-2.3,3)
-    
-    dec_para = np.round(np.array(app_data["TR_l"])/2.-0.59,3)
-
-    # init_geom=True
-    
-    # if not(init_geom) :
-    #     EM_CMD.MESS_err_mess("Pas d'initialisation, arrêt du script")
-    # pass
         
     # concaténation si nécessaire avant traitement
-    don_base, don_mes, ls_base, ls_mes, ncx, ncy, col_T, nb_res, ls_pd_done_before = EM_CMD.CMD_init(app_data,ls_nomfich,sep,sup_na,regr,corr_base,not_in_file=True)
+    don_base, don_mes, ls_base, ls_mes, ncx, ncy, col_T, nb_res, ls_pd_done_before = EM_CMD.CMD_init(app_data,ls_nomfich,sep,sup_na,regr,corr_base,no_base,app=True,not_in_file=True)
             
     cpt = 0
     if ls_mes:
@@ -183,8 +156,7 @@ def main(app_data,file_list,file_list_rev,sep,output_file,output_file_base,light
         
         
     #fin de lecture du fichier
-    EM_CMD.MESS_input_mess(["Fin de l'execution, appuyer sur 'Entree' pour fermer"])
-    #input()
+    EM_CMD.keep_plt_for_cmd()
     os.chdir(CONFIG.script_path)
 
 # Suite ct à la ligne ligne 403
@@ -193,31 +165,31 @@ def main(app_data,file_list,file_list_rev,sep,output_file,output_file_base,light
 
 def init_app_dat():
     app_data = EM_CMD.JSON_add_device('mini3L','HCP',3,[30000],gps=True,gps_dec=[0.25,-0.2],TR_l=[0.32,0.71,1.18],\
-                                      TR_t=[0,0,0],height=0.1,bucking_coil=0,coeff_c_qu=1,coeff_c_ph=[0.00591,0.0281,0.0745],autosave=True)
-    EM_CMD.JSON_add_coeff(app_data)
-    # app_data = EM_CMD.JSON_add_device('mini3L','VCP',3,[30000],gps=True,gps_dec=[0.25,-0.2],TR_l=[0.32,0.71,1.18],\
-    #                                   TR_t=[0,0,0],height=0.1,bucking_coil=0,coeff_c_qu=1,coeff_c_ph=[0.00599,0.0290,0.0785],autosave=True)
+                                      TR_t=[0,0,0],height=0.1,bucking_coil=0,coeff_c_ph=[0.5982,0.9839,0.7074],coeff_c_qu=[0.00591,0.0281,0.0745],autosave=True)
     # EM_CMD.JSON_add_coeff(app_data)
-    # app_data = EM_CMD.JSON_add_device('mini3L','VCP',3,[10000,20000,30000],gps=True,gps_dec=[0.25,-0.2],TR_l=[0.32,0.71,1.18],\
-    #                                   TR_t=[0,0,0],height=0.1,bucking_coil=0,coeff_c_qu=1,coeff_c_ph=[0.00599,0.0290,0.0785],autosave=True)
+    app_data = EM_CMD.JSON_add_device('mini3L','VCP',3,[30000],gps=True,gps_dec=[0.25,-0.2],TR_l=[0.32,0.71,1.18],\
+                                      TR_t=[0,0,0],height=0.1,bucking_coil=0,coeff_c_ph=[1,1,1],coeff_c_qu=[0.00599,0.0290,0.0785],autosave=True)
     # EM_CMD.JSON_add_coeff(app_data)
-    # app_data = EM_CMD.JSON_add_device('mini6L','HCP',6,[10000,10000,20000,10000,1,30000,20000],gps=True,gps_dec=[0.25,-0.2],TR_l=[0.2,0.33,0.5,0.72,1.03,1.5],\
-    #                                   TR_t=[0,0,0,0,0,0],height=0.1,bucking_coil=0,coeff_c_qu=1,coeff_c_ph=[0.00194,0.00524,0.0119,0.0242,0.0484,0.0986],autosave=True)
+    app_data = EM_CMD.JSON_add_device('mini3L','VCP',3,[10000,20000,30000],gps=True,gps_dec=[0.25,-0.2],TR_l=[0.32,0.71,1.18],\
+                                      TR_t=[0,0,0],height=0.1,bucking_coil=0,coeff_c_ph=[1,1,1],coeff_c_qu=[0.00599,0.0290,0.0785],autosave=True)
     # EM_CMD.JSON_add_coeff(app_data)
-    # app_data = EM_CMD.JSON_add_device('mini6L','VCP',6,[10000,10000,20000,10000,1,30000,20000],gps=True,gps_dec=[0.25,-0.2],TR_l=[0.2,0.33,0.5,0.72,1.03,1.5],\
-    #                                   TR_t=[0,0,0,0,0,0],height=0.1,bucking_coil=0,coeff_c_qu=1,coeff_c_ph=[0.00194,0.00525,0.012,0.0246,0.0498,0.1037],autosave=True)
+    app_data = EM_CMD.JSON_add_device('mini6L','HCP',6,[10000,10000,20000,10000,1,30000,20000],gps=True,gps_dec=[0.25,-0.2],TR_l=[0.2,0.33,0.5,0.72,1.03,1.5],\
+                                      TR_t=[0,0,0,0,0,0],height=0.1,bucking_coil=0,coeff_c_ph=[1,1,1,1,1,1],coeff_c_qu=[0.00194,0.00524,0.0119,0.0242,0.0484,0.0986],autosave=True)
     # EM_CMD.JSON_add_coeff(app_data)
-    # app_data = EM_CMD.JSON_add_device('mini6L','PRP_CS',6,[10000,10000,20000,10000,1,30000,20000],gps=True,gps_dec=[0.25,-0.2],TR_l=[0.2,0.33,0.5,0.72,1.03,1.5],\
-    #                                   TR_t=[0,0,0,0,0,0],height=0.1,bucking_coil=0,coeff_c_qu=1,coeff_c_ph=[0.00194,0.00525,0.012,0.0246,0.0498,0.1037],autosave=True)
+    app_data = EM_CMD.JSON_add_device('mini6L','VCP',6,[10000,10000,20000,10000,1,30000,20000],gps=True,gps_dec=[0.25,-0.2],TR_l=[0.2,0.33,0.5,0.72,1.03,1.5],\
+                                      TR_t=[0,0,0,0,0,0],height=0.1,bucking_coil=0,coeff_c_ph=[1,1,1,1,1,1],coeff_c_qu=[0.00194,0.00525,0.012,0.0246,0.0498,0.1037],autosave=True)
     # EM_CMD.JSON_add_coeff(app_data)
-    # app_data = EM_CMD.JSON_add_device('expl3L','HCP',3,[10000,20000,30000],gps=True,gps_dec=[0.25,-0.2],TR_l=[0,0,0],\
-    #                                   TR_t=[1.5,2.4,4.6],height=0.1,bucking_coil=0,coeff_c_qu=1,coeff_c_ph=[0.0402,0.1366,0.3144],autosave=True)
+    app_data = EM_CMD.JSON_add_device('mini6L','PRP_CS',6,[10000,10000,20000,10000,1,30000,20000],gps=True,gps_dec=[0.25,-0.2],TR_l=[0.2,0.33,0.5,0.72,1.03,1.5],\
+                                      TR_t=[0,0,0,0,0,0],height=0.1,bucking_coil=0,coeff_c_ph=[1,1,1,1,1,1],coeff_c_qu=[0.00194,0.00525,0.012,0.0246,0.0498,0.1037],autosave=True)
     # EM_CMD.JSON_add_coeff(app_data)
-    # app_data = EM_CMD.JSON_add_device('expl3L','VCP',3,[10000,20000,30000],gps=True,gps_dec=[0.25,-0.2],TR_l=[0,0,0],\
-    #                                   TR_t=[1.5,2.4,4.6],height=0.1,bucking_coil=0,coeff_c_qu=1,coeff_c_ph=[0.0417,0.1463,0.3558],autosave=True)
+    app_data = EM_CMD.JSON_add_device('expl3L','HCP',3,[10000,20000,30000],gps=True,gps_dec=[0.25,-0.2],TR_l=[0,0,0],\
+                                      TR_t=[1.5,2.4,4.6],height=0.1,bucking_coil=0,coeff_c_ph=[1,1,1],coeff_c_qu=[0.0402,0.1366,0.3144],autosave=True)
     # EM_CMD.JSON_add_coeff(app_data)
-    # app_data = EM_CMD.JSON_add_device('mini3L','HCP',3,[30000],gps=False,gps_dec=[0,0],TR_l=[0.32,0.71,1.18],\
-    #                                   TR_t=[0,0,0],height=0.1,bucking_coil=0,coeff_c_pqu=1,coeff_c_ph=[0.00591,0.0281,0.0745],autosave=True)
+    app_data = EM_CMD.JSON_add_device('expl3L','VCP',3,[10000,20000,30000],gps=True,gps_dec=[0.25,-0.2],TR_l=[0,0,0],\
+                                      TR_t=[1.5,2.4,4.6],height=0.1,bucking_coil=0,coeff_c_ph=[1,1,1],coeff_c_qu=[0.0417,0.1463,0.3558],autosave=True)
+    # EM_CMD.JSON_add_coeff(app_data)
+    app_data = EM_CMD.JSON_add_device('mini3L','HCP',3,[30000],gps=False,gps_dec=[0,0],TR_l=[0.32,0.71,1.18],\
+                                      TR_t=[0,0,0],height=0.1,bucking_coil=0,coeff_c_ph=[1,1,1],coeff_c_qu=[0.00591,0.0281,0.0745],autosave=True)
     # EM_CMD.JSON_add_coeff(app_data)
 
 # EM_CMD.JSON_print_devices(CONFIG.json_path)
@@ -254,11 +226,11 @@ def CMD_help(help_id=None):
     """
     _Title_list = ["Aide","Traitement CMD (appareil enregistré)","Traitement CMD (nouvel appareil)","Calibration à la boule","Interpolation, décalage et complétion",
                    "Etalonnage par base et/ou manuel","Étalonnage des frontières","Mise en grille des données",
-                   "Étalonnage final des données par calibration (loi physique)","Liste des appareils enregistrés","Ajouter un appareil",
-                   "Supprimer un appareil enregistré","Changement de la date d'un fichier .dat","Suppression d'une colonne surnuméraire dans un fichier .dat",
-                   "Inversion de deux colonnes dans un fichier .dat","Suppression de colonnes dans un fichier .dat",
-                   "Suppression de données (valeurs) dans un fichier .dat","Statistiques sur fichier.dat","Mise en format standard d'un fichier .dat",
-                   "Changement du séparateur dans un fichier .dat","Fusion de données dans un même fichier .dat","Fusion de bases B1 et B2 dans un même fichier .dat",
+                   "Étalonnage final des données par calibration (loi physique)","Liste des appareils enregistrés","Ajouter un appareil","Supprimer un appareil enregistré",
+                   "Modifier un appareil enregistré","Changement de la date d'un fichier .dat","Suppression d'une colonne surnuméraire dans un fichier .dat",
+                   "Inversion de deux colonnes dans un fichier .dat","Suppression de colonnes dans un fichier .dat","Suppression de données (valeurs) dans un fichier .dat",
+                   "Statistiques sur fichier.dat","Mise en format standard d'un fichier .dat","Changement du séparateur dans un fichier .dat",
+                   "Correction des positions sans GPS d'un fichier .dat","Fusion de données dans un même fichier .dat","Fusion de bases B1 et B2 dans un même fichier .dat",
                    "Changement de format, de dataframe (.dat) à matrice (.json)","Changement de format, de matrice (.json) à dataframe (.dat)",
                    "Changement de format, de matrice (.json) à Surfer (.grd)","Changement de format, de Surfer (.grd) à matrice (.json)",
                    "Affichage interactif de figures en .pickle","Affichage et enregistrement de figures (nuage de points)",
@@ -362,7 +334,7 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
               EM_CMD.success_low_color+"file_list_rev"+EM_CMD.code_color+","+EM_CMD.success_low_color+"sep"+EM_CMD.code_color+","+EM_CMD.success_low_color+"output_file"+EM_CMD.code_color+","+
               EM_CMD.success_low_color+"output_file_base"+EM_CMD.code_color+","+EM_CMD.success_low_color+"light_restr"+EM_CMD.code_color+","+EM_CMD.success_low_color+"split"+EM_CMD.code_color+","+
               EM_CMD.success_low_color+"sup_na"+EM_CMD.code_color+","+EM_CMD.success_low_color+"regr"+EM_CMD.code_color+","+EM_CMD.success_low_color+"corr_base"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"choice]"+EM_CMD.code_color+")")
+              EM_CMD.success_low_color+"no_base"+EM_CMD.code_color+","+EM_CMD.success_low_color+"choice]"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"uid"+EM_CMD.type_color+" : int "+EM_CMD.base_color+"= indentifiant de l'appareil dans la base JSON")
         print("       "+EM_CMD.success_low_color+"file_list = None"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à traiter, le premier est celui servant pour le redressement (laisser vide pour traiter tous les fichiers du dossier)")
@@ -375,6 +347,7 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("       "+EM_CMD.success_low_color+"sup_na = True"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= suppression des données incomplètes (sinon redressage)")
         print("       "+EM_CMD.success_low_color+"regr = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= propose d'appliquer ou non une régression linéaire sur les profils, si certains ne sont pas droits (par défaut, ne le fait pas)")
         print("       "+EM_CMD.success_low_color+"corr_base = True"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= si activé, applique une correction par base sur les données d'un même fichier (voir CMDEX_evol_profils pour plus d'options)")
+        print("       "+EM_CMD.success_low_color+"no_base = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= si activé, ne considère que des profils (si le jeu ne contient pas de base)")
         print("       "+EM_CMD.success_low_color+"choice = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= si activé, permet de valider ou non chaque ajustement proposé entre les jeux de données (attention, cette procédure peut être longue)")
         print("")
         print("exemples : "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py CMD_exec_known_device 1')
@@ -393,11 +366,12 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print(">>> CMD_exec_new_device("+EM_CMD.success_color+"app_name"+EM_CMD.code_color+","+EM_CMD.success_color+"config"+EM_CMD.code_color+","+EM_CMD.success_color+"nb_ecarts"+EM_CMD.code_color+","+
               EM_CMD.success_color+"nb_ecarts"+EM_CMD.code_color+","+EM_CMD.success_color+"freq_list"+EM_CMD.code_color+","+EM_CMD.success_low_color+"[GPS"+EM_CMD.code_color+","+
               EM_CMD.success_low_color+"GPS_dec"+EM_CMD.code_color+","+EM_CMD.success_low_color+"TR_l"+EM_CMD.code_color+","+EM_CMD.success_low_color+"TR_t"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"height"+EM_CMD.code_color+","+EM_CMD.success_low_color+"bucking_coil"+EM_CMD.code_color+","+EM_CMD.success_low_color+"coeff_construct"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"file_list"+EM_CMD.code_color+","+EM_CMD.success_low_color+"file_list_rev"+EM_CMD.code_color+","+EM_CMD.success_low_color+"sep"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"output_file"+EM_CMD.code_color+","+EM_CMD.success_low_color+"output_file_base"+EM_CMD.code_color+","+EM_CMD.success_low_color+"light_restr"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"split"+EM_CMD.code_color+","+EM_CMD.success_low_color+"sup_na"+EM_CMD.code_color+","+EM_CMD.success_low_color+"regr"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"corr_base"+EM_CMD.code_color+","+EM_CMD.success_low_color+"choice]"+EM_CMD.code_color+")")
+              EM_CMD.success_low_color+"height"+EM_CMD.code_color+","+EM_CMD.success_low_color+"bucking_coil"+EM_CMD.code_color+","+EM_CMD.success_low_color+"coeff_c_ph"+EM_CMD.code_color+","+
+              EM_CMD.success_low_color+"coeff_c_qu"+EM_CMD.code_color+","+EM_CMD.success_low_color+"file_list"+EM_CMD.code_color+","+EM_CMD.success_low_color+"file_list_rev"+EM_CMD.code_color+","+
+              EM_CMD.success_low_color+"sep"+EM_CMD.code_color+","+EM_CMD.success_low_color+"output_file"+EM_CMD.code_color+","+EM_CMD.success_low_color+"output_file_base"+EM_CMD.code_color+","+
+              EM_CMD.success_low_color+"light_restr"+EM_CMD.code_color+","+EM_CMD.success_low_color+"split"+EM_CMD.code_color+","+EM_CMD.success_low_color+"sup_na"+EM_CMD.code_color+","+
+              EM_CMD.success_low_color+"regr"+EM_CMD.code_color+","+EM_CMD.success_low_color+"corr_base"+EM_CMD.code_color+","+EM_CMD.success_low_color+"no_base"+EM_CMD.code_color+","+
+              EM_CMD.success_low_color+"choice]"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"app_name"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= nom de l'appareil")
         print("       "+EM_CMD.success_color+"config"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= configuration des bobines (HCP,VCP,VVCP,PRP_CS,PRP_DEM,PAR,COAX_H,COAX_P,CUS)")
@@ -409,7 +383,8 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("       "+EM_CMD.success_low_color+"TR_t = array of 0.0"+EM_CMD.type_color+" : float[] "+EM_CMD.base_color+"= positions des bobines receptrices (en m) sur l'axe transversal")
         print("       "+EM_CMD.success_low_color+"height = 0.1"+EM_CMD.type_color+" : float "+EM_CMD.base_color+"= hauteur de l'appareil par rapport au sol (en m)")
         print("       "+EM_CMD.success_low_color+"bucking_coil = 0"+EM_CMD.type_color+" : int "+EM_CMD.base_color+"= numéro de la bucking coil parmi les bobines (0 si inexistante)")
-        print("       "+EM_CMD.success_low_color+"coeff_construct = 1.0"+EM_CMD.type_color+" : float "+EM_CMD.base_color+"= coefficient de l'appareil (fourni par le constructeur, ou calculé avec 'CMDEX_ball_calibr')")
+        print("       "+EM_CMD.success_low_color+"coeff_c_ph = None"+EM_CMD.type_color+" : float[] "+EM_CMD.base_color+"= coefficient de l'appareil en phase (calculé avec 'CMDEX_ball_calibr')")
+        print("       "+EM_CMD.success_low_color+"coeff_c_qu = None"+EM_CMD.type_color+" : float[] "+EM_CMD.base_color+"= coefficient de l'appareil en quadrature (donné par le constructeur)")
         print("       "+EM_CMD.success_low_color+"file_list = None"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à traiter, le premier est celui servant pour le redressement (laisser vide pour traiter tous les fichiers du dossier)")
         print("       "+EM_CMD.success_low_color+"file_list_rev = None"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à ne pas traiter (n'est pris en compte que si le champ précédent est laissé vide)")
         print("       "+EM_CMD.success_low_color+"sep = '\\t'"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= caractère de séparation du .dat (par défaut '\\t')")
@@ -420,6 +395,7 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("       "+EM_CMD.success_low_color+"sup_na = True"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= suppression des données incomplètes (sinon redressage)")
         print("       "+EM_CMD.success_low_color+"regr = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= propose d'appliquer ou non une régression linéaire sur les profils, si certains ne sont pas droits (par défaut, ne le fait pas)")
         print("       "+EM_CMD.success_low_color+"corr_base = True"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= si activé, applique une correction par base sur les données d'un même fichier (voir CMDEX_evol_profils pour plus d'options)")
+        print("       "+EM_CMD.success_low_color+"no_base = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= si activé, ne considère que des profils (si le jeu ne contient pas de base)")
         print("       "+EM_CMD.success_low_color+"choice = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= si activé, permet de valider ou non chaque ajustement proposé entre les jeux de données (attention, cette procédure peut être longue)")
         print("")
         print("exemples : "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py CMD_exec_new_device "dummy" "PAR" 5 40000 TR_l="[0.24,0.52,0.91,1.2,1.45]" "file_list=["d1.dat",d2.dat]"')
@@ -468,7 +444,8 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("5) Décalage GPS et bobines en n voies.")
         print(EM_CMD.code_color)
         print(">>> CMDEX_init("+EM_CMD.success_color+"uid"+EM_CMD.code_color+","+EM_CMD.success_low_color+"[file_list"+EM_CMD.code_color+","+EM_CMD.success_low_color+"sep"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"sup_na"+EM_CMD.code_color+","+EM_CMD.success_low_color+"regr"+EM_CMD.code_color+","+EM_CMD.success_low_color+"corr_base]"+EM_CMD.code_color+")")
+              EM_CMD.success_low_color+"sup_na"+EM_CMD.code_color+","+EM_CMD.success_low_color+"regr"+EM_CMD.code_color+","+EM_CMD.success_low_color+"corr_base"+EM_CMD.code_color+","+
+              EM_CMD.success_low_color+"no_base]"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"uid"+EM_CMD.type_color+" : int "+EM_CMD.base_color+"= indentifiant de l'appareil dans la base JSON")
         print("       "+EM_CMD.success_low_color+"file_list = None"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à traiter (laisser vide pour traiter tous les fichiers du dossier)")
@@ -476,6 +453,7 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("       "+EM_CMD.success_low_color+"sup_na = True"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= suppression des données incomplètes (sinon redressage)")
         print("       "+EM_CMD.success_low_color+"regr = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= propose d'appliquer ou non une régression linéaire sur les profils, si certains ne sont pas droits (par défaut, ne le fait pas)")
         print("       "+EM_CMD.success_low_color+"corr_base = True"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= si activé, applique une correction par base sur les données d'un même fichier (voir CMDEX_evol_profils pour plus d'options)")
+        print("       "+EM_CMD.success_low_color+"no_base = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= si activé, ne considère que des profils (si le jeu ne contient pas de base)")
         print("")
         print("exemples : "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py CMDEX_init 0 sup_na=False')
         print("           "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py CMDEX_init 8 file_list="[sq1.dat,sq2.dat,sq3.dat,sq4.dat]" sep=, regr=True')
@@ -499,7 +477,7 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"file_prof_list"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers profils à traiter")
         print("       "+EM_CMD.success_color+"file_base_list"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers bases à traiter, col_x='X_int', col_y='Y_int'")
-        print("       "+EM_CMD.success_color+"col_z"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= position des colonnes données, la première est 0")
+        print("       "+EM_CMD.success_color+"col_z"+EM_CMD.type_color+" : int[] "+EM_CMD.base_color+"= position des colonnes données, la première est 0")
         print("       "+EM_CMD.success_low_color+"sep = '\\t'"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= caractère de séparation du .dat (par défaut '\\t')")
         print("       "+EM_CMD.success_low_color+"replace = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= si le résultat est mis dans le fichier profils de départ (sinon, un nouveau est créé avec le suffixe '_corr')")
         print("       "+EM_CMD.success_low_color+"output_file_list = None"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= nom des fichier de sortie pour les bases, n'est pas pris en compte si replace=True (si None, alors le résultat n'est pas enregistré)")
@@ -528,9 +506,9 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
               EM_CMD.success_low_color+"[file_list"+EM_CMD.code_color+","+EM_CMD.success_low_color+"sep"+EM_CMD.code_color+","+EM_CMD.success_low_color+"output_file"+EM_CMD.code_color+","+
               EM_CMD.success_low_color+"choice]"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
-        print("avec : "+EM_CMD.success_color+"col_x"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= position des colonnes des coordonnées x (une par voie), la première est 0")
-        print("       "+EM_CMD.success_color+"col_y"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= position des colonnes des coordonnées y (une par voie), la première est 0")
-        print("       "+EM_CMD.success_color+"col_z"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= position des colonnes données, la première est 0 (sa taille doit être un multiple de la taille des vecteurs positions)")
+        print("avec : "+EM_CMD.success_color+"col_x"+EM_CMD.type_color+" : int[] "+EM_CMD.base_color+"= position des colonnes des coordonnées x (une par voie), la première est 0")
+        print("       "+EM_CMD.success_color+"col_y"+EM_CMD.type_color+" : int[] "+EM_CMD.base_color+"= position des colonnes des coordonnées y (une par voie), la première est 0")
+        print("       "+EM_CMD.success_color+"col_z"+EM_CMD.type_color+" : int[] "+EM_CMD.base_color+"= position des colonnes données, la première est 0 (sa taille doit être un multiple de la taille des vecteurs positions)")
         print("       "+EM_CMD.success_low_color+"file_list = None"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à traiter, le premier est celui servant pour le redressement (laisser vide pour traiter tous les fichiers du dossier)")
         print("       "+EM_CMD.success_low_color+"sep = '\\t'"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= caractère de séparation du .dat (par défaut '\\t')")
         print("       "+EM_CMD.success_low_color+'output_file = "frt.dat"'+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= nom du fichier de sortie")
@@ -559,9 +537,9 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
               EM_CMD.success_low_color+"only_nan"+EM_CMD.code_color+","+EM_CMD.success_low_color+"no_crop"+EM_CMD.code_color+","+EM_CMD.success_low_color+"all_models"+EM_CMD.code_color+","+
               EM_CMD.success_low_color+"plot_pts"+EM_CMD.code_color+","+EM_CMD.success_low_color+"matrix]"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
-        print("avec : "+EM_CMD.success_color+"col_x"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= position des colonnes des coordonnées x (une par voie), la première est 0")
-        print("       "+EM_CMD.success_color+"col_y"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= position des colonnes des coordonnées y (une par voie), la première est 0")
-        print("       "+EM_CMD.success_color+"col_z"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= position des colonnes données, la première est 0 (sa taille doit être un multiple de la taille des vecteurs positions)")
+        print("avec : "+EM_CMD.success_color+"col_x"+EM_CMD.type_color+" : int[] "+EM_CMD.base_color+"= position des colonnes des coordonnées x (une par voie), la première est 0")
+        print("       "+EM_CMD.success_color+"col_y"+EM_CMD.type_color+" : int[] "+EM_CMD.base_color+"= position des colonnes des coordonnées y (une par voie), la première est 0")
+        print("       "+EM_CMD.success_color+"col_z"+EM_CMD.type_color+" : int[] "+EM_CMD.base_color+"= position des colonnes données, la première est 0 (sa taille doit être un multiple de la taille des vecteurs positions)")
         print("       "+EM_CMD.success_low_color+"file_list = None"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à traiter (ils seront fusionnés)")
         print("       "+EM_CMD.success_low_color+"sep = '\\t'"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= caractère de séparation du .dat (par défaut '\\t')")
         print("       "+EM_CMD.success_low_color+'output_file = None'+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= nom du fichier de sortie, sinon n'en crée pas")
@@ -590,13 +568,18 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("DESCRIPTION :"+EM_CMD.bold_color+" Effectue le calibrage des données en ppm.")
         print("La procédure nécessite de calculer les coefficients de passage entre différents paramètres physiques (condictivité, résistivité). Ils sont stockés dans le fichier 'Constantes.json'.")
         print(EM_CMD.code_color)
-        print(">>> CMDEX_calibration("+EM_CMD.success_color+"uid"+EM_CMD.code_color+","+EM_CMD.success_low_color+"[file_list]"+EM_CMD.code_color+")")
+        print(">>> CMDEX_calibration("+EM_CMD.success_color+"uid"+EM_CMD.code_color+","+EM_CMD.success_color+"col_ph"+EM_CMD.code_color+","+EM_CMD.success_color+"col_qu"+EM_CMD.code_color+","+
+              EM_CMD.success_low_color+"[file_list"+EM_CMD.code_color+EM_CMD.success_low_color+"sep"+EM_CMD.code_color+EM_CMD.success_low_color+"output_file_list]"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"uid"+EM_CMD.type_color+" : int "+EM_CMD.base_color+"= indentifiant de l'appareil dans la base JSON")
+        print("       "+EM_CMD.success_color+"col_ph"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= position des colonnes en phase, la première est 0")
+        print("       "+EM_CMD.success_color+"col_qu"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= position des colonnes en quadrature, la première est 0")
         print("       "+EM_CMD.success_low_color+"file_list = None"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à traiter (laisser vide pour traiter tous les fichiers du dossier)")
+        print("       "+EM_CMD.success_low_color+"sep = '\\t'"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= caractère de séparation du .dat (par défaut '\\t')")
+        print("       "+EM_CMD.success_low_color+"output_file_list = None"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= nom des fichier de sortie (sinon, un nouveau est créé avec le suffixe '_calibr')")
         print("")
-        print("exemples : "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py CMDEX_calibration 0')
-        print("           "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py CMDEX_calibration 1 file_list="[rachida_dat_i.dat,datte_le_fruit.dat]"')
+        print("exemples : "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py CMDEX_calibration 0 1,5,9 0,4,8')
+        print("           "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py CMDEX_calibration 1 8,10,12 7,9,11 file_list="[rachida_dat_i.dat,date_the_fruit.dat] sep=,"')
         print(EM_CMD.base_color)
     ic += 1
     if help_id == None or help_id == ic:
@@ -625,7 +608,8 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print(">>> JSON_add_device("+EM_CMD.success_color+"app_name"+EM_CMD.code_color+","+EM_CMD.success_color+"config"+EM_CMD.code_color+","+EM_CMD.success_color+"nb_ecarts"+EM_CMD.code_color+","+
               EM_CMD.success_color+"nb_ecarts"+EM_CMD.code_color+","+EM_CMD.success_color+"freq_list"+EM_CMD.code_color+","+EM_CMD.success_low_color+"[GPS"+EM_CMD.code_color+","+
               EM_CMD.success_low_color+"GPS_dec"+EM_CMD.code_color+","+EM_CMD.success_low_color+"TR_l"+EM_CMD.code_color+","+EM_CMD.success_low_color+"TR_t"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"height"+EM_CMD.code_color+","+EM_CMD.success_low_color+"bucking_coil"+EM_CMD.code_color+","+EM_CMD.success_low_color+"coeff_construct]"+")")
+              EM_CMD.success_low_color+"height"+EM_CMD.code_color+","+EM_CMD.success_low_color+"bucking_coil"+EM_CMD.code_color+","+EM_CMD.success_low_color+"coeff_c_ph"+EM_CMD.code_color+","+
+              EM_CMD.success_low_color+"coeff_c_qu]"+EM_CMD.code_color+","+")")
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"app_name"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= nom de l'appareil")
         print("       "+EM_CMD.success_color+"config"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= configuration des bobines (HCP,VCP,VVCP,PRP_CS,PRP_DEM,PAR,COAX_H,COAX_P,CUS)")
@@ -637,7 +621,8 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("       "+EM_CMD.success_low_color+"TR_t = array of 0.0"+EM_CMD.type_color+" : float[] "+EM_CMD.base_color+"= positions des bobines receptrices (en m) sur l'axe transversal")
         print("       "+EM_CMD.success_low_color+"height = 0.1"+EM_CMD.type_color+" : float "+EM_CMD.base_color+"= hauteur de l'appareil par rapport au sol (en m)")
         print("       "+EM_CMD.success_low_color+"bucking_coil = 0"+EM_CMD.type_color+" : int "+EM_CMD.base_color+"= numéro de la bucking coil parmi les bobines (0 si inexistante)")
-        print("       "+EM_CMD.success_low_color+"coeff_construct = 1.0"+EM_CMD.type_color+" : float "+EM_CMD.base_color+"= coefficient de l'appareil (fourni par le constructeur, ou calculé avec 'CMDEX_ball_calibr')")
+        print("       "+EM_CMD.success_low_color+"coeff_c_ph = None"+EM_CMD.type_color+" : float[] "+EM_CMD.base_color+"= coefficient de l'appareil en phase (calculé avec 'CMDEX_ball_calibr')")
+        print("       "+EM_CMD.success_low_color+"coeff_c_qu = None"+EM_CMD.type_color+" : float[] "+EM_CMD.base_color+"= coefficient de l'appareil en quadrature (donné par le constructeur)")
         print("")
         print("exemples : "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py JSON_add_device "dummy" "PAR" 5 40000 TR_l="[0.24,0.52,0.91,1.2,1.45]"')
         print("           "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py JSON_add_device "mini3L" "VCP" 3 [30000] TR_t="0.32 0.71 1.18 " height=0.2 "GPS = False"')
@@ -662,10 +647,28 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         curr_title = "[{}] ".format(ic)+_Title_list[ic]+" :"
         print(curr_title+EM_CMD.title_next_color+"."*(nc-len(curr_title)))
         print(EM_CMD.bold_und_color)
+        print("DESCRIPTION :"+EM_CMD.bold_color+" Modifie certains champs de l'appareil associé à l'identifiant choisi de la base 'Appareils.json'.")
+        print("Si certains champs créent des incohérences entre eux (par exemple les écartements et le nombre de bobines), ils devront tous être changés.")
+        print("Cette fonction ne crée pas de copie de l'ancien appareil, se contente de le remplacer.")
+        print(EM_CMD.code_color)
+        print(">>> JSON_modify_device("+EM_CMD.success_color+"uid"+EM_CMD.code_color+","+EM_CMD.success_low_color+"**kwargs"+EM_CMD.code_color+")")
+        print(EM_CMD.base_color)
+        print("avec : "+EM_CMD.success_color+"uid"+EM_CMD.type_color+" : int "+EM_CMD.base_color+"= indentifiant de l'appareil dans la base JSON (laisser vide pour supprimer le dernier)")
+        print("       "+EM_CMD.success_low_color+"**kwargs"+EM_CMD.base_color+" : champs à modifier (se référer aux champs existants de la fonction 'JSON_add_device')")
+        print("")
+        print("exemples : "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py JSON_modify_device 0 config="HCP" GPS=True')
+        print("           "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py JSON_modify_device 4 nb_ecarts=6 TR_l=[0.35,0.78,1.29,1.54,1.81,2.08] TR_t="[0,0,0,0,0,0]" ')
+        print(EM_CMD.base_color)
+    ic += 1
+    if help_id == None or help_id == ic:
+        print(EM_CMD.title_color)
+        curr_title = "[{}] ".format(ic)+_Title_list[ic]+" :"
+        print(curr_title+EM_CMD.title_next_color+"."*(nc-len(curr_title)))
+        print(EM_CMD.bold_und_color)
         print("DESCRIPTION :"+EM_CMD.bold_color+" Permet de corriger toutes les lignes d'un fichier avec la date spécifiée si celle-ci est incorrecte.")
         print(EM_CMD.code_color)
         print(">>> DAT_change_date("+EM_CMD.success_color+"file_list"+EM_CMD.code_color+","+EM_CMD.success_color+"date_str"+EM_CMD.code_color+","+EM_CMD.success_low_color+"[sep"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"replace"+EM_CMD.code_color+","+EM_CMD.success_low_color+"output_file]"+EM_CMD.code_color+")")
+              EM_CMD.success_low_color+"replace"+EM_CMD.code_color+","+EM_CMD.success_low_color+"output_file_list]"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"file_list"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à traiter")
         print("       "+EM_CMD.success_color+"date_str"+EM_CMD.type_color+" : str "+EM_CMD.base_color+'= nouvelle date (format "mois/jour/année")')
@@ -685,7 +688,7 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("DESCRIPTION :"+EM_CMD.bold_color+" Permet de retirer une entête de colonne si aucune donnée ne lui est associé, pour éviter de décaler le reste du jeu de données.")
         print(EM_CMD.code_color)
         print(">>> DAT_pop_and_dec("+EM_CMD.success_color+"file_list"+EM_CMD.code_color+","+EM_CMD.success_color+"colsup"+EM_CMD.code_color+","+EM_CMD.success_low_color+"[sep"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"replace"+EM_CMD.code_color+","+EM_CMD.success_low_color+"output_file]"+EM_CMD.code_color+")")
+              EM_CMD.success_low_color+"replace"+EM_CMD.code_color+","+EM_CMD.success_low_color+"output_file_list]"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"file_list"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à traiter")
         print("       "+EM_CMD.success_color+"colsup"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= nom de colonne à supprimer")
@@ -705,7 +708,7 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("DESCRIPTION :"+EM_CMD.bold_color+" Permet d'échanger les valeurs de deux colonnes, tout en conservant leur position.")
         print(EM_CMD.code_color)
         print(">>> DAT_switch_cols("+EM_CMD.success_color+"file_list"+EM_CMD.code_color+","+EM_CMD.success_color+"col_a"+EM_CMD.code_color+","+EM_CMD.success_color+"col_b"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"[sep"+EM_CMD.code_color+","+EM_CMD.success_low_color+"replace"+EM_CMD.code_color+","+EM_CMD.success_low_color+"output_file]"+EM_CMD.code_color+")")
+              EM_CMD.success_low_color+"[sep"+EM_CMD.code_color+","+EM_CMD.success_low_color+"replace"+EM_CMD.code_color+","+EM_CMD.success_low_color+"output_file_list]"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"file_list"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à traiter")
         print("       "+EM_CMD.success_color+"col_a"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= nom de la première colonne")
@@ -728,7 +731,7 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("Pour uniformiser l'opération de manière automatique, voir la fonction 'DAT_light_format'")
         print(EM_CMD.code_color)
         print(">>> DAT_remove_cols("+EM_CMD.success_color+"file_list"+EM_CMD.code_color+","+EM_CMD.success_color+"colsup_list"+EM_CMD.code_color+","+EM_CMD.success_color+"[keep"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"sep"+EM_CMD.code_color+","+EM_CMD.success_low_color+"replace"+EM_CMD.code_color+","+EM_CMD.success_low_color+"output_file]"+EM_CMD.code_color+")")
+              EM_CMD.success_low_color+"sep"+EM_CMD.code_color+","+EM_CMD.success_low_color+"replace"+EM_CMD.code_color+","+EM_CMD.success_low_color+"output_file_list]"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"file_list"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à traiter")
         print("       "+EM_CMD.success_color+"colsup_list"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= nom des colonnes concernées (ne pas mettre de crochets pour délimiter la liste)")
@@ -751,7 +754,7 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print(EM_CMD.code_color)
         print(">>> DAT_remove_data("+EM_CMD.success_color+"file_list"+EM_CMD.code_color+","+EM_CMD.success_color+"colsup_list"+EM_CMD.code_color+","+EM_CMD.success_color+"i_min"+EM_CMD.code_color+","+
               EM_CMD.success_color+"i_max"+EM_CMD.code_color+","+EM_CMD.success_low_color+"[sep"+EM_CMD.code_color+","+EM_CMD.success_low_color+"replace"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"output_file]"+EM_CMD.code_color+")")
+              EM_CMD.success_low_color+"output_file_list]"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"file_list"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à traiter")
         print("       "+EM_CMD.success_color+"colsup_list"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= nom des colonnes concernées (ne pas mettre de crochets pour délimiter la liste)")
@@ -775,7 +778,7 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("Pour les supprimer, on pourra utiliser la fonction 'DAT_remove_data'.")
         print(EM_CMD.code_color)
         print(">>> DAT_stats("+EM_CMD.success_color+"file_list"+EM_CMD.code_color+","+EM_CMD.success_color+"col_list"+EM_CMD.code_color+","+EM_CMD.success_low_color+"[sep"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"n]"+EM_CMD.code_color+","+")")
+              EM_CMD.success_low_color+"n]"+EM_CMD.code_color+","+EM_CMD.success_low_color+"**kwargs"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"file_list"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à traiter")
         print("       "+EM_CMD.success_color+"col_list"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= nom des colonnes concernées (ne pas mettre de crochets pour délimiter la liste)")
@@ -799,7 +802,7 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("Pour une procédure de suppression plus libre, voir la fonction 'DAT_remove_cols'.")
         print(EM_CMD.code_color)
         print(">>> DAT_light_format("+EM_CMD.success_color+"file_list"+EM_CMD.code_color+","+EM_CMD.success_low_color+"[sep"+EM_CMD.code_color+","+EM_CMD.success_low_color+"replace"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"output_file"+EM_CMD.code_color+","+EM_CMD.success_low_color+"nb_data"+EM_CMD.code_color+","+EM_CMD.success_low_color+"restr]"+EM_CMD.code_color+")")
+              EM_CMD.success_low_color+"output_file_list"+EM_CMD.code_color+","+EM_CMD.success_low_color+"nb_ecarts"+EM_CMD.code_color+","+EM_CMD.success_low_color+"restr]"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"file_list"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à traiter")
         print("       "+EM_CMD.success_low_color+"sep = '\\t'"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= caractère de séparation du .dat (par défaut '\\t')")
@@ -820,7 +823,7 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("DESCRIPTION :"+EM_CMD.bold_color+" Permet de modifier le séparateur utilisé dans certains fichiers .dat. Utile dans le cas où on souhaite utiliser plusieurs fichiers dans un même traitement.")
         print(EM_CMD.code_color)
         print(">>> DAT_change_sep("+EM_CMD.success_color+"file_list"+EM_CMD.code_color+","+EM_CMD.success_color+"sep"+EM_CMD.code_color+","+EM_CMD.success_color+"new_sep"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"[replace"+EM_CMD.code_color+","+EM_CMD.success_low_color+"output_file]"+EM_CMD.code_color+")")
+              EM_CMD.success_low_color+"[replace"+EM_CMD.code_color+","+EM_CMD.success_low_color+"output_file_list]"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"file_list"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à traiter")
         print("       "+EM_CMD.success_color+"sep"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= caractère de séparation d'origine du .dat")
@@ -830,6 +833,25 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("")
         print("exemples : "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py DAT_change_sep "path/to/file/very_nice_data.dat" "\\t" ","')
         print("           "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py DAT_change_sep "[comma_put_me_in_coma.dat,i_dont_have_NaN.dat]" "," "!" replace=True "output_file=very_surprised.dat"')
+        print(EM_CMD.base_color)
+    ic += 1
+    if help_id == None or help_id == ic:
+        print(EM_CMD.title_color)
+        curr_title = "[{}] ".format(ic)+_Title_list[ic]+" :"
+        print(curr_title+EM_CMD.title_next_color+"."*(nc-len(curr_title)))
+        print(EM_CMD.bold_und_color)
+        print("DESCRIPTION :"+EM_CMD.bold_color+" Attribue à chaque point de prospection sans GPS sa vraie position, si celle-ci est répétée sur un même profil.")
+        print(EM_CMD.code_color)
+        print(">>> DAT_no_gps_pos("+EM_CMD.success_color+"file_list"+EM_CMD.code_color+","+EM_CMD.success_low_color+"[sep"+EM_CMD.code_color+","+EM_CMD.success_low_color+"replace"+EM_CMD.code_color+","+
+              EM_CMD.success_low_color+"output_file_list"+EM_CMD.code_color+","+")")
+        print(EM_CMD.base_color)
+        print("avec : "+EM_CMD.success_color+"file_list"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à traiter")
+        print("       "+EM_CMD.success_low_color+"sep = '\\t'"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= caractère de séparation du .dat (par défaut '\\t')")
+        print("       "+EM_CMD.success_low_color+"replace = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= si le résultat est mis dans le fichier de départ (sinon, un nouveau est créé avec le suffixe '_pos')")
+        print("       "+EM_CMD.success_low_color+"output_file_list = None"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= nom des fichier de sortie, n'est pas pris en compte si replace=True")
+        print("")
+        print("exemples : "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py DAT_no_gps_pos "path/to/file/very_nice_data.dat"')
+        print("           "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py DAT_no_gps_pos "[0and0and0and0and0.dat,from_line_to_square.dat]" sep=, replace=True')
         print(EM_CMD.base_color)
     ic += 1
     if help_id == None or help_id == ic:
@@ -976,9 +998,9 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"file"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= nom du fichier")
         print("       "+EM_CMD.success_low_color+"sep = '\\t'"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= caractère de séparation du .dat (par défaut '\\t')")
-        print("       "+EM_CMD.success_low_color+"col_x = [0]"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= position des colonnes des coordonnées x (une par voie), la première est 0 (sinon, prend la première)")
-        print("       "+EM_CMD.success_low_color+"col_y = [1]"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= position des colonnes des coordonnées y (une par voie), la première est 0 (sinon, prend la seconde)")
-        print("       "+EM_CMD.success_low_color+"col_z = None"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= position des colonnes données, la première est 0 (sa taille doit être un multiple de la taille des vecteurs positions) (sinon, prend toutes les autres)")
+        print("       "+EM_CMD.success_low_color+"col_x = [0]"+EM_CMD.type_color+" : int[] "+EM_CMD.base_color+"= position des colonnes des coordonnées x (une par voie), la première est 0 (sinon, prend la première)")
+        print("       "+EM_CMD.success_low_color+"col_y = [1]"+EM_CMD.type_color+" : int[] "+EM_CMD.base_color+"= position des colonnes des coordonnées y (une par voie), la première est 0 (sinon, prend la seconde)")
+        print("       "+EM_CMD.success_low_color+"col_z = None"+EM_CMD.type_color+" : int[] "+EM_CMD.base_color+"= position des colonnes données, la première est 0 (sa taille doit être un multiple de la taille des vecteurs positions) (sinon, prend toutes les autres)")
         print("")
         print("exemples : "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py FIG_plot_data "path/to/file/very_nice_data.dat"')
         print("           "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py FIG_plot_data "day_ta.dat" col_x=0,4,8 col_y=1,5,9 col_z=2,3,6,7,10,11')
@@ -1041,7 +1063,8 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
 """
 Les fonctions suivantes ne seront pas explicitées car elles reprennent la description de leur équivalent du fichier ``EM_CMD``.
 """
-def CMD_exec_known_device(uid,file_list=None,file_list_rev=None,sep='\t',output_file="res.dat",output_file_base="res_B.dat",light_restr=None,split=False,sup_na=True,regr=False,corr_base=True,choice=False):
+def CMD_exec_known_device(uid,file_list=None,file_list_rev=None,sep='\t',output_file="res.dat",output_file_base="res_B.dat",light_restr=None,split=False,\
+                          sup_na=True,regr=False,corr_base=True,no_base=False,choice=False):
     """
     See also
     --------
@@ -1049,20 +1072,21 @@ def CMD_exec_known_device(uid,file_list=None,file_list_rev=None,sep='\t',output_
     """
     app_data = EM_CMD.JSON_find_device(uid)
     print(app_data)
-    main(app_data,file_list,file_list_rev,sep,output_file,output_file_base,light_restr,split,sup_na,regr,corr_base,choice)
+    main(app_data,file_list,file_list_rev,sep,output_file,output_file_base,light_restr,split,sup_na,regr,corr_base,no_base,choice)
     EM_CMD.MESS_succ_mess("Fin de l'exécution !")
     EM_CMD.keep_plt_for_cmd()
 
-def CMD_exec_new_device(app_name,config,nb_ecarts,freq_list,gps=True,gps_dec=[0.0,0.0],TR_l=None,TR_t=None,height=0.1,bucking_coil=0,coeff_construct=1.0,\
-                        file_list=None,file_list_rev=None,sep='\t',output_file="res.dat",output_file_base="res_B.dat",light_restr=None,split=False,sup_na=True,regr=False,corr_base=True,choice=False):
+def CMD_exec_new_device(app_name,config,nb_ecarts,freq_list,gps=True,gps_dec=[0.0,0.0],TR_l=None,TR_t=None,height=0.1,bucking_coil=0,coeff_c_ph=None,coeff_c_qu=None,\
+                        file_list=None,file_list_rev=None,sep='\t',output_file="res.dat",output_file_base="res_B.dat",light_restr=None,split=False,sup_na=True,\
+                        regr=False,corr_base=True,no_base=False,choice=False):
     """
     See also
     --------
     ``main, EM_CMD.JSON_add_device``
     """
-    app_data = EM_CMD.JSON_add_device(app_name,config,nb_ecarts,freq_list,gps,gps_dec,TR_l,TR_t,height,bucking_coil,coeff_construct,autosave=False)
+    app_data = EM_CMD.JSON_add_device(app_name,config,nb_ecarts,freq_list,gps,gps_dec,TR_l,TR_t,height,bucking_coil,coeff_c_ph,coeff_c_qu,autosave=False)
     print(app_data)
-    main(app_data,file_list,file_list_rev,sep,output_file,output_file_base,light_restr,split,sup_na,regr,corr_base,choice)
+    main(app_data,file_list,file_list_rev,sep,output_file,output_file_base,light_restr,split,sup_na,regr,corr_base,no_base,choice)
     EM_CMD.MESS_succ_mess("Fin de l'exécution !")
     EM_CMD.keep_plt_for_cmd()
 
@@ -1076,13 +1100,13 @@ def CMDEX_ball_calibr(ball_file,config,TR,radius,z,x_min,x_max,sep='\t',y=0,step
     EM_CMD.MESS_succ_mess("Fin de l'exécution !")
     EM_CMD.keep_plt_for_cmd()
 
-def CMDEX_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True):
+def CMDEX_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,no_base=False,pseudo_prof=False):
     """
     See also
     --------
     ``main, EM_CMD.JSON_add_device``
     """
-    EM_CMD.CMD_init(uid,file_list,sep,sup_na,regr,corr_base)
+    EM_CMD.CMD_init(uid,file_list,sep,sup_na,regr,corr_base,no_base,pseudo_prof)
     EM_CMD.MESS_succ_mess("Fin de l'exécution !")
     EM_CMD.keep_plt_for_cmd()
 
@@ -1110,22 +1134,19 @@ def CMDEX_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_type
     """
     See also
     --------
-    ``EM_CMD.CMD_grid, EM_CMD.TOOL_true_file_list``
+    ``EM_CMD.CMD_grid``
     """
-    file_list = EM_CMD.TOOL_true_file_list(file_list)
     EM_CMD.CMD_grid(col_x,col_y,col_z,file_list,sep,output_file,m_type,radius,prec,step,seuil,i_method,only_nan,no_crop,all_models,plot_pts,matrix)
     EM_CMD.MESS_succ_mess("Fin de l'exécution !")
     EM_CMD.keep_plt_for_cmd()
 
-def CMDEX_calibration(uid,file_list=None):
+def CMDEX_calibration(uid,col_ph,col_qu,file_list=None,sep='\t',output_file_list=None):
     """
     See also
     --------
-    ``EM_CMD.JSON_add_coeff``
+    ``EM_CMD.CMD_calibration``
     """
-    file_list = EM_CMD.TOOL_true_file_list(file_list)
-    app_data = EM_CMD.JSON_find_device(uid)
-    EM_CMD.JSON_add_coeff(app_data)
+    EM_CMD.CMD_calibration(uid,col_ph,col_qu,file_list,sep,output_file_list)
     EM_CMD.MESS_succ_mess("Fin de l'exécution !")
     EM_CMD.keep_plt_for_cmd()
 
@@ -1138,13 +1159,13 @@ def JSON_print_devices(uid=None):
     EM_CMD.JSON_print_devices(uid=uid)
 
 
-def JSON_add_device(app_name,config,nb_ecarts,freq_list,gps=True,gps_dec=[0.0,0.0],TR_l=None,TR_t=None,height=0.1,bucking_coil=0,coeff_construct=1.0):
+def JSON_add_device(app_name,config,nb_ecarts,freq_list,gps=True,gps_dec=[0.0,0.0],TR_l=None,TR_t=None,height=0.1,bucking_coil=0,coeff_c_ph=None,coeff_c_qu=None):
     """
     See also
     --------
     ``EM_CMD.JSON_add_device``
     """
-    error = EM_CMD.JSON_add_device(app_name,config,nb_ecarts,freq_list,gps,gps_dec,TR_l,TR_t,height,bucking_coil,coeff_construct,autosave=True,error_code=True)
+    error = EM_CMD.JSON_add_device(app_name,config,nb_ecarts,freq_list,gps,gps_dec,TR_l,TR_t,height,bucking_coil,coeff_c_ph,coeff_c_qu,autosave=True,error_code=True)
     if not error:
         EM_CMD.MESS_succ_mess("Appareil ajouté avec succès !")
 
@@ -1156,6 +1177,15 @@ def JSON_remove_device(uid=None):
     """
     EM_CMD.JSON_remove_device(uid=uid)
     EM_CMD.MESS_succ_mess("Appareil supprimé avec succès !")
+
+def JSON_modify_device(uid,new_values_dict):
+    """
+    See also
+    --------
+    ``EM_CMD.JSON_modify_device``
+    """
+    EM_CMD.JSON_modify_device(uid,new_values_dict)
+    EM_CMD.MESS_succ_mess("Appareil modifié avec succès !")
 
 def DAT_change_date(file_list,date_str,sep='\t',replace=False,output_file_list=None):
     """
@@ -1227,6 +1257,15 @@ def DAT_change_sep(file_list,sep,new_sep,replace=False,output_file_list=None):
     """
     EM_CMD.DAT_change_sep(file_list,sep,new_sep,replace,output_file_list)
     EM_CMD.MESS_succ_mess("Séparateur modifié avec succès !")
+
+def DAT_no_gps_pos(file_list,sep='\t',replace=False,output_file_list=None):
+    """
+    See also
+    --------
+    ``EM_CMD.DAT_no_gps_pos``
+    """
+    EM_CMD.DAT_no_gps_pos(file_list,sep,replace,output_file_list)
+    EM_CMD.MESS_succ_mess("Position ajustée avec succès !")
 
 def DAT_fuse_data(file_list,sep='\t',output_file="fused.dat"):
     """
@@ -1443,11 +1482,12 @@ def function_call():
             sup_na = True
             regr = False
             corr_base = True
+            no_base = False
             choice = False
             if len(sys.argv) > 3:
                 opt_params = EM_CMD.TOOL_optargs_list(sys.argv[3:], ["file_list","file_list_rev","sep","output_file","output_file_base","light_restr",\
-                                                                     "split","sup_na","regr","corr_base","choice"],
-                                                                     [[str],[str],str,str,str,[str],bool,bool,bool,bool,bool])
+                                                                     "split","sup_na","regr","corr_base","no_base","choice"],
+                                                                     [[str],[str],str,str,str,[str],bool,bool,bool,bool,bool,bool])
                 file_list = opt_params.get("file_list", None)
                 file_list_rev = opt_params.get("file_list_rev", None)
                 sep = opt_params.get("sep", '\t')
@@ -1458,8 +1498,9 @@ def function_call():
                 sup_na = opt_params.get("sup_na", True)
                 regr = opt_params.get("regr", False)
                 corr_base = opt_params.get("corr_base", True)
+                no_base = opt_params.get("no_base", False)
                 choice = opt_params.get("choice", False)
-            CMD_exec_known_device(uid,file_list,file_list_rev,sep,output_file,output_file_base,light_restr,split,sup_na,regr,corr_base,choice)
+            CMD_exec_known_device(uid,file_list,file_list_rev,sep,output_file,output_file_base,light_restr,split,sup_na,regr,corr_base,no_base,choice)
         elif globals()[sys.argv[1]] == CMD_exec_new_device:
             app_name = EM_CMD.TOOL_str_clean(sys.argv[2])
             config = EM_CMD.TOOL_str_clean(sys.argv[3])
@@ -1471,7 +1512,8 @@ def function_call():
             TR_t = None
             height = 0.1
             bucking_coil = 0
-            coeff_construct = 1.0
+            coeff_c_ph = None
+            coeff_c_qu = None
             file_list = None
             file_list_rev = None
             sep = '\t'
@@ -1482,19 +1524,21 @@ def function_call():
             sup_na = True
             regr = False
             corr_base = True
+            no_base = False
             choice  = False
             if len(sys.argv) > 6:
-                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[6:], ["GPS","GPS_dec","TR_l","TR_t","height","bucking_coil","coeff_construct","file_list",\
+                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[6:], ["GPS","GPS_dec","TR_l","TR_t","height","bucking_coil","coeff_c_ph","coeff_c_qu","file_list",\
                                                                      "file_list_rev","sep","output_file","output_file_base","light_restr","split","sup_na",\
-                                                                     "regr","corr_base","choice"],\
-                                                                     [bool,[float],[float],[float],float,int,float,[str],[str],str,str,[str],bool,bool,bool,bool,bool])
+                                                                     "regr","corr_base","no_base","choice"],\
+                                                                     [bool,[float],[float],[float],float,int,[float],[float],[str],[str],str,str,[str],bool,bool,bool,bool,bool,bool])
                 gps = opt_params.get("GPS", True)
                 gps_dec = opt_params.get("GPS_dec", [0.0,0.0])
                 TR_l = opt_params.get("TR_l", None)
                 TR_t = opt_params.get("TR_t", None)
                 height = opt_params.get("height", 0.1)
                 bucking_coil = opt_params.get("bucking_coil", 0)
-                coeff_construct = opt_params.get("coeff_construct", 1.0)
+                coeff_c_ph = opt_params.get("coeff_c_ph", None)
+                coeff_c_qu = opt_params.get("coeff_c_qu", None)
                 file_list = opt_params.get("file_list", None)
                 file_list_rev = opt_params.get("file_list_rev", None)
                 sep = opt_params.get("sep", '\t')
@@ -1505,9 +1549,10 @@ def function_call():
                 sup_na = opt_params.get("sup_na", True)
                 regr = opt_params.get("regr", False)
                 corr_base = opt_params.get("corr_base", True)
+                no_base = opt_params.get("no_base", False)
                 choice = opt_params.get("choice", False)
-            CMD_exec_new_device(app_name,config,nb_ecarts,freq_list,gps,gps_dec,TR_l,TR_t,height,bucking_coil,coeff_construct,file_list,file_list_rev,\
-                                sep,output_file,output_file_base,light_restr,split,sup_na,regr,corr_base,choice)
+            CMD_exec_new_device(app_name,config,nb_ecarts,freq_list,gps,gps_dec,TR_l,TR_t,height,bucking_coil,coeff_c_ph,coeff_c_qu,file_list,file_list_rev,\
+                                sep,output_file,output_file_base,light_restr,split,sup_na,regr,corr_base,no_base,choice)
         elif globals()[sys.argv[1]] == CMDEX_ball_calibr:
             ball_file = EM_CMD.TOOL_str_clean(sys.argv[2], path=True)
             config = EM_CMD.TOOL_str_clean(sys.argv[3])
@@ -1534,14 +1579,18 @@ def function_call():
             sup_na = True
             regr = False
             corr_base = True
+            no_base = False
+            pseudo_prof = False
             if len(sys.argv) > 3:
-                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[3:], ["file_list","sep","sup_na","regr","corr_base"], [[str],str,bool,bool,bool])
+                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[3:], ["file_list","sep","sup_na","regr","corr_base","no_base","pseudo_prof"], [[str],str,bool,bool,bool,bool,bool])
                 file_list = opt_params.get("file_list", None)
                 sep = opt_params.get("sep", '\t')
                 sup_na = opt_params.get("sup_na", True)
                 regr = opt_params.get("regr", False)
                 corr_base = opt_params.get("corr_base", True)
-            CMDEX_init(uid,file_list,sep,sup_na,regr,corr_base)
+                no_base = opt_params.get("no_base", False)
+                pseudo_prof = opt_params.get("pseudo_prof", False)
+            CMDEX_init(uid,file_list,sep,sup_na,regr,corr_base,no_base,pseudo_prof)
         elif globals()[sys.argv[1]] == CMDEX_evol_profils:
             file_prof_list = EM_CMD.TOOL_split_list(sys.argv[2], str, path=True)
             file_base_list = EM_CMD.TOOL_split_list(sys.argv[3], str, path=True)
@@ -1555,7 +1604,8 @@ def function_call():
             man_adjust = False
             line = False
             if len(sys.argv) > 5:
-                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[5:], ["sep","replace","output_file_list","nb_ecarts","diff","auto_adjust","man_adjust","line"], [str,bool,[str],int,bool,bool,bool,bool])
+                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[5:], ["sep","replace","output_file_list","nb_ecarts","diff","auto_adjust","man_adjust","line"],\
+                                                                    [str,bool,[str],int,bool,bool,bool,bool])
                 sep = opt_params.get("sep", '\t')
                 replace = opt_params.get("replace", False)
                 output_file_list = opt_params.get("output_file_list", None)
@@ -1599,7 +1649,9 @@ def function_call():
             plot_pts = False
             matrix = False
             if len(sys.argv) > 5:
-                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[5:], ["file_list","sep","output_file","m_type","radius","prec","step","seuil","i_method","only_nan","no_crop","all_models","plot_pts","matrix"], [[str],str,str,str,int,int,float,float,str,bool,bool,bool,bool,bool])
+                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[5:], ["file_list","sep","output_file","m_type","radius","prec","step","seuil","i_method",\
+                                                                     "only_nan","no_crop","all_models","plot_pts","matrix"],\
+                                                                    [[str],str,str,str,int,int,float,float,str,bool,bool,bool,bool,bool])
                 file_list = opt_params.get("file_list", None)
                 sep = opt_params.get("sep", '\t')
                 output_file = opt_params.get("output_file", None)
@@ -1617,11 +1669,17 @@ def function_call():
             CMDEX_grid(col_x,col_y,col_z,file_list,sep,output_file,m_type,radius,prec,step,seuil,i_method,only_nan,no_crop,all_models,plot_pts,matrix)
         elif globals()[sys.argv[1]] == CMDEX_calibration:
             uid = int(sys.argv[2])
+            col_ph = EM_CMD.TOOL_split_list(sys.argv[3], int)
+            col_qu = EM_CMD.TOOL_split_list(sys.argv[4], int)
             file_list = None
-            if len(sys.argv) > 3:
-                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[3:], ["file_list"],[[str]])
+            sep = '\t'
+            output_file_list = None
+            if len(sys.argv) > 5:
+                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[5:], ["file_list","sep","output_file_list"],[[str],str,str])
                 file_list = opt_params.get("file_list", None)
-            CMDEX_calibration(uid,file_list)
+                sep = opt_params.get("sep", '\t')
+                output_file_list = opt_params.get("output_file_list", None)
+            CMDEX_calibration(uid,col_ph,col_qu,file_list,sep,output_file_list)
         elif globals()[sys.argv[1]] == JSON_print_devices:
             uid = None
             if len(sys.argv) > 2:
@@ -1639,23 +1697,32 @@ def function_call():
             TR_t = None
             height = 0.1
             bucking_coil = 0
-            coeff_construct = 1.0
+            coeff_c_ph = None
+            coeff_c_qu = None
             if len(sys.argv) > 6:
-                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[6:], ["GPS","GPS_dec","TR_l","TR_t","height","bucking_coil","coeff_construct"], [bool,[float],[float],[float],float,float])
+                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[6:], ["GPS","GPS_dec","TR_l","TR_t","height","bucking_coil","coeff_c_ph","coeff_c_qu"],\
+                                                                    [bool,[float],[float],[float],float,float,[float],[float]])
                 gps = opt_params.get("GPS", True)
                 gps_dec = opt_params.get("GPS_dec", [0.0,0.0])
                 TR_l = opt_params.get("TR_l", None)
                 TR_t = opt_params.get("TR_t", None)
                 height = opt_params.get("height", 0.1)
                 bucking_coil = opt_params.get("bucking_coil", 0)
-                coeff_construct = opt_params.get("coeff_construct", 1.0)
-            JSON_add_device(app_name,config,nb_ecarts,freq_list,gps,gps_dec,TR_l,TR_t,height,bucking_coil,coeff_construct)
+                coeff_c_ph = opt_params.get("coeff_c_ph", None)
+                coeff_c_qu = opt_params.get("coeff_c_qu", None)
+            JSON_add_device(app_name,config,nb_ecarts,freq_list,gps,gps_dec,TR_l,TR_t,height,bucking_coil,coeff_c_ph,coeff_c_qu)
         elif globals()[sys.argv[1]] == JSON_remove_device:
             uid = -1
             if len(sys.argv) > 2:
                 opt_params = EM_CMD.TOOL_optargs_list(sys.argv[2:], ["uid"], [int])
                 uid = opt_params.get("uid", -1)
             JSON_remove_device(uid)
+        elif globals()[sys.argv[1]] == JSON_modify_device:
+            uid = int(sys.argv[2])
+            if len(sys.argv) > 3:
+                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[3:], ["app_name","config","nb_ecarts","freq_list","GPS","GPS_dec","TR_l","TR_t","height","bucking_coil","coeff_c_ph","coeff_c_qu","config_angles"],\
+                                                                    [str,str,int,[float],bool,[float],[float],[float],float,float,[float],[float],[float]])
+            JSON_modify_device(uid,opt_params)
         elif globals()[sys.argv[1]] == DAT_change_date:
             file_list = EM_CMD.TOOL_split_list(sys.argv[2], str, path=True)
             date_str = sys.argv[3]
@@ -1759,6 +1826,17 @@ def function_call():
                 replace = opt_params.get("replace", False)
                 output_file_list = opt_params.get("output_file_list", None)
             DAT_change_sep(file_list,sep,new_sep,replace,output_file_list)
+        elif globals()[sys.argv[1]] == DAT_no_gps_pos:
+            file_list = EM_CMD.TOOL_split_list(sys.argv[2], str, path=True)
+            sep = '\t'
+            replace = False
+            output_file_list = None
+            if len(sys.argv) > 3:
+                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[3:], ["sep","replace","output_file_list"], [str,bool,[str]])
+                sep = opt_params.get("sep", '\t')
+                replace = opt_params.get("replace", False)
+                output_file_list = opt_params.get("output_file_list", None)
+            DAT_no_gps_pos(file_list,sep,replace,output_file_list)
         elif globals()[sys.argv[1]] == DAT_fuse_data:
             file_list = EM_CMD.TOOL_split_list(sys.argv[2], str, path=True)
             sep = '\t'

@@ -19,7 +19,7 @@ import CONFIG
 
 os.chdir(CONFIG.data_path)
 
-def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=15,min_conseq=8,verif=False):
+def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=False):
     """ [TA]\n
     Given a database with continuous timestamps, estimate profiles by finding one point (called `center`) per profile, possibly at the center.\n
     Each prospection point is then assigned to the closest center in term of index to form pseudo-profiles.\n

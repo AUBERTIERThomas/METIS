@@ -218,6 +218,11 @@ def GUI_main_CMDEX():
             root.destroy()
         GUI_CMDEX_grid()
       
+    def on_c_button_pressed():
+        if not keep_prev_ui:
+            root.destroy()
+        GUI_CMDEX_calibration()
+    
     canvas.create_rectangle(CONFIG.tk_width//2-425, CONFIG.tk_height-575, CONFIG.tk_width//2+425, CONFIG.tk_height-25, fill="#d9c09c", width=0)
     b1 = tk.Button(root, text = 'CMDEX_ball_\ncalibr', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_bc_button_pressed)
     b1_c = canvas.create_window( CONFIG.tk_width//2-300,CONFIG.tk_height-550, anchor = "n",window = b1)
@@ -226,9 +231,11 @@ def GUI_main_CMDEX():
     b3 = tk.Button(root, text = 'CMDEX_\nevol_profils', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_ep_button_pressed)
     b3_c = canvas.create_window( CONFIG.tk_width//2+300,CONFIG.tk_height-550, anchor = "n",window = b3)
     b4 = tk.Button(root, text = 'CMDEX_\nfrontiere', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_f_button_pressed)
-    b4_c = canvas.create_window( CONFIG.tk_width//2-150,CONFIG.tk_height-250, anchor = "n",window = b4)
+    b4_c = canvas.create_window( CONFIG.tk_width//2-300,CONFIG.tk_height-250, anchor = "n",window = b4)
     b5 = tk.Button(root, text = 'CMDEX_grid', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_k_button_pressed)
-    b5_c = canvas.create_window( CONFIG.tk_width//2+150,CONFIG.tk_height-250, anchor = "n",window = b5)
+    b5_c = canvas.create_window( CONFIG.tk_width//2,CONFIG.tk_height-250, anchor = "n",window = b5)
+    b6 = tk.Button(root, text = 'CMDEX_\ncalibration', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_c_button_pressed)
+    b6_c = canvas.create_window( CONFIG.tk_width//2+300,CONFIG.tk_height-250, anchor = "n",window = b6)
     br = tk.Button(root, text = 'Retour', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", command=on_return_button_pressed)
     br_c = canvas.create_window( 50,25, anchor = "nw",window = br)
     bs = tk.Button(root, image = settings_im, command=EXEC_settings)
@@ -260,13 +267,20 @@ def GUI_main_JSON():
             root.destroy()
         GUI_JSON_remove_devices()
     
-    canvas.create_rectangle(CONFIG.tk_width//2-425, CONFIG.tk_height-375, CONFIG.tk_width//2+425, CONFIG.tk_height-125, fill="#d9c09c", width=0)
+    def on_md_button_pressed():
+        if not keep_prev_ui:
+            root.destroy()
+        GUI_JSON_modify_device()
+    
+    canvas.create_rectangle(CONFIG.tk_width//2-275, CONFIG.tk_height-575, CONFIG.tk_width//2+275, CONFIG.tk_height-25, fill="#d9c09c", width=0)
     b1 = tk.Button(root, text = 'JSON_print_\ndevices', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_pd_button_pressed)
-    b1_c = canvas.create_window( CONFIG.tk_width//2-300,CONFIG.tk_height-350, anchor = "n",window = b1)
+    b1_c = canvas.create_window( CONFIG.tk_width//2-150,CONFIG.tk_height-550, anchor = "n",window = b1)
     b2 = tk.Button(root, text = 'JSON_add_\ndevice', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_ad_button_pressed)
-    b2_c = canvas.create_window( CONFIG.tk_width//2,CONFIG.tk_height-350, anchor = "n",window = b2)
+    b2_c = canvas.create_window( CONFIG.tk_width//2+150,CONFIG.tk_height-550, anchor = "n",window = b2)
     b3 = tk.Button(root, text = 'JSON_remove_\ndevice', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_rd_button_pressed)
-    b3_c = canvas.create_window( CONFIG.tk_width//2+300,CONFIG.tk_height-350, anchor = "n",window = b3)
+    b3_c = canvas.create_window( CONFIG.tk_width//2-150,CONFIG.tk_height-250, anchor = "n",window = b3)
+    b4 = tk.Button(root, text = 'JSON_modify_\ndevice', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_md_button_pressed)
+    b4_c = canvas.create_window( CONFIG.tk_width//2+150,CONFIG.tk_height-250, anchor = "n",window = b4)
     br = tk.Button(root, text = 'Retour', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", command=on_return_button_pressed)
     br_c = canvas.create_window( 50,25, anchor = "nw",window = br)
     bs = tk.Button(root, image = settings_im, command=EXEC_settings)
@@ -308,10 +322,10 @@ def GUI_main_DAT():
             root.destroy()
         GUI_DAT_remove_data()
     
-    def on_mmc_button_pressed():
+    def on_s_button_pressed():
         if not keep_prev_ui:
             root.destroy()
-        GUI_DAT_min_max_col()
+        GUI_DAT_stats()
     
     def on_lf_button_pressed():
         if not keep_prev_ui:
@@ -323,6 +337,11 @@ def GUI_main_DAT():
             root.destroy()
         GUI_DAT_change_sep()
     
+    def on_ngp_button_pressed():
+        if not keep_prev_ui:
+            root.destroy()
+        GUI_DAT_no_gps_pos()
+    
     def on_fd_button_pressed():
         if not keep_prev_ui:
             root.destroy()
@@ -333,27 +352,29 @@ def GUI_main_DAT():
             root.destroy()
         GUI_DAT_fuse_bases()
     
-    canvas.create_rectangle(CONFIG.tk_width//2-725, CONFIG.tk_height-575, CONFIG.tk_width//2+725, CONFIG.tk_height-25, fill="#d9c09c", width=0)
+    canvas.create_rectangle(CONFIG.tk_width//2-575, CONFIG.tk_height-875, CONFIG.tk_width//2+575, CONFIG.tk_height-25, fill="#d9c09c", width=0)
     b1 = tk.Button(root, text = 'DAT_change_\ndate', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_cd_button_pressed)
-    b1_c = canvas.create_window( CONFIG.tk_width//2-600,CONFIG.tk_height-550, anchor = "n",window = b1)
+    b1_c = canvas.create_window( CONFIG.tk_width//2-450,CONFIG.tk_height-850, anchor = "n",window = b1)
     b2 = tk.Button(root, text = 'DAT_pop_\nand_dec', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_pad_button_pressed)
-    b2_c = canvas.create_window( CONFIG.tk_width//2-300,CONFIG.tk_height-550, anchor = "n",window = b2)
+    b2_c = canvas.create_window( CONFIG.tk_width//2-150,CONFIG.tk_height-850, anchor = "n",window = b2)
     b3 = tk.Button(root, text = 'DAT_switch_\ncols', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_sc_button_pressed)
-    b3_c = canvas.create_window( CONFIG.tk_width//2,CONFIG.tk_height-550, anchor = "n",window = b3)
+    b3_c = canvas.create_window( CONFIG.tk_width//2+150,CONFIG.tk_height-850, anchor = "n",window = b3)
     b4 = tk.Button(root, text = 'DAT_remove_\ncols', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_rc_button_pressed)
-    b4_c = canvas.create_window( CONFIG.tk_width//2+300,CONFIG.tk_height-550, anchor = "n",window = b4)
+    b4_c = canvas.create_window( CONFIG.tk_width//2+450,CONFIG.tk_height-850, anchor = "n",window = b4)
     b5 = tk.Button(root, text = 'DAT_remove_\ndata', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_rd_button_pressed)
-    b5_c = canvas.create_window( CONFIG.tk_width//2+600,CONFIG.tk_height-550, anchor = "n",window = b5)
-    b6 = tk.Button(root, text = 'DAT_min_\nmax_col', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_mmc_button_pressed)
-    b6_c = canvas.create_window( CONFIG.tk_width//2-600,CONFIG.tk_height-250, anchor = "n",window = b6)
+    b5_c = canvas.create_window( CONFIG.tk_width//2-450,CONFIG.tk_height-550, anchor = "n",window = b5)
+    b6 = tk.Button(root, text = 'DAT_stats', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_s_button_pressed)
+    b6_c = canvas.create_window( CONFIG.tk_width//2-150,CONFIG.tk_height-550, anchor = "n",window = b6)
     b7 = tk.Button(root, text = 'DAT_light_\nformat', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_lf_button_pressed)
-    b7_c = canvas.create_window( CONFIG.tk_width//2-300,CONFIG.tk_height-250, anchor = "n",window = b7)
+    b7_c = canvas.create_window( CONFIG.tk_width//2+150,CONFIG.tk_height-550, anchor = "n",window = b7)
     b8 = tk.Button(root, text = 'DAT_change_\nsep', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_cs_button_pressed)
-    b8_c = canvas.create_window( CONFIG.tk_width//2,CONFIG.tk_height-250, anchor = "n",window = b8)
-    b9 = tk.Button(root, text = 'DAT_fuse_\ndata', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_fd_button_pressed)
-    b9_c = canvas.create_window( CONFIG.tk_width//2+300,CONFIG.tk_height-250, anchor = "n",window = b9)
-    b10 = tk.Button(root, text = 'DAT_fuse_\nbases', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_fb_button_pressed)
-    b10_c = canvas.create_window( CONFIG.tk_width//2+600,CONFIG.tk_height-250, anchor = "n",window = b10)
+    b8_c = canvas.create_window( CONFIG.tk_width//2+450,CONFIG.tk_height-550, anchor = "n",window = b8)
+    b9 = tk.Button(root, text = 'DAT_no_gps_\npos', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_ngp_button_pressed)
+    b9_c = canvas.create_window( CONFIG.tk_width//2-300,CONFIG.tk_height-250, anchor = "n",window = b9)
+    b10 = tk.Button(root, text = 'DAT_fuse_\ndata', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_fd_button_pressed)
+    b10_c = canvas.create_window( CONFIG.tk_width//2,CONFIG.tk_height-250, anchor = "n",window = b10)
+    b11 = tk.Button(root, text = 'DAT_fuse_\nbases', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_fb_button_pressed)
+    b11_c = canvas.create_window( CONFIG.tk_width//2+300,CONFIG.tk_height-250, anchor = "n",window = b11)
     br = tk.Button(root, text = 'Retour', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", command=on_return_button_pressed)
     br_c = canvas.create_window( 50,25, anchor = "nw",window = br)
     bs = tk.Button(root, image = settings_im, command=EXEC_settings)
@@ -449,9 +470,9 @@ def GUI_CMD_exec_known_device(from_EXEC=None):
         
     root, canvas, bg_im, button_im, settings_im = LOAD_root("CMD_exec_known_device")
 
-    label_list = ["uid","file_list","file_list_rev","sep","output_file","output_file_base","light_restr","split","sup_na","regr","corr_base","choice"]
-    type_list = ["int","str[]","str[]","str","str","str","str[]","bool","bool","bool","bool","bool"]
-    default_list = ["*","None","None",'\\t',"\"res.dat\"","\"res_B.dat\"","None","False","True","False","True","False"]
+    label_list = ["uid","file_list","file_list_rev","sep","output_file","output_file_base","light_restr","split","sup_na","regr","corr_base","no_base","choice"]
+    type_list = ["int","str[]","str[]","str","str","str","str[]","bool","bool","bool","bool","bool","bool"]
+    default_list = ["*","None","None",'\\t',"\"res.dat\"","\"res_B.dat\"","None","False","True","False","True","False","False"]
     
     EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "CMD_exec_known_device", "CMD_", "Traitement CMD (appareil enregistré)", GUI_main_CMD, from_EXEC)
     
@@ -461,9 +482,10 @@ def GUI_CMD_exec_new_device(from_EXEC=None):
 
     root, canvas, bg_im, button_im, settings_im = LOAD_root("CMD_exec_new_device")
 
-    label_list = ["app_name","config","nb_ecarts","freq_list","GPS","GPS_dec","TR_l","TR_t","height","bucking_coil","coeff_construct","file_list","file_list_rev","sep","output_file","output_file_base","light_restr","split","sup_na","regr","corr_base","choice"]
-    type_list = ["str","str","int","float[]","bool","float[]","float[]","float[]","float","int","float","str[]","str[]","str","str","str","str[]","bool","bool","bool","bool","bool"]
-    default_list = ["*","*","*","*","True","[0.0,0.0]","None","None","0.1","0","1.0","None","None",'\\t',"\"res.dat\"","\"res_B.dat\"","None","False","True","False","True","False"]
+    label_list = ["app_name","config","nb_ecarts","freq_list","GPS","GPS_dec","TR_l","TR_t","height","bucking_coil","coeff_construct","file_list","file_list_rev",\
+                  "sep","output_file","output_file_base","light_restr","split","sup_na","regr","corr_base","no_base","choice"]
+    type_list = ["str","str","int","float[]","bool","float[]","float[]","float[]","float","int","float","str[]","str[]","str","str","str","str[]","bool","bool","bool","bool","bool","bool"]
+    default_list = ["*","*","*","*","True","[0.0,0.0]","None","None","0.1","0","1.0","None","None",'\\t',"\"res.dat\"","\"res_B.dat\"","None","False","True","False","True","False","False"]
     
     EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "CMD_exec_new_device", "CMD_", "Traitement CMD (nouvel appareil)", GUI_main_CMD, from_EXEC)
     
@@ -485,9 +507,9 @@ def GUI_CMDEX_init(from_EXEC=None):
 
     root, canvas, bg_im, button_im, settings_im = LOAD_root("CMDEX_init")
 
-    label_list = ["uid","file_list","sep","sup_na","regr","corr_base"]
-    type_list = ["int","str[]","str","bool","bool","bool"]
-    default_list = ["*","None",'\\t',"True","False","True"]
+    label_list = ["uid","file_list","sep","sup_na","regr","corr_base","no_base"]
+    type_list = ["int","str[]","str","bool","bool","bool","bool"]
+    default_list = ["*","None",'\\t',"True","False","True","False"]
     
     EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "CMDEX_init", "CMDEX_i_", "Interpolation, décalage et complétion", GUI_main_CMDEX, from_EXEC)
     
@@ -529,6 +551,18 @@ def GUI_CMDEX_grid(from_EXEC=None):
     
     root.mainloop()
 
+def GUI_CMDEX_calibration(from_EXEC=None):
+
+    root, canvas, bg_im, button_im, settings_im = LOAD_root("CMDEX_calibration")
+
+    label_list = ["uid","col_ph","col_qu","file_list","sep","output_file_list"]
+    type_list = ["str","int[]","int[]","str[]","str","str[]"]
+    default_list = ["*","*","*","None","\\t","None"]
+    
+    EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "CMDEX_calibration", "", "Étalonnage final des données par calibration (loi physique)", GUI_main_CMDEX, from_EXEC)
+    
+    root.mainloop()
+
 def GUI_JSON_print_devices(from_EXEC=None):
 
     root, canvas, bg_im, button_im, settings_im = LOAD_root("JSON_print_devices")
@@ -545,9 +579,9 @@ def GUI_JSON_add_devices(from_EXEC=None):
 
     root, canvas, bg_im, button_im, settings_im = LOAD_root("JSON_add_devices")
 
-    label_list = ["app_name","config","nb_ecarts","freq_list","GPS","GPS_dec","TR_l","TR_t","height","bucking_coil","coeff_construct"]
-    type_list = ["str","str","int","float[]","bool","float[]","float[]","float[]","float","int","float"]
-    default_list = ["*","*","*","*","True","[0.0,0.0]","None","None","0.1","0","1.0"]
+    label_list = ["app_name","config","nb_ecarts","freq_list","GPS","GPS_dec","TR_l","TR_t","height","bucking_coil","coeff_c_ph","coeff_c_qu"]
+    type_list = ["str","str","int","float[]","bool","float[]","float[]","float[]","float","int","float[]","float[]"]
+    default_list = ["*","*","*","*","True","[0.0,0.0]","None","None","0.1","0","None","None"]
     
     EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "JSON_add_devices", "", "Ajouter un appareil", GUI_main_JSON, from_EXEC)
     
@@ -562,6 +596,18 @@ def GUI_JSON_remove_devices(from_EXEC=None):
     default_list = ["None"]
     
     EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "JSON_remove_devices", "", "Supprimer un appareil enregistré", GUI_main_JSON, from_EXEC)
+    
+    root.mainloop()
+
+def GUI_JSON_modify_device(from_EXEC=None):
+
+    root, canvas, bg_im, button_im, settings_im = LOAD_root("JSON_modify_device")
+
+    label_list = ["uid","**kwargs"]
+    type_list = ["int","*"]
+    default_list = ["*","**"]
+    
+    EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "JSON_modify_device", "", "Modifier un appareil enregistré", GUI_main_JSON, from_EXEC)
     
     root.mainloop()
 
@@ -625,15 +671,15 @@ def GUI_DAT_remove_data(from_EXEC=None):
     
     root.mainloop()
 
-def GUI_DAT_min_max_col(from_EXEC=None):
+def GUI_DAT_stats(from_EXEC=None):
 
-    root, canvas, bg_im, button_im, settings_im = LOAD_root("DAT_min_max_col")
+    root, canvas, bg_im, button_im, settings_im = LOAD_root("DAT_stats")
 
     label_list = ["file_list","col_list","sep","n"]
     type_list = ["str[]","str[]","str","int"]
     default_list = ["*","*","\\t","10"]
     
-    EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "DAT_min_max_col", "", "Affichage des données extrêmes d'un fichier.dat", GUI_main_DAT, from_EXEC)
+    EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "DAT_stats", "", "Statistiques sur fichier.dat", GUI_main_DAT, from_EXEC)
     
     root.mainloop()
 
@@ -658,6 +704,18 @@ def GUI_DAT_change_sep(from_EXEC=None):
     default_list = ["*","*","*","False","None"]
     
     EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "DAT_change_sep", "", "Changement du séparateur dans un fichier .dat", GUI_main_DAT, from_EXEC)
+    
+    root.mainloop()
+
+def GUI_DAT_no_gps_pos(from_EXEC=None):
+
+    root, canvas, bg_im, button_im, settings_im = LOAD_root("DAT_no_gps_pos")
+
+    label_list = ["file_list","sep","replace","output_file_list"]
+    type_list = ["str[]","str","bool","str[]"]
+    default_list = ["*","\\t","False","None"]
+    
+    EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "DAT_no_gps_pos", "", "Correction des positions sans GPS d'un fichier .dat", GUI_main_DAT, from_EXEC)
     
     root.mainloop()
 
@@ -910,6 +968,7 @@ def EXEC_display_variables(root, canvas, button_im, settings_im, label_list, typ
     canvas.create_text( 595, 125, font=('Times', -20, 'bold'), text = "Défaut", anchor = "nw", fill="black")
     
     opt_start = default_list.count("*")
+    opt_end = len(default_list)-(default_list[-1]=="**")
     for i in range(len(label_list)):
         canvas.create_rectangle(35, 145+25*i, 145, 170+25*i, fill=d_gray[i%2], width=0)
         canvas.create_rectangle(145, 145+25*i, 345, 170+25*i, fill=l_gray[i%2], width=0)
@@ -945,7 +1004,10 @@ def EXEC_display_variables(root, canvas, button_im, settings_im, label_list, typ
             d_color = "red"
         else:
             l_color = "#006cc9"
-            d_color = "green"
+            if i < opt_end:
+                d_color = "green"
+            else:
+                d_color = "#b87500"
         canvas.create_text( 150, 150+25*i, font=('Times', -20, 'bold'), text = label_list[i], anchor = "nw", fill=l_color)
         canvas.create_text( 600, 150+25*i, font=('Times', -20, 'bold'), text = default_list[i], anchor = "nw", fill=d_color)
         
@@ -1060,6 +1122,8 @@ def EXEC_launch_command(func_name,var_list,label_list,default_list,func_prefix):
             var_value = str(v.instate(['selected']))
         if var_value != "" :
             if default_list[ic] == "*": # Paramètre obligatoire
+                param_list += " " + var_value
+            elif default_list[ic] == "**": # Paramètre **kwargs
                 param_list += " " + var_value
             else:                       # Paramètre optionel
                 param_list += " " + label_list[ic] + "=" + var_value

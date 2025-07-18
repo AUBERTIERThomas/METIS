@@ -315,7 +315,71 @@ import EM_CMD
 # plt.legend()
 # plt.show()
 
+nomfich=nomfich2
+donnees=pd.read_csv(nomfich,sep='\t')
 
+ind_aux=donnees[donnees['Date'].isna()].index
+
+# la liste des indiceq de début de profil est celle des changement de profil
+# auxquels on ajoute 1
+# il faut ensuite éliminer le dernier et rajouter 0 au début
+ind_deb=ind_aux+1
+ind_deb=ind_deb.drop(ind_deb[-1]).insert(0,0)
+
+# pour l'indice de fin, la manip est plus légère
+ind_fin=ind_aux-1
+
+# on a alors le nombre de points par profil (contrôle qualité, il ne devrait
+# pas y avoir de grande différence, sauf explication notées sur le carnet
+# de terrain)
+
+nb_pt_prof=ind_fin-ind_deb+1
+
+TxRx6L=np.array((0.2,0.33,0.5,0.72,1.03,1.5))
+decal6L=np.round(TxRx6L/2.-0.75,3)
+TxRx3L=np.array((0.32,0.71,1.18))
+decal3L=np.round(TxRx3L/2.-0.59,3)
+
+# ici on utilise le décalage correspondant à l'appareil utilisé
+
+decal=decal6L
+TxRx=TxRx6L
+
+nbvoie=len(TxRx)
+# cette boucle permet de calculer la position du centre de l'appareil à
+# partir du fichier non interpolé mais pas avec le GPS
+# il faut le prendre en compte (à faire, surement avec la 
+# détection de la colonne altitude) 
+try:
+    del(X_fin,Y_fin)
+except:
+    print('première exécution du script')
+pass
+
+for i in range(len(ind_aux)):
+    xd,xf=donnees['x[m]'].loc[ind_deb[i]],donnees['x[m]'].loc[ind_aux[i]]
+    yd,yf=donnees['y[m]'].loc[ind_deb[i]],donnees['y[m]'].loc[ind_aux[i]]
+    if (xd!=xf) :
+        xaux=np.linspace(xd,xf,nb_pt_prof[i])
+    else:
+        xaux=np.full((nb_pt_prof[i],),xd)
+    pass
+    if (yd!=yf) :
+        yaux=np.linspace(yd,yf,nb_pt_prof[i])
+    else:
+        yaux=np.full((nb_pt_prof[i],),yd)
+    pass
+    try :
+        X_fin=np.append(X_fin,xaux)
+    except :
+        X_fin=np.copy(xaux)
+    pass
+    try:
+        Y_fin=np.append(Y_fin,yaux)
+    except :
+        Y_fin=np.copy(yaux)
+    pass
+pass
 
 
 

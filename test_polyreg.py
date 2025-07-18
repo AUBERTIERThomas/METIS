@@ -26,10 +26,10 @@ import CONFIG
 import EM_CMD
 
 v = [1, 2, 3, 4]
-v = [-4, 3, 1, 150]
-v = [-2, 5, -10, 20]
+#v = [-4, 3, 1, 150]
+#v = [-2, 5, -10, 20]
 #v = [-9, 10, 15, 15]
-#v = [0, -5, -9, 2]
+v = [0, -5, -9, 2]
 
 def classic_regr(n,min_,max_,err_var,rc):
     
@@ -115,8 +115,6 @@ def classic_regr(n,min_,max_,err_var,rc):
 def inverse_regr(n,min_,max_,err_var,rc):
     
     l = ["linear","theilsen","huber"]
-    print(rc)
-    print("--- ---")
     old_x = np.linspace(min_,max_,n)
     old_y = rc[3]*old_x**(1/3) + rc[2]*old_x**(1/2) + rc[1]*old_x + rc[0]
     x = old_y.copy()
@@ -133,10 +131,7 @@ def inverse_regr(n,min_,max_,err_var,rc):
     
     ax[0].plot(old_x,old_y,'--')
     coefs = mymodel.c[::-1]
-    print(l[0])
     final_coefs = [np.sign(c)*(np.abs(c)**(1/(i+1))) for i,c in enumerate(coefs)]
-    print(final_coefs)
-    print()
     coefs_list.append(coefs)
     final_coefs_list.append(final_coefs)
     
@@ -157,11 +152,7 @@ def inverse_regr(n,min_,max_,err_var,rc):
         mse = mean_squared_error(res, y)
         coefs = e.coef_
         coefs[0] *= 2 # bah alors scikit on a fait quoi avec son terme à 0 hein ???
-        print(l[i+1])
         final_coefs = [np.sign(c)*(np.abs(c)**(1/(i+1))) for i,c in enumerate(coefs)]
-        print(final_coefs)
-        print("mse = ",mse)
-        print()
         coefs_list.append(coefs)
         final_coefs_list.append(final_coefs)
         if mse < best_mse:
@@ -217,12 +208,16 @@ def CMD_inverse_regr(X,Y,choice):
 
 def CMD_mse(X,Y,c):
     
+    #print(X)
     new_Y = c[0] + c[1]*X + c[2]*X**(1/2) + c[3]*X**(1/3)
     mse = sum((new_Y - Y)**2)
+    #print(mse)
+    if mse != mse:
+        sys.exit(1)
     return mse
     
 
-def CMD_convergence_inv_poly(X,Y,nb_pts,nb_tours=1000,force_fin=25,verif=True,verif_plus=False):
+def CMD_convergence_inv_poly(X,Y,nb_pts,nb_tours=1000,force_fin=25,verif=False,verif_plus=False):
     
     coef_list = [float(min(X)), float((max(Y)-min(Y))/(max(X)-min(X))), 0, 0]
     current_coef = 3
@@ -260,7 +255,7 @@ def CMD_convergence_inv_step(X,Y,coef_list,mse,cc,verif=False):
     step = 1
     while not fin:
         mse = CMD_mse(X,Y,cl_cpy)
-        if verif and mse == mse:
+        if verif:
             print("[",cc,"] ",prev_mse," ",mse," ",step)
         if mse > prev_mse:
             sign = not sign
@@ -337,10 +332,10 @@ def coeffs_relation(X,Y,m_type="linear",choice=False,conv=True,nb_conv=50):
             mc = len(Y)/(nb_conv**2)
             npc_l = np.array([int(mc*i**2) for i in range(nb_conv)])
             print(npc_l)
-            #X_c = model[npc_l]
-            Y_c = np.linspace(min(Y),max(Y),100)
-            X_c = np.linspace(min(model),max(model),100)
-            #Y_c = Y[npc_l]
+            X_c = model[npc_l]
+            # Y_c = np.linspace(min(Y),max(Y),100)
+            # X_c = np.linspace(min(model),max(model),100)
+            Y_c = Y[npc_l]
             
             fc = CMD_convergence_inv_poly(X_c,Y_c,nb_conv)
         else:
@@ -355,7 +350,7 @@ def coeffs_relation(X,Y,m_type="linear",choice=False,conv=True,nb_conv=50):
         ax.plot(model,Y,"o",ms=4,label="Estimation")
         ax.plot(X_plot,fc[0]+fc[1]*X_plot+fc[2]*X_plot**(1/2)+fc[3]*X_plot**(1/3),"-",label="Modèle inverse")
         #ax.plot(v[0]+v[1]*X_plot+v[2]*X_plot**(1/2)+v[3]*X_plot**(1/3), X_plot,"-",label="symétrique")
-        #ax.plot(X_plot, v[0]+v[1]*X_plot+v[2]*X_plot**(1/2)+v[3]*X_plot**(1/3),"-",label="techniquement le vrai")
+        ax.plot(X_plot, v[0]+v[1]*X_plot+v[2]*X_plot**(1/2)+v[3]*X_plot**(1/3),"-",label="techniquement le vrai")
         ax.set_title("Allure de la relation")
         ax.set_xlabel(r"signal(ph)")
         ax.set_ylabel(r"$\sigma$")
@@ -377,24 +372,24 @@ def testouh(n,min_,max_,err_var,rc,m_type="linear",choice=False,conv=False):
 
 #classic_regr(500,-3,13,1,[6, 11, 0.01, 0])
 #inverse_regr(500,0.1,10,3,[0, 1, 1, 20])
-#testouh(10000,0.1,5,0.4,v,m_type="inverse_3",choice=False,conv=True)
+testouh(10000,0.1,5,0.4,v,m_type="inverse_3",choice=False,conv=True)
 
 
-fich = "Fortran/test.dat"
-don = pd.read_csv(fich,sep='\s+',header=None)
-print(don)
+# fich = "Fortran/test.dat"
+# don = pd.read_csv(fich,sep='\s+',header=None)
+# print(don)
 
-fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(16,9),squeeze=False)
-#ax[0][0].plot(don.iloc[441:,2],don.iloc[441:,4],'x')
-#ax[0][0].plot(don.iloc[:,4],1/don.iloc[:,0],'x')
-X = np.array(don.iloc[:,4])
-X -= min(X)
-Y = np.array(1/don.iloc[:,0])
-# for i,c in enumerate(Y):
-#     if c!=c:
-#         print(i,c)
-c = coeffs_relation(X,Y,m_type="inverse_3",choice=False,conv=False,nb_conv=50)
-ax[0][0].plot(X,c[0]+X*c[1]+X**(1/2)*c[2]+X**(1/3)*c[3],'x')
+# fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(16,9),squeeze=False)
+# #ax[0][0].plot(don.iloc[441:,2],don.iloc[441:,4],'x')
+# #ax[0][0].plot(don.iloc[:,4],1/don.iloc[:,0],'x')
+# X = np.array(don.iloc[:,4])
+# X -= min(X)
+# Y = np.array(1/don.iloc[:,0])
+# # for i,c in enumerate(Y):
+# #     if c!=c:
+# #         print(i,c)
+# c = coeffs_relation(X,Y,m_type="inverse_3",choice=False,conv=False,nb_conv=50)
+# ax[0][0].plot(X,c[0]+X*c[1]+X**(1/2)*c[2]+X**(1/3)*c[3],'x')
 
 
 

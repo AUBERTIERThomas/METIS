@@ -12,6 +12,7 @@ import os
 import glob
 import sys
 import platform
+import subprocess
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -73,8 +74,13 @@ def keep_plt_for_cmd():
     """ [TA]\n
     If the execution is launch from the cmd prompt, wait for a user input before terminating.\n
     Useful to keep matplotlib figures open.
+    
+    See also
+    --------
+    ``MESS_input_mess``
     """
     if not spyder and not FROM_GI_PY:
+        MESS_input_mess(["Fin de l'execution, appuyer sur 'Entree' pour fermer"])
         input()
 
 if CONFIG.no_warnings:
@@ -471,7 +477,7 @@ def TOOL_optargs_list(list_args, list_args_name, list_args_type):
     See Also
     --------
     ``TOOL_split_list, TOOL_str_clean, TOOL_str_to_bool``
-    """ 
+    """
     global GUI
     global FROM_GI_PY
     dict_args = {}
@@ -787,7 +793,7 @@ def coeff_em (dev_type,geom):
     
     return (TR_l,cond2ppt,ppmcubcond,cond2ph,ppt2ppm,ppm2Kph)
 
-def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,not_in_file=False):
+def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,no_base=False,pseudo_prof=False,app=False,not_in_file=False):
     """ [TA]\n
     Apply to dataframe the first steps of CMD processing.\n
     1) Time correction, if GPS.\n
@@ -798,8 +804,8 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
     
     Parameters
     ----------
-    uid : int
-        Device's ``"app_id"`` value.
+    uid : int or dict
+        Device's ``"app_id"`` value. If ``app = True``, is the dictionary of device's parameters.
     ``[opt]`` file_list : ``None`` or list of str, default : ``None``
         List of files to process.
     ``[opt]`` sep : str, default : ``'\\t'``
@@ -810,6 +816,12 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
         If profile linearization is done.
     ``[opt]`` corr_base : bool, default : ``True``
         If base correction is done.
+    ``[opt]`` no_base : bool, default : ``False``
+        If no file contains any bases, while having clear profiles.
+    ``[opt]`` pseudo_prof : bool, default : ``False``
+        If the prospection is represented by one continuous line.
+    ``[opt]`` app : bool, default : ``False``
+        If ``uid`` is instead a loaded device
     ``[opt]`` not_in_file : bool, default : ``False``
         If call comes from script function instead of user.
     
@@ -840,15 +852,20 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
     Notes
     -----
     This function ignores any dataframe that was already processed by a previous function call.\n
-    Can plot data.
+    Can plot data.\n
+    If the prospection is done without GPS, ``no_base = True`` anyways.\n
+    If the prospection is continuous in time (no jumps), ``no_base = True`` and ``pseudo_prof = True`` anyways.
     
     See Also
     --------
     ``TOOL_check_time_date, CMD_time, CMD_detect_chgt, CMD_intrp_prof, CMD_detect_base_pos, CMD_detec_profil_carre,
     CMD_XY_Nan_completion, CMD_sep_BM, CMD_pts_rectif, CMD_evol_profils, CMD_dec_voies``
-    """ 
+    """
     file_list = TOOL_true_file_list(file_list)
-    app_data = JSON_find_device(uid)
+    if app:
+        app_data = uid
+    else:
+        app_data = JSON_find_device(uid)
     
     # concaténation si nécessaire avant traitement
     ls_pd=[]
@@ -858,7 +875,6 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
         data = TOOL_check_time_date(f,sep)
         
         data['Num fich']=ic+1
-        #print(data.columns)
         try:
             data["X_int"]
             ls_pd_done_before.append(data)
@@ -897,6 +913,9 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
     if nb_f != 0:
         don_raw = pd.concat(ls_pd)
         don_raw.index=np.arange(don_raw.shape[0])
+        # Au cas où certains points ont des mesures manquantes, on les enlève pour ne pas polluer le reste.
+        don_raw.dropna(subset = don_raw.columns[col_z],inplace=True)
+        don_raw.reset_index(drop=True,inplace=True)
 
         # Si le fichier contient des données temporelles
         try:
@@ -913,7 +932,11 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
             #MESS_warn_mess("uno")
             don_i=CMD_intrp_prof(don_d,acq_GPS=app_data["GPS"])
             #MESS_warn_mess("dos")
-            don_i=CMD_detect_base_pos(don_i,2)
+            if no_base:
+                don_i["Base"] = 0
+                don_i["Profil"] = don_i["b et p"]
+            else:
+                don_i=CMD_detect_base_pos(don_i,2)
             #MESS_warn_mess("tres")
         else:
             don_raw["X_int"] = don_raw.iloc[:,0]
@@ -928,7 +951,7 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
                 don_i = CMD_XY_Nan_completion_solo(don_i)
             else:
                 don_i = CMD_XY_Nan_completion(don_i)
-        if max(don_i["Profil"]) == 1:
+        if pseudo_prof or max(don_i["Profil"]) == 1:
             don_i = CMD_detec_pseudoprof(don_i,"X_int","Y_int",l_p=None,verif=True)
             correct = False
             while correct == False:
@@ -955,7 +978,7 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
                         don_i = CMD_detec_pseudoprof(don_i,"X_int","Y_int",l_p=None,verif=True)
                     else:
                         pts = re.split(r"[ ]+",inp)
-                        vect = [[int(c) for c in re.split(r",",pt)] for pt in pts]
+                        vect = [[float(c) for c in re.split(r",",pt)] for pt in pts]
                         if len(vect) < 2:
                             MESS_warn_mess("Choisir au moins deux points !")
                         else:
@@ -1021,11 +1044,11 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
                     except IndexError as e:
                         MESS_warn_mess("Le profil {} n'existe pas !".format(inp),e)
                 plt.close(fig)
-                
+             
             if corr_base:
-                try:
-                    i_fich_mes = CMD_evol_profils(i_fich_mes,i_fich_base,file_list[i],col_z,app_data["nb_ecarts"],verif=False)
-                except IndexError:
+                if not i_fich_base.empty:
+                    i_fich_mes = CMD_evol_profils_solo(i_fich_mes,i_fich_base,file_list[i],col_z,app_data["nb_ecarts"],verif=False)
+                else:
                     MESS_warn_mess("Base externe au fichier {}, pas d'ajustement".format(file_list[i]))
             i_fich_mes = CMD_dec_voies(i_fich_mes,ncx,ncy,app_data["nb_ecarts"],app_data["TR_l"],app_data["TR_t"],app_data["GPS_dec"])
             ls_mes.append(i_fich_mes)
@@ -1048,7 +1071,9 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
             for r in range(nb_res):
                 n = e*nb_res + r
                 Z = final_df[nc_data[n]]
+                print(Z)
                 Q5,Q95 = Z.quantile([0.05,0.95])
+                print(Q5,Q95)
                 col = ax[r].scatter(X,Y,marker='s',c=Z,cmap='cividis',s=6,vmin=Q5,vmax=Q95)
                 plt.colorbar(col,ax=ax[r],shrink=0.7)
                 ax[r].title.set_text(nc_data[e*nb_res+r])
@@ -1623,7 +1648,8 @@ def CMD_sep_BM(don):
 
 def CMD_detec_profil_carre(don):
     """ [TA]\n
-    Detect profiles (or bases) from X coordinates (data without GPS only).
+    Detect profiles (or bases) from X coordinates (data without GPS only).\n
+    Bases must be marked with negative coordinates.
     
     Notes
     -----
@@ -1639,24 +1665,33 @@ def CMD_detec_profil_carre(don):
     don : dataframe
         Output dataframe.
     """
-    don["Profil"] = 0
-    don["Base"] = 0
     don["b et p"] = 0
+    don["Base"] = 0
+    don["Profil"] = 0
     don["temps (s)"] = -1
     colname = don.columns[0]
-    x = don[colname].iloc[0]
-    prof_nb = 1
+    x = np.nan
+    base_nb = 0
+    prof_nb = 0
     for index, row in don.iterrows():
         x_l = don[colname].iloc[index]
         if x != x_l and x_l == x_l:
             x = x_l
-            prof_nb += 1
-        don.loc[index, "Profil"] = prof_nb
-        don.loc[index, "b et p"] = prof_nb
-    
+            if x < 0:
+                base_nb += 1
+            else:
+                prof_nb += 1
+        if x < 0:
+            don.loc[index, "Base"] = base_nb
+            don.loc[index, "Profil"] = 0
+        else:
+            don.loc[index, "Base"] = 0
+            don.loc[index, "Profil"] = prof_nb
+        don.loc[index, "b et p"] = base_nb + prof_nb
+    print(don)
     return don.copy()
 
-def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=10,min_conseq=8,verif=False):
+def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=False):
     """ [TA]\n
     Given a database with continuous timestamps, estimate profiles by finding one point (called `center`) per profile, possibly at the center.\n
     Each prospection point is then assigned to the closest center in term of index to form pseudo-profiles.\n
@@ -1682,7 +1717,7 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=10,min_conseq=8,verif=F
         List of points coordinates for segments. If ``None``, perform a linear regression instead.
     ``[opt]`` tn : int, default : ``10``
         Number of nearest points used to determinate the max distance treshold.
-    ``[opt]`` tn_c : int, default : ``10``
+    ``[opt]`` tn_c : int, default : ``20``
         Multiplier of median distance of the ``tn`` nearest points used to determinate the max distance treshold.
     ``[opt]`` min_conseq : int, default : ``8``
         Minimal index distance that is allowed between two found centers.
@@ -1771,9 +1806,10 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=10,min_conseq=8,verif=F
     
     for m in m1_list:
         #print(dist_list[m], " ", min_med)
-        if dist_list[m] < min_med:
+        if dist_list[m] <= min_med:
             m2_list.append(m)
     
+    #print(m2_list)
     min_list = []
     if regr:
         max_conseq = (2*nb_pts)//len(m2_list)
@@ -1916,27 +1952,31 @@ def CMD_intrp_prof(don_mes,acq_GPS=True):
     # la fin du profil est gérée en prenant les décalages précédents et en faisant
     #    
         for ic,nbp in enumerate(nbpts):
-           dernier=len(nbpts)
-           fin=dxdy.loc[ind_ancf[ic:ic+1],['X','Y']].to_numpy().flatten()
-           
-           if np.array_equal(fin,np.array([0.,0.])):
-               fin=dxdy.loc[ind_ancf[ic-1:ic],['X','Y']].to_numpy().flatten()
-               int_c=np.linspace([0,0],fin,nbp+1)
-           else:
-               int_c=np.linspace([0,0],fin,nbp+1)
-               int_c[-1,:]=np.array([0.,0.])
-                  
-           if ic>0 :
-               if ic<dernier-1 :
-                   ls_dX+=int_c[:-1,0].tolist()
-                   ls_dY+=int_c[:-1,1].tolist()
-               else :
-                   ls_dX+=int_c[:,0].tolist()
-                   ls_dY+=int_c[:,1].tolist()
-           else :
-               ls_dX=int_c[:-1,0].tolist()
-               ls_dY=int_c[:-1,1].tolist()
-        prof_i=(prof_c+np.array([ls_dX,ls_dY]).T).to_numpy()
+            dernier=len(nbpts)
+            fin=dxdy.loc[ind_ancf[ic:ic+1],['X','Y']].to_numpy().flatten()
+            
+            if np.array_equal(fin,np.array([0.,0.])):
+                fin=dxdy.loc[ind_ancf[ic-1:ic],['X','Y']].to_numpy().flatten()
+                int_c=np.linspace([0,0],fin,nbp+1)
+            else:
+                int_c=np.linspace([0,0],fin,nbp+1)
+                int_c[-1,:]=np.array([0.,0.])
+                   
+            if ic>0 :
+                if ic<dernier-1 :
+                    ls_dX+=int_c[:-1,0].tolist()
+                    ls_dY+=int_c[:-1,1].tolist()
+                else :
+                    ls_dX+=int_c[:,0].tolist()
+                    ls_dY+=int_c[:,1].tolist()
+            else :
+                ls_dX=int_c[:-1,0].tolist()
+                ls_dY=int_c[:-1,1].tolist()
+        try:
+            prof_i=(prof_c+np.array([ls_dX,ls_dY]).T).to_numpy()
+        except:
+            prof_i = don_mes.loc[ind_prof,colXY]
+
         don_mes.loc[ind_prof,['X_int','Y_int']] = prof_i
     return(don_mes)
 
@@ -2409,7 +2449,7 @@ def CMD_frontiere_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_ecarts,nb_res,choice=Fa
     --------
     ``CMD_calc_frontiere``
     """
-    don_to_corr = [i for i in range(1,nb_data)]
+    don_to_corr = [i for i in range(1,len(ls_mes))]
     don_corr = [0]
     is_corr_done = False
     while is_corr_done == False:
@@ -2438,10 +2478,11 @@ def CMD_frontiere_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_ecarts,nb_res,choice=Fa
     final_df = pd.concat(ls_mes)
     for e in range(nb_ecarts):
         fig,ax=plt.subplots(nrows=1,ncols=nb_res,figsize=(CONFIG.fig_width,CONFIG.fig_height))
-        X = ls_mes[ncx[e]]
-        Y = ls_mes[ncy[e]]
+        X = final_df[ncx[e]]
+        Y = final_df[ncy[e]]
         for r in range(nb_res):
-            Z = ls_mes[nc_data[e]]
+            n = e*nb_res + r
+            Z = final_df[nc_data[n]]
             Q5,Q95 = Z.quantile([0.05,0.95])
             col = ax[r].scatter(X,Y,marker='s',c=Z,cmap='cividis',s=6,vmin=Q5,vmax=Q95)
             plt.colorbar(col,ax=ax[r],shrink=0.7)
@@ -2824,7 +2865,7 @@ def CMD_compute_coeff(col1,col2,excl1,excl2):
 
 # Fonction principale de l'étalonnage par base
 
-def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,output_file_list=None,nb_ecarts=1,diff=True,auto_adjust=True,man_adjust=False,line=False):
+def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,output_file_list=None,nb_ecarts=1,diff=True,auto_adjust=True,man_adjust=False,verif=False,line=False):
     """ [TA]\n
     Main function for profile calibration from bases.\n
     See ``CMD_evol_profils_solo`` for more infos.
@@ -2856,6 +2897,8 @@ def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
         Enables the first step.
     ``[opt]`` man_adjust : bool, default : ``False``
         Enables the second step.
+    ``[opt]`` verif : bool, default : ``False``
+        Enables plotting.
     ``[opt]`` line : bool, default : ``False``
         Shows lines between profiles. Makes the visualization easier.
 
@@ -2867,7 +2910,6 @@ def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
     --------
     ``CMD_evol_profils_solo, TOOL_check_time_date``
     """
-    print(auto_adjust)
     if auto_adjust and len(file_prof_list) != len(file_base_list):
         MESS_err_mess("Le nombre de fichiers profil ({}) et base ({}) ne correspondent pas".format(len(file_prof_list),len(file_base_list)))
     if output_file_list == None:
@@ -2880,7 +2922,7 @@ def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
             data_base = TOOL_check_time_date(file_base_list[i],sep)
         else:
             data_base = pd.DataFrame()
-        res = CMD_evol_profils_solo(data_prof,data_base,file_prof_list[i],col_z,nb_ecarts,diff=diff,auto_adjust=auto_adjust,man_adjust=man_adjust,verif=True,line=line)
+        res = CMD_evol_profils_solo(data_prof,data_base,file_prof_list[i],col_z,nb_ecarts,diff=diff,auto_adjust=auto_adjust,man_adjust=man_adjust,verif=verif,line=line)
         if replace:
             res.to_csv(file_prof_list[i], index=False, sep=sep)
         elif output_file_list == None:
@@ -3144,7 +3186,7 @@ def CMD_evol_profils_solo(don,bas,nom_fich,col_z,nb_ecarts,diff=True,auto_adjust
 
 # Fonction principale de la mise en grille (choix de la méthode)
 
-def CMD_grid(col_x,col_y,col_z,file_list,sep='\t',output_file=None,m_type=None,radius=0,prec=100,step=None,seuil=0.0,i_method=None,only_nan=True,no_crop=False,all_models=False,plot_pts=False,matrix=False):
+def CMD_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_type=None,radius=0,prec=100,step=None,seuil=0.0,i_method=None,only_nan=True,no_crop=False,all_models=False,plot_pts=False,matrix=False):
     """ [TA]\n
     From a data file, proposes gridding according to the method used.\n
     If ``m_type='h'``, then a heatmap of the point density is created. Useful for determining the threshold ``seuil``.\n
@@ -3167,7 +3209,7 @@ def CMD_grid(col_x,col_y,col_z,file_list,sep='\t',output_file=None,m_type=None,r
         Index of every Y coordinates columns.
     col_z : list of int
         Index of every Z coordinates columns (actual data).
-    file_list : list of str
+    ``[opt]`` file_list : ``None`` or list of str, default : ``None``
         List of files to process.
     ``[opt]`` sep : str, default : ``'\\t'``
         Dataframe separator.
@@ -3203,9 +3245,10 @@ def CMD_grid(col_x,col_y,col_z,file_list,sep='\t',output_file=None,m_type=None,r
     
     See also
     --------
-    ``TOOL_check_time_date, TOOL_manage_cols, CMD_dat_to_grid, CMD_kriging, CMD_scipy_interp, CMD_grid_plot``
+    ``TOOL_check_time_date, TOOL_manage_cols, CMD_dat_to_grid, CMD_kriging, CMD_scipy_interp, CMD_grid_plot, TOOL_true_file_list``
     """
     global GUI_VAR_LIST
+    file_list = TOOL_true_file_list(file_list)
     m_type_list = ['h','k','i']
     if m_type == None:
         correct = False
@@ -4437,6 +4480,130 @@ def CMD_grid_plot(don,grid_final,ncx,ncy,ext,pxy,nc_data,nb_ecarts,nb_res,output
         plt.savefig(CONFIG.script_path+"Output/CMDEX_g_" +str(i)+'.png')
         pickle.dump(fig, open(CONFIG.script_path+"Output/CMDEX_g_" +str(i)+'.pickle', 'wb'))
 
+# Effectue la transformation du signal en données géophysique
+
+def CMD_calibration(uid,col_ph,col_qu,file_list=None,sep='\t',output_file_list=None):
+    """ [TA]\n
+    Given two arrays ``X`` and ``Y``, compute the coefficients of the chosen regression.\n
+    To be used in the context of finding a formula for a physical relation.
+    
+    Parameters
+    ----------
+    uid : int
+        Device's ``"app_id"`` value.
+    col_ph : list of int
+        Index of every ``Inphase`` columns.
+    col_ph : list of int
+        Index of every ``Conductivity`` columns.
+    ``[opt]`` file_list : ``None`` or list of str, default : ``None``
+        List of files to process.
+    ``[opt]`` sep : str, default : ``'\\t'``
+        Dataframe separator.
+    ``[opt]`` output_file_list : ``None`` or list of str, default : ``None``
+        List of output files names, ordered as ``file_list``, otherwise add the suffix ``"_calibr"``.
+    
+    Notes
+    -----
+    [DEV] The ``conv`` parameter may be removed if one of the two procedure is deemed better in all cases.
+    
+    Raises
+    ------
+    * File not found.
+    * ``file_list`` and ``output_file_list`` are different sizes.
+    * Fortran executable fails.
+    * Unknown OS.
+    
+    See also
+    --------
+    ``JSON_add_coeff, FORTRAN_constab, CMD_coeffs_relation, JSON_find_device, TOOL_true_file_list``
+    """
+    file_list = TOOL_true_file_list(file_list)
+    if output_file_list != None and len(file_list) != len(output_file_list):
+        MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
+    app_data = JSON_find_device(uid)
+    const_dict = JSON_add_coeff(app_data)
+    print(const_dict)
+    sigma_a_ph = const_dict["sigma_a_ph"]
+    sigma_a_qu = const_dict["sigma_a_qu"]
+    
+    fortran_folder = "Fortran/"
+    cfg_file = fortran_folder+"_config_.cfg"
+    fortran_exe = fortran_folder+"terrainhom.exe"
+    fortran_linux = fortran_folder+"terrainhom.out"
+    
+    for ic, file in enumerate(file_list):
+        os.chdir(CONFIG.data_path)
+        try:
+            df_ = pd.read_csv(file, sep=sep)
+            df = df_[::25]
+        except FileNotFoundError:
+            MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
+        
+        os.chdir(CONFIG.script_path)
+        for e in range(app_data["nb_ecarts"]):
+            ncph = df.columns[col_ph[e]]
+            ncqu = df.columns[col_qu[e]]
+            df[ncph] *= app_data["coeff_c_ph"][e]
+            df[ncqu] *= app_data["coeff_c_qu"][e]
+            
+            df["sigma_"+str(e)] = 0
+            df["Kph_a_ph_"+str(e)] = 0
+            df["Kph_"+str(e)] = 0
+        
+            v = 100
+            print("e = ",e)
+            for index,row in df.iterrows():
+                qu = row[ncqu]
+                sigma = sigma_a_qu[e][0] + qu*sigma_a_qu[e][1] + qu**2*sigma_a_qu[e][2] + qu**3*sigma_a_qu[e][3]
+                # print(sigma_a_qu[e][0])
+                # print(qu*sigma_a_qu[e][1])
+                # print(qu**2*sigma_a_qu[e][2])
+                # print(qu**3*sigma_a_qu[e][3])
+                # print("sigma = ",sigma)
+                #sigma = -sigma
+                FORTRAN_constab(app_data,cfg_file,e,variation=v,S_rau=sigma,S_eps_r=1,S_kph=0.1E-5,S_kqu=0.1E-7,F_rau=None,F_eps_r=None,F_kph=0.01,F_kqu=None)
+                if OS_KERNEL == "Linux":
+                    error_code = subprocess.Popen(["./{}".format(fortran_linux),"{}".format(cfg_file)], stdin=subprocess.PIPE, stderr=subprocess.STDOUT, stdout=subprocess.PIPE).communicate()[1]
+                    #error_code = os.system("./{} {}".format(fortran_linux,cfg_file))
+                elif OS_KERNEL == "Windows":
+                    error_code = subprocess.Popen(["start","{}".format(fortran_exe),"{}".format(cfg_file)], stdin=subprocess.PIPE, stderr=subprocess.STDOUT, stdout=subprocess.PIPE).communicate()[1]
+                    #error_code = os.system("start {} {}".format(fortran_exe,cfg_file))
+                elif OS_KERNEL == "Darwin":
+                    error_code = subprocess.Popen(["./{}".format(fortran_exe),"-f","{}".format(cfg_file)], stdin=subprocess.PIPE, stderr=subprocess.STDOUT, stdout=subprocess.PIPE).communicate()[1]
+                    #error_code = os.system("./{} -f {}".format(fortran_exe,cfg_file))
+                else:
+                    MESS_err_mess("PAS IMPLÉMENTÉ POUR L'OS '{}'".format(OS_KERNEL))
+                if error_code:
+                    MESS_err_mess("[Fortran] ERREUR")
+                # print(index)
+                don = pd.read_csv(cfg_file[:-4]+".dat",sep='\s+',header=None)
+                #print(don)
+                
+                HsHp_ph = np.array(don.iloc[:,4])
+                Kph_col = np.array(don.iloc[:,2])
+                Kph_a_ph = CMD_coeffs_relation(HsHp_ph,Kph_col,m_type="linear")[1]
+                #print(Kph_a_ph)
+                Kph = row[ncph]*Kph_a_ph
+                #print(Kph)
+                df.loc[index,"sigma_"+str(e)] = sigma
+                df.loc[index,"Kph_a_ph_"+str(e)] = Kph_a_ph
+                df.loc[index,"Kph_"+str(e)] = Kph
+                if index%250 == 0:
+                    print(index)
+            
+            df.loc[:,ncph] = df[ncph].round(CONFIG.prec_data)
+            df.loc[:,ncqu] = df[ncqu].round(CONFIG.prec_data)
+            df.loc[:,"sigma_"+str(e)] = df["sigma_"+str(e)].round(CONFIG.prec_data)
+            df.loc[:,"Kph_a_ph_"+str(e)] = df["Kph_a_ph_"+str(e)].round(CONFIG.prec_data)
+            df.loc[:,"Kph_"+str(e)] = df["Kph_"+str(e)].round(CONFIG.prec_data)
+        
+        os.chdir(CONFIG.data_path)
+        if output_file_list == None:
+            df.to_csv(file[:-4]+"_calibr.dat", index=False, sep=sep)
+        else:
+            df.to_csv(output_file_list[ic], index=False, sep=sep)
+
+
 # Estime les coefficients de la relation quasi-linéaire sur la conductivité
 
 def CMD_coeffs_relation(X,Y,m_type="linear",choice=False,conv=True,nb_conv=50,plot=False):
@@ -5085,7 +5252,7 @@ def DAT_remove_data(file_list,colsup_list,i_min,i_max,sep='\t',replace=False,out
     Both first and last lines are included in the deletion.\n
     The first line of ``df`` is indexed at ``0``, since its how it is labelled in pandas.
     Consequently, line indexes may not match if opened with a regular text editor.\n
-    To ease the detection of problematic lines, the ``DAT_min_max_col`` function can be used.
+    To ease the detection of problematic lines, the ``DAT_stats`` function can be used.
     
     Parameters
     ----------
@@ -5125,7 +5292,7 @@ def DAT_remove_data(file_list,colsup_list,i_min,i_max,sep='\t',replace=False,out
     
     See also
     --------
-    ``DAT_min_max_col``
+    ``DAT_stats``
     """
     if output_file_list != None and len(file_list) != len(output_file_list) and not replace and not not_in_file:
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
@@ -5368,6 +5535,82 @@ def DAT_change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,not
         else:
             df.to_csv(output_file_list[ic], index=False, sep=new_sep)
 
+# Met un fichier de prospection en grille (carré sans GPS) dans un format lisible par le traitement
+
+def DAT_no_gps_pos(file_list,sep='\t',replace=False,output_file_list=None,not_in_file=False):
+    """ [TA]\n
+    Fuses a list of prospection files in one .dat\n
+    This procedure works as soon as all columns are matching 
+    
+    Notes
+    -----
+    Files are put in the same order as in ``file_list``.\n
+    All files must have the same columns, but the order is not important (will match the order of the first one).
+    
+    Parameters
+    ----------
+    file_list : list of str
+        List of files to process.
+    ``[opt]`` sep : str, default : ``'\\t'``
+        Dataframe separator.
+    ``[opt]`` replace : bool, default : ``False``
+        If the previous file is overwritten.
+    ``[opt]`` output_file_list : ``None`` or list of str, default : ``None``
+        List of output files names, ordered as ``file_list``, otherwise add the suffix ``"_pos"``. Is ignored if ``replace = True``.
+    ``[opt]`` not_in_file : bool, default : ``False``
+        If call comes from script function instead of user.
+    
+    Returns
+    -------
+    * ``not_in_file = False``
+        none, but save output dataframe in a .dat
+    * ``not_in_file = True``
+        df : dataframe
+            Output base dataframe.
+    
+    Raises
+    ------
+    * File not found.
+    * Wrong separator or columns not found.
+    * ``file_list`` and ``output_file_list`` are different sizes.
+    * ``y[m]`` column not found.
+    """
+    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and not not_in_file:
+        MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
+    for ic, file in enumerate(file_list):
+        try:
+            df = pd.read_csv(file, sep=sep)
+            if len(df.columns) < 2:
+                MESS_err_mess("Le fichier '{}' ne possède pas le séparateur {}".format(file,repr(sep)))
+        except FileNotFoundError:
+            MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
+    try:
+        df["y[m]"]
+    except KeyError:
+        MESS_err_mess("Le fichier '{}' ne possède pas la colonne 'y[m]', mauvais format".format(file))
+        
+    pos_pts=df[df[df.columns[2]].isna()].index.insert(0,-1)
+    
+    for ic,index_fin in enumerate(pos_pts[1:]):
+        index_deb = pos_pts[ic]+1
+        deb = df.loc[index_deb,"y[m]"]
+        fin = df.loc[index_fin,"y[m]"]
+        y_pos = np.round(np.linspace(deb,fin,index_fin-index_deb,endpoint=True),2)
+        df.loc[index_deb:index_fin-1,"y[m]"] = y_pos
+        
+    df.dropna(subset = df.columns[2],inplace=True)
+    df.reset_index(drop=True,inplace=True)
+    
+    if not_in_file:
+        return df
+    
+    if replace:
+        df.to_csv(file, index=False, sep=sep)
+    elif output_file_list == None:
+        df.to_csv(file[:-4]+"_pos.dat", index=False, sep=sep)
+    else:
+        df.to_csv(output_file_list[ic], index=False, sep=sep)
+
 # Rassemble plusieurs fichiers .dat en un seul.
 
 def DAT_fuse_data(file_list,sep='\t',output_file="fused.dat",not_in_file=False):
@@ -5405,7 +5648,7 @@ def DAT_fuse_data(file_list,sep='\t',output_file="fused.dat",not_in_file=False):
     * File not found.
     * Wrong separator or columns not found.
     * Columns are not matching.
-    * Eror during ``pd.concat``.
+    * Error during ``pd.concat``.
     """
     if len(file_list) < 2:
         MESS_err_mess('Nécessite au moins deux fichiers')
@@ -5414,7 +5657,7 @@ def DAT_fuse_data(file_list,sep='\t',output_file="fused.dat",not_in_file=False):
         try:
             df = pd.read_csv(file, sep=sep, dtype=object)
             if len(df.columns) < 2:
-                MESS_err_mess("Le fichier '{}' ne possède pas le séparateur {}?".format(file,repr(sep)))
+                MESS_err_mess("Le fichier '{}' ne possède pas le séparateur {}".format(file,repr(sep)))
             df_list.append(df)
             if set(df.columns) != set(df_list[0].columns):
                 MESS_err_mess('Les colonnes de {} et {} ne correspondent pas'.format(file_list[0],file_list[ic]))
@@ -6004,7 +6247,8 @@ def FIG_plot_pos(file,sep='\t'):
 
 # Ajoute un nouvel appareil à la base en JSON
 
-def JSON_add_device(app_name,config,nb_ecarts,freq_list,gps=True,gps_dec=[0.0,0.0],TR_l=None,TR_t=None,height=0.1,bucking_coil=0,coeff_c_ph=None,coeff_c_qu=1.0,config_angles=None,autosave=False,error_code=False):
+def JSON_add_device(app_name,config,nb_ecarts,freq_list,gps=True,gps_dec=[0.0,0.0],TR_l=None,TR_t=None,height=0.1,bucking_coil=0,\
+                    coeff_c_ph=None,coeff_c_qu=None,config_angles=None,autosave=False,error_code=False):
     """ [TA]\n
     Create device with requested components, then save it in ``JSONs/Appareils.json``.\n
     TODO : Implement ``config_angles``.
@@ -6036,9 +6280,9 @@ def JSON_add_device(app_name,config,nb_ecarts,freq_list,gps=True,gps_dec=[0.0,0.
     ``[opt]`` bucking_coil, default : ``0``
         Index of the bucking coil between coils (from ``1`` to ``nb_ecarts``). If none, set to 0.
     ``[opt]`` coeff_c_ph : ``None`` or list of float, default : ``None``
-        Device constant given by the maker (in phase).
-    ``[opt]`` coeff_c_qu : float, default : ``1.0``
-        Device constant given by the maker (in quadrature).
+        Device constant given by the maker (in phase). If ``None``, is set to an array of 1s.
+    ``[opt]`` coeff_c_qu : ``None`` or list of float, default : ``None``
+        Device constant given by the maker (in quadrature). If ``None``, is set to an array of 1s.
     ``[opt]`` config_angles : ``None`` or list of [float, float], default : ``None``
         If ``config = "CUS"`` (custom), define the angles of each coil.
     ``[opt]`` autosave : bool, default : ``False``
@@ -6058,7 +6302,7 @@ def JSON_add_device(app_name,config,nb_ecarts,freq_list,gps=True,gps_dec=[0.0,0.
     Raises
     ------
     * Unknown ``config``.
-    * Lengths of ``TR_l``, ``TR_t`` and ``coeff_c_ph`` do not match ``nb_ecarts``.
+    * Lengths of ``TR_l``, ``TR_t``, ``coeff_c_ph`` and ``coeff_c_qu`` do not match ``nb_ecarts``.
     * None of ``TR_l`` and ``TR_t`` is specified.
     * ``config_angles = None`` even though``config = "CUS"``
     * Length of ``config_angles`` does not match ``nb_ecarts``.
@@ -6069,9 +6313,9 @@ def JSON_add_device(app_name,config,nb_ecarts,freq_list,gps=True,gps_dec=[0.0,0.
         app_list = json.load(f)
     
     ### À DÉCOMMENTER POUR RÉINITIALISER LE FICHIER ###
-    app_list ={
-        "app_list": []
-       }
+    # app_list ={
+    #     "app_list": []
+    #    }
     
     config_list = ["HCP","VCP","VVCP","PRP_CS","PRP_DEM","PAR","COAX_H","COAX_P","CUS"]
     if config not in config_list:
@@ -6087,9 +6331,13 @@ def JSON_add_device(app_name,config,nb_ecarts,freq_list,gps=True,gps_dec=[0.0,0.
     if len(TR_t) != nb_ecarts:
         MESS_err_mess("Le nombre de positions t ({}) n'est pas égal au nombre de bobines ({})".format(len(TR_t),nb_ecarts))
     if coeff_c_ph == None:
-        coeff_c_ph = [0.0 for i in range(nb_ecarts)]
+        coeff_c_ph = [1.0 for i in range(nb_ecarts)]
+    if coeff_c_qu == None:
+        coeff_c_qu = [1.0 for i in range(nb_ecarts)]
     if len(coeff_c_ph) != nb_ecarts:
-        MESS_err_mess("Le taille de la constante en quadrature ({}) n'est pas égal au nombre de bobines ({})".format(len(coeff_c_ph),nb_ecarts))
+        MESS_err_mess("Le taille de la constante en phase ({}) n'est pas égal au nombre de bobines ({})".format(len(coeff_c_ph),nb_ecarts))
+    if len(coeff_c_qu) != nb_ecarts:
+        MESS_err_mess("Le taille de la constante en quadrature ({}) n'est pas égal au nombre de bobines ({})".format(len(coeff_c_qu),nb_ecarts))
     
     new_app = {}
     new_app["app_id"] = len(app_list["app_list"])
@@ -6098,8 +6346,8 @@ def JSON_add_device(app_name,config,nb_ecarts,freq_list,gps=True,gps_dec=[0.0,0.
     if config == "CUS":
         if config_angles == None:
             MESS_err_mess("La configuration CUS n'est pas spécifiée")
-        if len(config_angles) != nb_ecarts:
-            MESS_err_mess("La configuration CUS (de taille {}) doit être de taille {}".format(len(gps_dec),nb_ecarts))
+        if len(config_angles) != 2*nb_ecarts:
+            MESS_err_mess("La configuration CUS (de taille {}) doit être de taille {}".format(len(config_angles),2*nb_ecarts))
         new_app["config_angles"] = config_angles
     new_app["GPS"] = gps
     if gps_dec != None:
@@ -6199,11 +6447,6 @@ def JSON_remove_device(uid):
     uid : int
         Device's ``"app_id"`` value.
     
-    Returns
-    -------
-    app : dict
-        Found device.
-    
     Raises
     ------
     * Unknown ``uid``.
@@ -6221,6 +6464,75 @@ def JSON_remove_device(uid):
     
     with open(CONFIG.json_path+"Appareils.json", "w") as f:
         json.dump(app_list, f, indent=2)
+    
+# Modifie certians paramètres d'un appareil déjà ajouté
+
+def JSON_modify_device(uid,new_values_dict):
+    """ [TA]\n
+    Modify requested parameters on the requested device in ``JSONs/Appareils.json`` from ``"app_id"``.\n
+    Any parameter that is not specified will remain untouched, unless they contradict each other.
+    
+    Parameters
+    ----------
+    uid : int
+        Device's ``"app_id"`` value.
+    new_values_dict : dict
+        Dictionary of changes. Constructed as such :\n
+        ``{"param_1" : value_1, "param_2" : value_2, [...]}``,\n
+        where ``"param_1"`` [...] are keys from the device (``"config"``, ``"TR_l"`` [...]).
+    
+    Returns
+    -------
+    app_data : dict
+        Modified device.
+    
+    Raises
+    ------
+    * Unknown ``uid``.
+    * Lengths of ``TR_l``, ``TR_t``, ``coeff_c_ph`` and ``coeff_c_qu`` do not match ``nb_ecarts``.
+    * No ``config_angles`` even though``config = "CUS"``
+    * Length of ``config_angles`` does not match ``nb_ecarts``.
+    * Lenght of ``gps_dec`` is not equal to 2.
+    """
+    app_data = JSON_find_device(uid)
+    for key, value in new_values_dict.items():
+        app_data[key] = value
+    
+    config_list = ["HCP","VCP","VVCP","PRP_CS","PRP_DEM","PAR","COAX_H","COAX_P","CUS"]
+    if app_data["config"] not in config_list:
+        MESS_err_mess("La configuration choisie est inconnue ({})".format(config_list))
+    if app_data["TR_t"] == None and app_data["TR_l"] == None:
+        MESS_err_mess("Aucune position de bobine n'est spécifiée. Veuiller renseigner 'TR_l' ou 'TR_t'")
+    if len(app_data["TR_l"]) != app_data["nb_ecarts"]:
+        MESS_err_mess("Le nombre de positions l ({}) n'est pas égal au nombre de bobines ({})".format(len(app_data["TR_l"]),app_data["nb_ecarts"]))
+    if len(app_data["TR_t"]) != app_data["nb_ecarts"]:
+        MESS_err_mess("Le nombre de positions t ({}) n'est pas égal au nombre de bobines ({})".format(len(app_data["TR_t"]),app_data["nb_ecarts"]))
+    if len(app_data["coeff_c_ph"]) != app_data["nb_ecarts"]:
+        MESS_err_mess("Le taille de la constante en phase ({}) n'est pas égal au nombre de bobines ({})".format(len(app_data["coeff_c_ph"]),app_data["nb_ecarts"]))
+    if len(app_data["coeff_c_qu"]) != app_data["nb_ecarts"]:
+        MESS_err_mess("Le taille de la constante en quadrature ({}) n'est pas égal au nombre de bobines ({})".format(len(app_data["coeff_c_qu"]),app_data["nb_ecarts"]))
+    if app_data["config"] == "CUS":
+        try:
+            if len(app_data["config_angles"]) != 2*app_data["nb_ecarts"]:
+                MESS_err_mess("La configuration CUS (de taille {}) doit être de taille {}".format(len(app_data["config_angles"]),2*app_data["nb_ecarts"]))
+        except:
+            MESS_err_mess("La configuration CUS n'est pas spécifiée")
+    if len(app_data["GPS_dec"]) != 2:
+        MESS_err_mess("Le décalage GPS (de taille {}) doit être de taille 2".format(len(app_data["GPS_dec"])))
+    app_data["TR"] = [np.sqrt(app_data["TR_l"][i]**2 + app_data["TR_t"][i]**2) for i in range(app_data["nb_ecarts"])]
+    
+    with open(CONFIG.json_path+"Appareils.json", 'r') as f:
+        app_list = json.load(f)
+    
+    for ic,app in enumerate(app_list["app_list"]):
+        if app["app_id"] == uid:
+            app_list["app_list"][ic] = app_data
+            break
+    
+    with open(CONFIG.json_path+"Appareils.json", "w") as f:
+        json.dump(app_list, f, indent=2)
+    
+    return app_data
 
 # Affiche les appareils déjà enregistrés.
 # La première envoie les infos à afficher à la seconde.
@@ -6308,7 +6620,7 @@ def JSON_add_coeff(app_data):
        const_list = json.load(f)
     
     ### À DÉCOMMENTER POUR RÉINITIALISER LE FICHIER ###
-    const_list ={}
+    # const_list ={}
     
     new_const = {}
     new_const["config"] = [[app_data["config"], {}]]
@@ -6376,9 +6688,9 @@ def JSON_add_coeff(app_data):
     dict_const["height"] = new_const["config"][0][1]["TR"][0][1]["height"][0][0]
     dict_const["freq_list"] = new_const["config"][0][1]["TR"][0][1]["height"][0][1]["freq_list"][0][0]
     dict_const["sigma_a_ph"] = new_const["config"][0][1]["TR"][0][1]["height"][0][1]["freq_list"][0][1]["sigma_a_ph"]
-    dict_const["Kph_a_ph"] = new_const["config"][0][1]["TR"][0][1]["height"][0][1]["freq_list"][0][1]["Kph_a_ph"]
+    #dict_const["Kph_a_ph"] = new_const["config"][0][1]["TR"][0][1]["height"][0][1]["freq_list"][0][1]["Kph_a_ph"]
     dict_const["sigma_a_qu"] = new_const["config"][0][1]["TR"][0][1]["height"][0][1]["freq_list"][0][1]["sigma_a_qu"]
-    dict_const["Kph_a_qu"] = new_const["config"][0][1]["TR"][0][1]["height"][0][1]["freq_list"][0][1]["Kph_a_qu"]    
+    #dict_const["Kph_a_qu"] = new_const["config"][0][1]["TR"][0][1]["height"][0][1]["freq_list"][0][1]["Kph_a_qu"]    
         
     with open(CONFIG.json_path+"Constantes.json", "w") as f:
         json.dump(const_list, f, indent=None, cls=MyJSONEncoder)
@@ -6465,7 +6777,7 @@ def FORTRAN_ball_calibr(ball_file,config,TR,radius,z,x_min,x_max,sep='\t',y=0,st
     don.drop(don[don[don.columns[0]] < 0].index, inplace=True)
     cols_pr = don[[c for c in don.columns if "Inph" in c]]
     
-    coeff = 0
+    coeff = []
     try:
         for e in range(nb_ecarts):
             c_pr = cols_pr.iloc[:,e]*1000
@@ -6479,14 +6791,13 @@ def FORTRAN_ball_calibr(ball_file,config,TR,radius,z,x_min,x_max,sep='\t',y=0,st
                 plt.show()
                 print(c_pr,c_th)
             lin_reg = linregress(c_pr,c_th)
-            coeff += lin_reg.slope
+            coeff.append(lin_reg.slope)
     except ValueError:
         MESS_err_mess("Le pas et/ou le départ/arrivée en x est incorrect".format(config,config_list))
     except TypeError:
         MESS_err_mess("Problème de lecture du fichier...")
-    coeff /= nb_ecarts
     
-    print("coeff = {}".format(coeff))
+    print("coeffs = {}".format(coeff))
     
     os.chdir(CONFIG.script_path)
     
@@ -6579,9 +6890,10 @@ def FORTRAN_new_const(app_data,plot=True):
     cfg_file = fortran_folder+"_config_.cfg"
     fortran_exe = fortran_folder+"terrainhom.exe"
     fortran_linux = fortran_folder+"terrainhom.out"
-    const_dict = {"sigma_a_ph": [], "sigma_a_qu": [], "Kph_a_ph": [], "Kph_a_qu": 0}
+    const_dict = {"sigma_a_ph": [], "sigma_a_qu": []}
+    v = 100
     for e in range(app_data["nb_ecarts"]):
-        FORTRAN_constab(app_data,cfg_file,e,variation=None,S_rau=1,S_eps_r=1,S_kph=0,S_kqu=0,F_rau=1001,F_eps_r=None,F_kph=0.01,F_kqu=None)
+        FORTRAN_constab(app_data,cfg_file,e,variation=v,F_rau=1001,F_eps_r=None,F_kph=0.01,F_kqu=None)
         if OS_KERNEL == "Linux":
             error_code = os.system("./{} {}".format(fortran_linux,cfg_file))
         elif OS_KERNEL == "Windows":
@@ -6598,23 +6910,24 @@ def FORTRAN_new_const(app_data,plot=True):
         
         HsHp_qu = np.array(don.iloc[:,5])
         sigma = np.array(1/don.iloc[:,0])
-        saqu = CMD_coeffs_relation(HsHp_qu,sigma,m_type="linear",plot=plot)[1]
+        saqu = CMD_coeffs_relation(HsHp_qu,sigma,m_type="poly_3",plot=plot)
         const_dict["sigma_a_qu"].append(saqu)
         
-        true_sigma = HsHp_qu * saqu
+        #true_sigma = saqu[0] + HsHp_qu*saqu[1] + (HsHp_qu)**(1/2)*saqu[2] + (HsHp_qu)**(1/3)*saqu[3]
+        #true_sigma = saqu[0] + HsHp_qu*saqu[1] + (HsHp_qu)**(2)*saqu[2] + (HsHp_qu)**(2)*saqu[3]
         HsHp_ph = np.array(don.iloc[:,4])
-        saph = CMD_coeffs_relation(true_sigma,HsHp_ph,m_type="poly_3",plot=plot)
+        HsHp_ph_corr = HsHp_ph.copy()
+        last_bar = (v-1)*v
+        for i in range(last_bar+v):
+            HsHp_ph_corr[i] -= HsHp_ph_corr[last_bar+i%v]
+        saph = CMD_coeffs_relation(sigma,HsHp_ph_corr,m_type="poly_3",choice=False,plot=plot)
         const_dict["sigma_a_ph"].append(saph)
-        
-        true_HsHp_ph = saph[0] + true_sigma*saph[1] + (true_sigma)**2*saph[2] + (true_sigma)**3*saph[3]
-        kaph = CMD_coeffs_relation(HsHp_ph,true_HsHp_ph,m_type="poly_3",plot=plot)
-        const_dict["Kph_a_ph"].append(kaph)
-    
+            
     return const_dict
 
 # Construit le fichier d'entrée du Fortran (ppt).
 
-def FORTRAN_constab(app_data,cfg_file,e,variation=None,S_rau=1,S_eps_r=1,S_kph=0,S_kqu=0,F_rau=None,F_eps_r=None,F_kph=None,F_kqu=None):
+def FORTRAN_constab(app_data,cfg_file,e,variation=None,S_rau=1,S_eps_r=1,S_kph=0.1E-5,S_kqu=0.1E-7,F_rau=None,F_eps_r=None,F_kph=None,F_kqu=None):
     """ [TA]\n
     Construct a file that contains the mandatory data for the Fortran ppt procedure.\n
     
@@ -6673,43 +6986,43 @@ def FORTRAN_constab(app_data,cfg_file,e,variation=None,S_rau=1,S_eps_r=1,S_kph=0
                       [90.0,0.0,90.0,0.0]]
     
     with open(cfg_file, 'w') as f:
-        f.write(" # Geometrie(s) d'appareil\n")
-        f.write(" {}\n".format(1))
+        f.write(" # Geometrie(s) d'appareil\x0d\n")
+        f.write(" {}\x0d\n".format(1))
         try:
             config_id = next(i for i,c in enumerate(["CUS","PRP_CS","PAR","HCP","COAX_H","VCP","COAX_V","VVCP","PRP_DEM"]) if c == app_data["config"])
         except StopIteration:
             MESS_err_mess("Configuration inconnue")
-        nb_spaces = 2 - len(str(config_id)) # Est toujours égal à 1 pour l'instant
-        f.write(" "*nb_spaces+"{}\n".format(config_id))
-        f.write(" "*(2 - len(str(int(app_data["TR"][e]))))+"{:.2f}\n".format(app_data["TR"][e]))
-        f.write(" 1.00\n")
-        f.write(" "*(2 - len(str(int(app_data["height"]))))+"{:.2f}\n".format(app_data["height"]))
-        f.write(" "*(2 - len(str(int(app_data["height"]))))+"{:.2f}\n".format(app_data["height"]))
+        nb_spaces = 4 - len(str(config_id)) # Est toujours égal à 1 pour l'instant
+        f.write(" "*nb_spaces+"{}\x0d\n".format(config_id))
+        f.write(" "*(4 - len(str(int(app_data["TR"][e]))))+"{:.2f}\x0d\n".format(app_data["TR"][e]))
+        f.write("   1.00\x0d\n")
+        f.write(" "*(4 - len(str(int(app_data["height"]))))+"{:.2f}\x0d\n".format(app_data["height"]))
+        f.write(" "*(4 - len(str(int(app_data["height"]))))+"{:.2f}\x0d\n".format(app_data["height"]))
             
-        f.write(" # Parametres utiles pour CSTM\n")
+        f.write(" # Parametres utiles pour CSTM\x0d\n")
         angles = _Config_params[config_id]
         for i in range(4):
-            nb_spaces = 2 - len(str(int(angles[i])))
-            f.write(" "*nb_spaces+"{:.2f}\n".format(angles[i]))
-        f.write(" "*(2 - len(str(int(app_data["TR_l"][e]))))+"{:.2f}\n".format(app_data["TR_l"][e]))
-        f.write(" "*(2 - len(str(int(app_data["TR_t"][e]))))+"{:.2f}\n".format(app_data["TR_t"][e]))
+            nb_spaces = 4 - len(str(int(angles[i])))
+            f.write(" "*nb_spaces+"{:.2f}\x0d\n".format(angles[i]))
+        f.write(" "*(4 - len(str(int(app_data["TR_l"][e]))))+"{:.2f}\x0d\n".format(app_data["TR_l"][e]))
+        f.write(" "*(4 - len(str(int(app_data["TR_t"][e]))))+"{:.2f}\x0d\n".format(app_data["TR_t"][e]))
         
-        f.write(" # Tableau de frequence(s)\n")
+        f.write(" # Tableau de frequence(s)\x0d\n")
         nb_spaces = 2 - len(str(len(app_data["freq_list"])))
         if nb_spaces < 0:
             MESS_err_mess("Le nombre de fréquences ne peut pas dépasser 99 ! (c'est beaucoup)")
-        f.write(" "*nb_spaces+"{}\n".format(len(app_data["freq_list"])))
+        f.write(" "*nb_spaces+"{}\x0d\n".format(len(app_data["freq_list"])))
         for freq in app_data["freq_list"]:
-            nb_spaces = 7 - len(str(int(freq)))
+            nb_spaces = 9 - len(str(int(freq)))
             if nb_spaces < 0:
                 MESS_err_mess("La fréquences ne peut pas dépasser 9999999 Hz ! (c'est beaucoup)")
-            f.write(" "*nb_spaces+"{:.2f}\n".format(freq))
+            f.write(" "*nb_spaces+"{:.2f}\x0d\n".format(freq))
         
-        f.write(" # Terrain 1D\n")
+        f.write(" # Terrain 1D\x0d\n")
         nb_var = int(F_rau!=None)+int(F_eps_r!=None)+int(F_kph!=None)+int(F_kqu!=None)
         if nb_var == 0:
             MESS_err_mess("Sélectionnez au moins un paramètre à varier {rau,eps_r,kph,kqu}")
-        f.write(" "+"{}\n".format(nb_var))
+        f.write(" "+"{}\x0d\n".format(nb_var))
         limit_var = [10000,100,21,10]
         if variation == None:
             variation = limit_var[nb_var-1]
@@ -6717,14 +7030,15 @@ def FORTRAN_constab(app_data,cfg_file,e,variation=None,S_rau=1,S_eps_r=1,S_kph=0
             if variation > limit_var[nb_var-1]:
                 MESS_err_mess("Le nombre d'itérations totale doit être inférieur à variation**[nb params] : {}".format(limit_var[nb_var-1]))
         nb_spaces = 5 - len(str(variation))
-        f.write(" "*nb_spaces+"{}\n".format(variation))
+        f.write(" "*nb_spaces+"{}\x0d\n".format(variation))
         S_var_list = [S_rau,S_eps_r,S_kph,S_kqu]
         F_var_list = [F_rau,F_eps_r,F_kph,F_kqu]
-        nb_spaces_var = [6,7,4,4]
+        nb_spaces_var = [6,9,4,4]
         for ic,p in enumerate(F_var_list):
             if p != None:
                 f.write(" "*3+"{}".format(ic+1))
-        f.write("\n")
+        f.write("\x0d\n")
+        f.write(" 2\x0d\n")
         for ic,p in enumerate(S_var_list):
             if ic <= 1:
                 nb_spaces = nb_spaces_var[ic] - len(str(int(p)))
@@ -6733,7 +7047,7 @@ def FORTRAN_constab(app_data,cfg_file,e,variation=None,S_rau=1,S_eps_r=1,S_kph=0
                 f.write(" "*nb_spaces+"{:.2f}".format(p))
             else:
                 f.write(" "*nb_spaces_var[ic]+"{:.5E}".format(p))
-        f.write("\n")
+        f.write("\x0d\n")
         for ic,p in enumerate(F_var_list):
             if p != None:
                 if ic <= 1:
@@ -6749,7 +7063,7 @@ def FORTRAN_constab(app_data,cfg_file,e,variation=None,S_rau=1,S_eps_r=1,S_kph=0
                     f.write(" "*nb_spaces+"{:.2f}".format(S_var_list[ic]))
                 else:
                     f.write(" "*nb_spaces_var[ic]+FORTRAN_sc_notation(S_var_list[ic],5))
-        f.write("\n")
+        f.write("\x0d\n")
 
 def FORTRAN_sc_notation(n,p):
     """ [TA]\n
