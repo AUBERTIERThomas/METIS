@@ -33,6 +33,7 @@ import pickle
 import tkinter as tk
 from IPython import get_ipython
 import warnings
+import time
 
 import CONFIG
 import grd
@@ -175,7 +176,7 @@ def MESS_err_mess(mess):
     print(" /!\\ "+mess+" /!\\ ")
     print("·---·"+l*" "+"·---·")
     print(base_color)
-    shutdown(1)
+    print(">>>")
 
 # Message d'avertissement
 
@@ -234,6 +235,7 @@ def MESS_input_mess(mess_list):
     print(code_color+blink_color)
     print("+---"*(nc//4)+"+")
     print(base_color)
+    time.sleep(0.01)
 
 # Boîte de dialogue tkinter pour intervention utilisateur (GUI)
 
@@ -672,7 +674,7 @@ def TOOL_check_time_date(f,sep):
         try:
             if ":" not in str(data.at[0,"Time"]):
                 MESS_warn_mess('Le fichier "{}" semble posséder une colonne "Time" surnuméraire. Elle sera supprimée le temps du traitement.'.format(f))
-                data = DAT_pop_and_dec([f],"Time",sep,False,"",not_in_file=True)
+                data = DAT_pop_and_dec([f],"Time",sep,False,"",in_file=True)
             else:
                 cols_to_drop.append("Time")
         except KeyError:
@@ -680,7 +682,7 @@ def TOOL_check_time_date(f,sep):
         try:
             if "/" not in str(data.at[0,"Date"]):
                 MESS_warn_mess('Le fichier "{}" semble posséder une colonne "Date" surnuméraire. Dans ce cas, veuillez la retirer (DAT_pop_and_dec).'.format(f))
-                data = DAT_pop_and_dec([f],"Date",sep,False,"",not_in_file=True)
+                data = DAT_pop_and_dec([f],"Date",sep,False,"",in_file=True)
             else:
                 cols_to_drop.append("Date")
         except KeyError:
@@ -793,7 +795,7 @@ def coeff_em (dev_type,geom):
     
     return (TR_l,cond2ppt,ppmcubcond,cond2ph,ppt2ppm,ppm2Kph)
 
-def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,no_base=False,pseudo_prof=False,app=False,not_in_file=False):
+def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,no_base=False,pseudo_prof=False,l_p=None,plot=False,in_file=False,full_infos=False):
     """ [TA]\n
     Apply to dataframe the first steps of CMD processing.\n
     1) Time correction, if GPS.\n
@@ -805,9 +807,9 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
     Parameters
     ----------
     uid : int or dict
-        Device's ``"app_id"`` value. If ``app = True``, is the dictionary of device's parameters.
-    ``[opt]`` file_list : ``None`` or list of str, default : ``None``
-        List of files to process.
+        Device's ``"app_id"`` value, or the loaded dictionary of device's parameters.
+    ``[opt]`` file_list : ``None`` or (list of) str or (list of) dataframe, default : ``None``
+        List of files or loaded dataframes to process, or a single one. If ``None``, takes all files from current working directory.
     ``[opt]`` sep : str, default : ``'\\t'``
         Dataframe separator.
     ``[opt]`` sup_na : bool, default : ``True``
@@ -820,34 +822,42 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
         If no file contains any bases, while having clear profiles.
     ``[opt]`` pseudo_prof : bool, default : ``False``
         If the prospection is represented by one continuous line.
+    ``[opt]`` l_p : ``None`` or list of [float, float], default : ``None``
+        List of points coordinates for segments. If ``[]``, perform a linear regression instead. If ``None``, enables a choice procedure.
     ``[opt]`` app : bool, default : ``False``
         If ``uid`` is instead a loaded device
-    ``[opt]`` not_in_file : bool, default : ``False``
-        If call comes from script function instead of user.
+    ``[opt]`` plot : bool, default : ``False``
+        Enables plotting.
+    ``[opt]`` in_file : bool, default : ``False``
+        If ``True``, save result in a file. If ``False``, return the dataframe.
+    ``[opt]`` full_infos : bool, default : ``False``
+        If ``True``, return more variables (used for ``main``).
     
     Returns
     -------
-    * ``not_in_file = False``
+    * ``in_file = True``
         none, but save dataframe for profiles and bases in separated .dat
-    * ``not_in_file = True``
-        don_base : dataframe
-            Dataframe of all bases
-        don_mes : dataframe
-            Dataframe of all profiles
-        ls_base : list of dataframe
-            List of bases for each file
-        ls_mes : list of dataframe
-            List of profiles for each file
-        ncx : list of str
-            Names of every X columns.
-        ncy : list of str
-            Names of every Y columns.
-        nc_data : list of str
-            Names of every Z columns (actual data).
-        nb_res : int
-            The number of data per coil.
-        ls_pd_done_before : list of dataframe
-            List of all dataframe that were already processed by a previous function call.
+    * ``in_file = False``
+        * ``full_infos = False``
+            ls_base : list of dataframe
+                List of bases for each file
+            ls_mes : list of dataframe
+                List of profiles for each file
+        * ``full_infos = False``
+            ls_base : list of dataframe
+                List of bases for each file
+            ls_mes : list of dataframe
+                List of profiles for each file
+            ncx : list of str
+                Names of every X columns.
+            ncy : list of str
+                Names of every Y columns.
+            nc_data : list of str
+                Names of every Z columns (actual data).
+            nb_res : int
+                The number of data per coil.
+            ls_pd_done_before : list of dataframe
+                List of all dataframe that were already processed by a previous function call.
     
     Notes
     -----
@@ -859,23 +869,34 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
     See Also
     --------
     ``TOOL_check_time_date, CMD_time, CMD_detect_chgt, CMD_intrp_prof, CMD_detect_base_pos, CMD_detec_profil_carre,
-    CMD_XY_Nan_completion, CMD_sep_BM, CMD_pts_rectif, CMD_evol_profils, CMD_dec_voies``
+    CMD_XY_Nan_completion, CMD_sep_BM, CMD_detec_pseudoprof, CMD_synthBase, CMD_pts_rectif, CMD_evol_profils, CMD_dec_voies``
     """
+    # Conversion en liste si 'file_list' ne l'est pas
+    if file_list != None and not isinstance(file_list,list):
+        file_list = [file_list]
     file_list = TOOL_true_file_list(file_list)
-    if app:
-        app_data = uid
-    else:
+    # Chargement de l'appareil si 'uid' est l'indice dans la base 'Appareils.json'
+    if isinstance(uid,int):
         app_data = JSON_find_device(uid)
+    else:
+        app_data = uid
     
-    # concaténation si nécessaire avant traitement
+    # Concaténation si nécessaire avant traitement
+    is_loaded = False
     ls_pd=[]
     ls_pd_done_before = []
     nb_file = len(file_list)
     for ic,f in enumerate(file_list) :
-        data = TOOL_check_time_date(f,sep)
-        
+        try:
+            # Chargement des données
+            data = TOOL_check_time_date(f,sep)
+        except:
+            data = f
+            is_loaded = False
+        # Numérotation des fichiers
         data['Num fich']=ic+1
         try:
+            # Si la colonne 'X_int' existe déjà, le fichier est déjà interpolé (on l'ignore)
             data["X_int"]
             ls_pd_done_before.append(data)
         except KeyError:
@@ -884,9 +905,14 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
     nb_f = len(ls_pd)
     nb_res = 2
     const_GPS = 2
+    # GPS ou non
     if app_data["GPS"] :
         n_col_X='Easting'
         n_col_Y='Northing'
+        for df in ls_pd:
+            temp = df.dropna(subset=[n_col_X,n_col_Y])
+            if temp[n_col_X].median() > temp[n_col_Y].median():
+                ls_pd = DAT_switch_cols(ls_pd,n_col_X,n_col_Y)
     else :
         n_col_X='x[m]'
         n_col_Y='y[m]'
@@ -894,6 +920,7 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
         cdata = ls_pd_done_before[0]
     else:
         cdata = ls_pd[0]
+    # On calcule le nombre de colonnes absentes avant les données (Cond/Inph) parmi celles potentielles.
     for c in ["Altitude","Date","Time","DOP","Satelites"]:
         try:
             cdata[c]
@@ -901,15 +928,19 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
         except KeyError:
             pass
     
+    # Initialisation des colonnes position et données
     ls_base = []
     ls_mes = []
     col_z=[const_GPS+i for i in range(app_data["nb_ecarts"]*nb_res)]
     ncx = ["X_int_"+str(e+1) for e in range(app_data["nb_ecarts"])]
     ncy = ["Y_int_"+str(e+1) for e in range(app_data["nb_ecarts"])]
     
-    for ic,don_c in enumerate(ls_pd) :
-        print("Fichier de données n°{} : '{}'".format(ic+1,file_list[ic]))
-      
+    # Affichage des nom des fichiers traîtés, si on les a en entrée
+    if not is_loaded:
+        for ic,don_c in enumerate(ls_pd) :
+            print("Fichier de données n°{} : '{}'".format(ic+1,file_list[ic]))
+     
+    # Si au moins un fichier est à traîter, on effectue les étapes
     if nb_f != 0:
         don_raw = pd.concat(ls_pd)
         don_raw.index=np.arange(don_raw.shape[0])
@@ -927,67 +958,83 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
                     don_raw.loc[ind_d,'temps (s)']=don_raw.loc[ind_d,'temps (s)']+ic*86400
         except KeyError:
             pass
+        
+        # Détection profils et interpolation des positions répétées
         if app_data["GPS"]:
             don_d=CMD_detect_chgt(don_raw)
-            #MESS_warn_mess("uno")
             don_i=CMD_intrp_prof(don_d,acq_GPS=app_data["GPS"])
-            #MESS_warn_mess("dos")
+            # Si le fichierne contient pas de base, on ne considère que des profils
             if no_base:
                 don_i["Base"] = 0
                 don_i["Profil"] = don_i["b et p"]
             else:
                 don_i=CMD_detect_base_pos(don_i,2)
-            #MESS_warn_mess("tres")
         else:
             don_raw["X_int"] = don_raw.iloc[:,0]
             don_raw["Y_int"] = don_raw.iloc[:,1]
             don_i = CMD_detec_profil_carre(don_raw)
-            
+        
+        # Suppression ou completion des données manquantes
         if sup_na:
             don_i.dropna(subset = [n_col_X,n_col_Y,"X_int","Y_int"],inplace=True)
             don_i.reset_index(drop=True,inplace=True)
         else:
+            # Si aucun profil n'a pu être détecté (pas de saut temporel, prospection continue), on utilise un autre algo de complétion
             if max(don_i["Profil"]) == 1:
                 don_i = CMD_XY_Nan_completion_solo(don_i)
             else:
                 don_i = CMD_XY_Nan_completion(don_i)
+        # Si la prospection est continue (détection ou précisé par l'utilisateur), on cherche à construire des pseudo-profils
         if pseudo_prof or max(don_i["Profil"]) == 1:
-            don_i = CMD_detec_pseudoprof(don_i,"X_int","Y_int",l_p=None,verif=True)
-            correct = False
-            while correct == False:
-                if GUI:
-                    MESS_input_GUI(["La détection de profils est-elle correcte ?","","~r~ Oui","~r~ Tenter sans donner de segments (option de base)"
-                                     "Sinon rentrer les coordonnées des points formant les segments passant par les centres des profils",
-                                     "Exemple : 50,20 82.5,0 100,-15 crée deux segments","~t~"])
-                    try:
-                        fin, inp = GUI_VAR_LIST
-                        if inp == "":
-                            inp = ["y","n"][fin]
-                    except:
-                        MESS_warn_mess("Veuillez sélectionner un réponse")
-                        continue
-                else:
-                    MESS_input_mess(["La détection de profils est-elle correcte ?","","y : Oui","n : Tenter sans donner de segments (option de base)"
-                                     "Sinon rentrer les coordonnées des points formant les segments passant par les centres des profils",
-                                     "Exemple : 50,20 82.5,0 100,-15 crée deux segments"])
-                    inp = input()
-                try:
-                    if inp == "y":
-                        correct = True
-                    elif inp == "n":
-                        don_i = CMD_detec_pseudoprof(don_i,"X_int","Y_int",l_p=None,verif=True)
+            # Sélection dynamique
+            if l_p == None:
+                don_i = CMD_detec_pseudoprof(don_i,"X_int","Y_int",l_p=None,verif=True)
+                correct = False
+                while correct == False:
+                    if GUI:
+                        MESS_input_GUI(["La détection de profils est-elle correcte ?","","~r~ Oui","~r~ Tenter sans donner de segments (option de base)"
+                                         "Sinon rentrer les coordonnées des points formant les segments passant par les centres des profils",
+                                         "Exemple : 50,20 82.5,0 100,-15 crée deux segments","~t~"])
+                        try:
+                            fin, inp = GUI_VAR_LIST
+                            if inp == "":
+                                inp = ["y","n"][fin]
+                        except:
+                            MESS_warn_mess("Veuillez sélectionner un réponse")
+                            continue
                     else:
-                        pts = re.split(r"[ ]+",inp)
-                        vect = [[float(c) for c in re.split(r",",pt)] for pt in pts]
-                        if len(vect) < 2:
-                            MESS_warn_mess("Choisir au moins deux points !")
+                        MESS_input_mess(["La détection de profils est-elle correcte ?","","y : Oui","n : Tenter sans donner de segments (option de base)"
+                                         "Sinon rentrer les coordonnées des points formant les segments passant par les centres des profils",
+                                         "Exemple : 50,20 82.5,0 100,-15 crée deux segments"])
+                        inp = input()
+                    try:
+                        if inp == "y":
+                            correct = True
+                        elif inp == "n":
+                            don_i = CMD_detec_pseudoprof(don_i,"X_int","Y_int",l_p=None,verif=True)
                         else:
-                            don_i = CMD_detec_pseudoprof(don_i,"X_int","Y_int",l_p=vect,verif=True)
-                except:
-                    MESS_warn_mess("Réponse non reconnue !")
+                            pts = re.split(r"[ ]+",inp)
+                            vect = [[float(c) for c in re.split(r",",pt)] for pt in pts]
+                            if len(vect) < 2:
+                                MESS_warn_mess("Choisir au moins deux points !")
+                            else:
+                                don_i = CMD_detec_pseudoprof(don_i,"X_int","Y_int",l_p=vect,verif=True)
+                    except:
+                        MESS_warn_mess("Réponse non reconnue !")
+            # Si on veut juste prendre la droite de régression comme référence
+            elif l_p == []:
+                don_i = CMD_detec_pseudoprof(don_i,"X_int","Y_int",l_p=None,verif=False)
+            # Si on prend une liste de segments
+            else:
+                don_i = CMD_detec_pseudoprof(don_i,"X_int","Y_int",l_p=l_p,verif=False)
             plt.close('all')
+        # Séparation base/profil en fonction des colonnes "Base" et "Profil". La base peut être vide
         don_base,don_mes=CMD_sep_BM(don_i)
+        
+        # Nom des colonnes de données
         nc_data = don_raw.columns[col_z]
+        
+        # Synthèse de chaque base en une seule ligne
         if not don_base.empty:
             d_nf,d_bp,d_t,d_min = CMD_synthBase(don_base,nc_data,CMDmini=(max(app_data["TR"])<2))
             don_base = d_min.transpose()
@@ -996,11 +1043,13 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
             don_base["b et p"] = d_bp
             don_base["Base"] = d_t.index+1
             don_base["Profil"] = 0
-        #MESS_warn_mess("quatro")
+            
+        # Traitements individuels : on prend un fichier à la fois
         for i in range(nb_file):
             i_fich_mes = don_mes[don_mes["Num fich"] == i+1]
             i_fich_base = don_base[don_base["Num fich"] == i+1]
             
+            # Régression des profils pas droits (toujours dynamique)
             if regr:
                 fig,ax=plt.subplots(nrows=1,ncols=1,figsize=(CONFIG.fig_height,CONFIG.fig_height))
                 ax.plot(i_fich_mes["X_int"],i_fich_mes["Y_int"],'+r')
@@ -1044,25 +1093,31 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
                     except IndexError as e:
                         MESS_warn_mess("Le profil {} n'existe pas !".format(inp),e)
                 plt.close(fig)
-             
+            
+            # Étalonnage par base (pas de manuel depuis cette fonction)
             if corr_base:
                 if not i_fich_base.empty:
                     i_fich_mes = CMD_evol_profils_solo(i_fich_mes,i_fich_base,file_list[i],col_z,app_data["nb_ecarts"],verif=False)
                 else:
                     MESS_warn_mess("Base externe au fichier {}, pas d'ajustement".format(file_list[i]))
+            
+            # Décalage des positions par voies
             i_fich_mes = CMD_dec_voies(i_fich_mes,ncx,ncy,app_data["nb_ecarts"],app_data["TR_l"],app_data["TR_t"],app_data["GPS_dec"])
+            
             ls_mes.append(i_fich_mes)
             ls_base.append(i_fich_base)
             
-            if not not_in_file:
+            # Résultat enregistré en .dat (option)
+            if in_file:
                 i_fich_mes.to_csv(file_list[i][:-4]+"_init_P.dat", index=False, sep=sep) 
                 if not i_fich_base.empty:
                     i_fich_base.to_csv(file_list[i][:-4]+"_init_B.dat", index=False, sep=sep)
+    # Nom des colonnes de données, si tous les fichiers sont interpolés
     else:
         nc_data = ls_pd_done_before[0].columns[col_z]
-    if not_in_file:
-        return don_base, don_mes, ls_base, ls_mes, ncx, ncy, nc_data, nb_res, ls_pd_done_before
-    else:
+    
+    # Plot du résultat, en séparant chaque voie
+    if plot:
         final_df = pd.concat(ls_mes)
         for e in range(app_data["nb_ecarts"]):
             fig,ax=plt.subplots(nrows=1,ncols=nb_res,figsize=(CONFIG.fig_width,CONFIG.fig_height))
@@ -1071,9 +1126,7 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
             for r in range(nb_res):
                 n = e*nb_res + r
                 Z = final_df[nc_data[n]]
-                print(Z)
                 Q5,Q95 = Z.quantile([0.05,0.95])
-                print(Q5,Q95)
                 col = ax[r].scatter(X,Y,marker='s',c=Z,cmap='cividis',s=6,vmin=Q5,vmax=Q95)
                 plt.colorbar(col,ax=ax[r],shrink=0.7)
                 ax[r].title.set_text(nc_data[e*nb_res+r])
@@ -1082,8 +1135,19 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,n
                 ax[r].set_aspect('equal')
             plt.show(block=False)
             plt.pause(CONFIG.fig_render_time) # À augmenter si la figure ne s'affiche pas, sinon on pourra le baisser pour accélérer la vitesse de l'input
-            plt.savefig(CONFIG.script_path+"Output/CMDEX_i_" +str(e)+'.png')
-            pickle.dump(fig, open(CONFIG.script_path+"Output/CMDEX_i_" +str(e)+'.pickle', 'wb'))
+            # Enregistrement de la figure (en image + pickle)
+            if in_file:
+                plt.savefig(CONFIG.script_path+"Output/CMDEX_i_" +str(e)+'.png')
+                pickle.dump(fig, open(CONFIG.script_path+"Output/CMDEX_i_" +str(e)+'.pickle', 'wb'))
+    
+    # Sortie des dataframes (option)
+    if not in_file:
+        # Pour les besoins de la fonction 'main' (traitement général)
+        if full_infos:
+            return ls_base, ls_mes, ncx, ncy, nc_data, nb_res, ls_pd_done_before
+        # Sortie classique
+        else:
+            return ls_base, ls_mes
 
 # fonction de conversion du temps sous forme de chaine de caractère en seconde
 # en entrée, ce peut être le Dataframe complet issu du fichier CMD ou simplement
@@ -1474,10 +1538,10 @@ def CMD_detect_chgt(don,acq_GPS=True,verif=False):
         T.loc[indc]=T.loc[indc-1]
         
     DT=T.diff()
-    # la différence de temps donne les débuts de profils ou de base
+    # La différence de temps donne les débuts de profils ou de base
     ind_chgtd=DT.index[DT>5*DT.median()]
     
-    # la fin est l'indice avant le début donc - 1 par rapport au précédent 
+    # La fin est l'indice avant le début donc - 1 par rapport au précédent 
     ind_chgtf=ind_chgtd-1
     
     ind_chgtd=ind_chgtd.insert(0,0)
@@ -1486,7 +1550,8 @@ def CMD_detect_chgt(don,acq_GPS=True,verif=False):
     don['b et p']=0
     for ic,(ind_d,ind_f) in enumerate(zip(ind_chgtd,ind_chgtf)):
         don.loc[ind_d:ind_f,'b et p']=ic+1
-        
+    
+    # Plot du résultat
     if verif==True:    
         fig,ax=plt.subplots(nrows=1,ncols=1,figsize=(7,7))
         ax.scatter(X.loc[ind_chgtd],Y.loc[ind_chgtd],marker='s',color='green')
@@ -1688,7 +1753,6 @@ def CMD_detec_profil_carre(don):
             don.loc[index, "Base"] = 0
             don.loc[index, "Profil"] = prof_nb
         don.loc[index, "b et p"] = base_nb + prof_nb
-    print(don)
     return don.copy()
 
 def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=False):
@@ -1737,39 +1801,51 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=F
     --------
     ``CMD_init, CMD_detec_profil_carre, CMD_detect_chgt`` 
     """
+    # Pour être propre, on enlève les anciennes colonnes obsolètes
     for label in ["Profile","Base","b et p"]:
         try:
             don.drop(columns=label)
         except:
             pass
     
+    # Colonnes position manquantes
     try:
         don[X_n], don[Y_n]
     except KeyError:
         MESS_err_mess('Les colonnes "{}" et/ou "{}" n\'existent pas'.format(X_n,Y_n))
     
     nb_pts = len(don)
+    # Si aucun point n'est spécifié, on prendra la droite de régression comme référence
     regr = (l_p == None)
     
     dist_list = []
     
+    # Régression
     if regr:
         lin_tab_i = np.array(don.index)
         lin_tab_x = np.array(don[X_n])
         lin_tab_y = np.array(don[Y_n])
+        # X par rapport à l'indice
         lin_reg_x = linregress(lin_tab_i,lin_tab_x)
+        # Y par rapport à l'indice
         lin_reg_y = linregress(lin_tab_i,lin_tab_y)
         
+        # Coefficients trouvés par les régressions
         eq = [lin_reg_x.slope, lin_reg_x.intercept, lin_reg_y.slope, lin_reg_y.intercept]
         
+        # Expression de la distance entre un point et la droite, à une constante multiplicative près (bon pour les rapports)
         for index, row in don.iterrows():
             dist_list.append(np.abs(eq[2]*(row[X_n]-eq[1]) - eq[0]*(row[Y_n]-eq[3])))
+    # Distance aux segments
     else:
         l_p = np.array(l_p)
+        # Il faut au moins deux poins pour construire un segment
         if len(l_p) < 2:
             MESS_err_mess("Le vecteur de points 'l_p' doit au moins en contenir 2 pour créer un segment")
+        # Pour chaque point c/p3 du jeu de données...
         for index, row in don.iterrows():
             d_l = []
+            # Pour chaque segment, on prend ses deux extrémités a/p1 et b/p2
             for p1,p2 in zip(l_p,l_p[1:]):
                 p3 = np.array([row[X_n],row[Y_n]])
                 ba = p1 - p2
@@ -1777,6 +1853,7 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=F
                 bc = p3 - p2
                 lbc = np.linalg.norm(bc)
                 angle_1 = np.degrees(np.arccos(np.dot(ba, bc) / (lba * lbc)))
+                # Si l'angle cba >= 90°, alors la distance est simplement égale à [cb]
                 if angle_1 >= 90.0:
                     d_l.append(lbc)
                     continue
@@ -1785,12 +1862,16 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=F
                 ab = -ba
                 lab = lba
                 angle_2 = np.degrees(np.arccos(np.dot(ab, ac) / (lab * lac)))
+                # Si l'angle cab >= 90°, alors la distance est simplement égale à [ca]
                 if angle_2 >= 90.0:
                     d_l.append(lac)
                     continue
+                # Sinon, on calcule la distance entre c et la droite (ab)
                 d_l.append(np.abs(np.cross(ab,ac)/lba))
             dist_list.append(min(d_l))
     
+    ### Sélection des centres des pseudo-profils ###
+    # Filtre 1 : Sélection des minimums locaux de la droite des distances
     m1_list = []
     up = True
     for ic,d in enumerate(dist_list[:-1]):
@@ -1798,8 +1879,9 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=F
         if new_up and not up:
             m1_list.append(ic)
         up = new_up
-    
     #print(m1_list)
+    
+    # Filtre 2 : Suppression des minimums locaux trop éloignés, à partir de la distance des meilleurs points
     m2_list = []
     top_n = sorted([dist_list[i] for i in m1_list], key = lambda x: x, reverse = False)[:tn]
     min_med = sum(top_n)/tn * tn_c
@@ -1808,8 +1890,9 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=F
         #print(dist_list[m], " ", min_med)
         if dist_list[m] <= min_med:
             m2_list.append(m)
-    
     #print(m2_list)
+    
+    # Filtre 3 : Suppression des points doubles (quasi-adjacentsdans l'ordre), et ajout de points pour découper les profils trop gros (l_p == None uniquement)
     min_list = []
     if regr:
         max_conseq = (2*nb_pts)//len(m2_list)
@@ -1842,6 +1925,8 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=F
     if i == l_min-1:
         min_list.append(m2_list[-1])
     
+    # Pour chaque point du jeu, attribue le centre le plus proche par index
+    # Chaque centre correspond à un pseudo-profil
     don["Profil"] = 0
     don["Base"] = 0
     l_min = len(min_list)
@@ -1859,15 +1944,18 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=F
         don.loc[index,"Profil"] = ind   
     don["b et p"] = don["Profil"]
     
+    # plot du résultat
     if verif:
         print(min_list)
         index_list = range(nb_pts)
         fig,ax = plt.subplots(nrows=1,ncols=3,figsize=(CONFIG.fig_width,CONFIG.fig_height),squeeze=False)
+        # Axe 1 : Évolution de la distance en fonction de l'index et affichage des centres trouvés
         ax[0][0].plot(index_list,dist_list,'-')
         ax[0][0].plot([index_list[i] for i in min_list],[dist_list[i] for i in min_list],'xr')
         ax[0][0].set_xlabel("Index")
         ax[0][0].set_ylabel("Distance")
         ax[0][0].set_title("Évolution de la distance à la droite")
+        # Axe 2 : Affichage du nuage de point des données, droite/segments et des centres trouvés
         ax[0][1].plot(don[X_n],don[Y_n],'x')
         if regr:
             ax[0][1].plot([eq[0]*i+eq[1] for i in index_list],[eq[2]*i+eq[3] for i in index_list],'-k')
@@ -1879,6 +1967,7 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=F
         ax[0][1].set_ylabel(Y_n)
         ax[0][1].set_title("Centres et droite")
         ax[0][1].ticklabel_format(useOffset=False)
+        # Axe 2 : Affichage des pseudo-profils finaux, par couleur
         ax[0][2].scatter(don[X_n],don[Y_n],marker='x',c=don["Profil"]%8, cmap='nipy_spectral')
         ax[0][2].set_aspect('equal')
         ax[0][2].set_xlabel(X_n)
@@ -1916,7 +2005,7 @@ def CMD_intrp_prof(don_mes,acq_GPS=True):
     * Profiles not detected.
     """
     if acq_GPS :
-        colXY=['Northing','Easting']
+        colXY=['Easting','Northing']
     else:
         colXY=['x[m]','y[m]']
         
@@ -2060,6 +2149,7 @@ def CMD_XY_Nan_completion_solo(don):
     bloc_na_list = [d for _, d in full_na.groupby(full_na.index - np.arange(len(full_na)))]
     #print(bloc_na_list)
     
+    # Complétion faite pour chaque bloc de donnée manquant
     for bloc_na in bloc_na_list:
         bnai = bloc_na.index
         l_n = bnai.size
@@ -2077,7 +2167,7 @@ def CMD_XY_Nan_completion_solo(don):
             pas_y = row2["Y_int"] - row1["Y_int"]
             new_x = [row2["X_int"] + pas_x*i for i in range(1,l_n+1)]
             new_y = [row2["Y_int"] + pas_y*i for i in range(1,l_n+1)]
-        else:
+        else: # Cas général
             row1 = don.iloc[bnai[0]-1]
             row2 = don.iloc[bnai[-1]+1]
             pas_x = (row2["X_int"] - row1["X_int"]) / (l_n+1)
@@ -2131,10 +2221,12 @@ def CMD_XY_Nan_completion(don):
         MESS_warn_mess("[DEV] NaN en X et NaN en Y n'ont pas les même position dans le tableau (pas d'effet)")
         return don.copy()
     
+    # Nécessite une version plutôt récente de pandas
     try:
         ind_aux = indc[indc.diff()!=1.]-1
     except AttributeError:
         MESS_err_mess("ERREUR PANDAS : nécessite au minimum la version 2.1.0 (et python 3.10).")
+    
     for i_d in ind_aux:
         prof = don.loc[i_d,'b et p']
         bloc = don.loc[don['b et p'] == prof]
@@ -2155,6 +2247,7 @@ def CMD_XY_Nan_completion(don):
                 lin_tab2 = np.concatenate([lin_tab2,[sum(lin_tab2[:,1])/len(lin_tab2[:,1])]])
                 lin_tab3 = np.concatenate([lin_tab3,[sum(lin_tab3[:,1])/len(lin_tab3[:,1])]])
             
+            # On fait toutes les régressions par rapport à l'indice, car il est représentatif d'un pas de temps régulier sur un même profil
             lin_reg1 = linregress(lin_tab_i,lin_tab1)
             lin_reg2 = linregress(lin_tab_i,lin_tab2)
             lin_reg3 = linregress(lin_tab_i,lin_tab3)
@@ -2217,8 +2310,8 @@ def CMD_pts_rectif(don,ind_deb=None,ind_fin=None):
         if bloc_l == 1:
             MESS_warn_mess("Un des profils ne possède qu'un unique point connu : régression impossible.")
         else:
-            # lin_tab1 = np.array([[index, row["temps (s)"]] for index, row in bloc.iterrows()])
             lin_tab_i = np.array(bloc.index)
+            # lin_tab1 = np.array(bloc["temps (s)"])
             lin_tab2 = np.array(bloc["X_int"])
             lin_tab3 = np.array(bloc["Y_int"])
             # La régression ne marche pas avec deux points, mais on peut en créer un troisième
@@ -2226,7 +2319,7 @@ def CMD_pts_rectif(don,ind_deb=None,ind_fin=None):
                 # lin_tab1 = np.concatenate([lin_tab1,[sum(lin_tab1[:,1])/len(lin_tab1[:,1])]])
                 lin_tab2 = np.concatenate([lin_tab2,[sum(lin_tab2[:,1])/len(lin_tab2[:,1])]])
                 lin_tab3 = np.concatenate([lin_tab3,[sum(lin_tab3[:,1])/len(lin_tab3[:,1])]])
-            
+            # On fait toutes les régressions par rapport à l'indice, car il est représentatif d'un pas de temps régulier sur un même profil
             # lin_reg1 = linregress(lin_tab1)
             lin_reg2 = linregress(lin_tab_i,lin_tab2)
             lin_reg3 = linregress(lin_tab_i,lin_tab3)
@@ -2322,7 +2415,7 @@ def CMD_decal_posLT(X,Y,profs,decL=0.,decT=0.):
 
 # Pour chaque voie, corrige le décalage de position
 
-def CMD_dec_voies(don,ncx,ncy,nb_ecarts,TR_l,TR_t, gps_dec):
+def CMD_dec_voies(don,ncx,ncy,nb_ecarts,TR_l,TR_t,gps_dec):
     """ [TA]\n
     Shifts X and Y according to the GPS and coil position from the center, for each coil.
     
@@ -2356,16 +2449,16 @@ def CMD_dec_voies(don,ncx,ncy,nb_ecarts,TR_l,TR_t, gps_dec):
     --------
     ``CMD_decal_posLT``
     """
+    # Pour chaque voie, on décale la position
     for e in range(nb_ecarts):
         decx = gps_dec[0]-(TR_l[e]-TR_l[-1])/2
         decy = gps_dec[1]-(TR_t[e]-TR_t[-1])/2
-        #print(don["Profil"])
         X, Y = CMD_decal_posLT(don["X_int"],don["Y_int"],don["Profil"],decL=decx,decT=decy)
         don[ncx[e]] = X.round(CONFIG.prec_coos)
         don[ncy[e]] = Y.round(CONFIG.prec_coos)
     return don.copy()
 
-# Fonction principale de la frontière.
+# Fonction principale de la frontière (si on appelle depuis le terminal).
 
 def CMD_frontiere(col_x,col_y,col_z,file_list=None,sep='\t',output_file="frt.dat",choice=False):
     """
@@ -2395,16 +2488,19 @@ def CMD_frontiere(col_x,col_y,col_z,file_list=None,sep='\t',output_file="frt.dat
     """
     file_list = TOOL_true_file_list(file_list)
     df_list = []
+    # Chargement des données
     for ic, file in enumerate(file_list):
         df = TOOL_check_time_date(file,sep)
         df_list.append(df)
     
+    # On obtient les informations relatives aux colonnes
     ncx, ncy, nc_data, nb_data, nb_ecarts, nb_res = TOOL_manage_cols(df_list[0],col_x,col_y,col_z)
-    CMD_frontiere_loop(df_list,ncx,ncy,nc_data,nb_data,nb_ecarts,nb_res,choice,sep,output_file)
+    # La procédure se fait dans une autre fonction
+    CMD_frontiere_loop(df_list,ncx,ncy,nc_data,nb_data,nb_ecarts,nb_res,choice,sep,output_file,plot=True,in_file=True)
 
 # Boucle sur tous les duos de fichiers et essaie d'établir une frontière. Si elle existe, calcule les ajustements.
 
-def CMD_frontiere_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_ecarts,nb_res,choice=False,sep='\t',output_file=None,not_in_file=False):
+def CMD_frontiere_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_ecarts,nb_res,choice=False,sep='\t',output_file=None,plot=False,in_file=False,**kwargs):
     """ [TA]\n
     Given a list of dataframe, try the two-by-two correction by juncture if they are close enough.\n
     The first in the list is used as reference and will not be modified.\n
@@ -2434,14 +2530,18 @@ def CMD_frontiere_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_ecarts,nb_res,choice=Fa
         Dataframe separator.
     ``[opt]`` output_file : ``None`` or str, default : ``None``
         Name of output file. If ``None``, is set to ``"frt.dat"``.
-    ``[opt]`` not_in_file : bool, default : ``False``
-        If call comes from script function instead of user.
+    ``[opt]`` plot : bool, default : ``False``
+        Enables plotting.
+    ``[opt]`` in_file : bool, default : ``False``
+        If ``True``, save result in a file. If ``False``, return the dataframe.
+    **kwargs
+        Optional arguments for ``CMD_calc_frontiere`` that are not `already specified (overwritten).
     
     Returns
     -------
-    * ``not_in_file = False``
+    * ``in_file = True``
         none, but save dataframe for profiles and bases in separated .dat
-    * ``not_in_file = True``
+    * ``in_file = False``
         ls_mes : list of dataframe
             List of output dataframes.
     
@@ -2449,8 +2549,11 @@ def CMD_frontiere_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_ecarts,nb_res,choice=Fa
     --------
     ``CMD_calc_frontiere``
     """
+    # Liste des indices des fichiers à ajuster
     don_to_corr = [i for i in range(1,len(ls_mes))]
+    # Liste des indices des fichiers déjà ajustés
     don_corr = [0]
+    # Flag de fin de boucle
     is_corr_done = False
     while is_corr_done == False:
         don_corr_copy = don_corr.copy()
@@ -2461,40 +2564,49 @@ def CMD_frontiere_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_ecarts,nb_res,choice=Fa
                 # print(ls_mes[i])
                 # print("---------------------------")
                 # print(ls_mes[j])
-                ls_mes[j], done = CMD_calc_frontiere(ls_mes[i], ls_mes[j], ncx, ncy, nc_data, nb_res, nb_ecarts, m_size=40, verif=False, verif_pts=False, choice=choice)
+                ls_mes[j], done = CMD_calc_frontiere(ls_mes[i], ls_mes[j], ncx, ncy, nc_data, nb_res, nb_ecarts, choice=choice, **kwargs)
+                # Une frontière a bien été trouvé si done = True
                 if done:
                     don_to_corr.remove(j)
                     don_corr.append(j)
             don_corr.remove(i)
+            # Fin 1 : Tous les fichiers ont été ajustés
             if len(don_to_corr) == 0:
                 is_corr_done = True
+        # Fin 2 : Certains fichiers n'ont pas été ajustés car aucun fichier frontalier n'a été trouvé.
         if len(don_corr) == 0:
             MESS_warn_mess("Certains jeux de données n'ont pas pu être ajustés. Sont-ils tous frontaliers ?")
             is_corr_done = True
     
-    if not_in_file:
+    # Plot du résultat, en séparant chaque voie
+    final_df = pd.concat(ls_mes)
+    if plot:
+        for e in range(nb_ecarts):
+            fig,ax=plt.subplots(nrows=1,ncols=nb_res,figsize=(CONFIG.fig_width,CONFIG.fig_height))
+            X = final_df[ncx[e]]
+            Y = final_df[ncy[e]]
+            for r in range(nb_res):
+                n = e*nb_res + r
+                Z = final_df[nc_data[n]]
+                Q5,Q95 = Z.quantile([0.05,0.95])
+                col = ax[r].scatter(X,Y,marker='s',c=Z,cmap='cividis',s=6,vmin=Q5,vmax=Q95)
+                plt.colorbar(col,ax=ax[r],shrink=0.7)
+                ax[r].title.set_text(nc_data[e*nb_res+r])
+                ax[r].set_xlabel(ncx[e])
+                ax[r].set_ylabel(ncy[e])
+                ax[r].set_aspect('equal')
+            plt.show(block=False)
+            plt.pause(CONFIG.fig_render_time) # À augmenter si la figure ne s'affiche pas, sinon on pourra le baisser pour accélérer la vitesse de l'input
+            # Enregistrement de la figure (en image + pickle)
+            if in_file:
+                plt.savefig(CONFIG.script_path+"Output/CMDEX_f_" +str(e)+'.png')
+                pickle.dump(fig, open(CONFIG.script_path+"Output/CMDEX_f_" +str(e)+'.pickle', 'wb'))
+    
+    # Sortie des la liste des dataframes (option)
+    if not in_file:
         return ls_mes
     
-    final_df = pd.concat(ls_mes)
-    for e in range(nb_ecarts):
-        fig,ax=plt.subplots(nrows=1,ncols=nb_res,figsize=(CONFIG.fig_width,CONFIG.fig_height))
-        X = final_df[ncx[e]]
-        Y = final_df[ncy[e]]
-        for r in range(nb_res):
-            n = e*nb_res + r
-            Z = final_df[nc_data[n]]
-            Q5,Q95 = Z.quantile([0.05,0.95])
-            col = ax[r].scatter(X,Y,marker='s',c=Z,cmap='cividis',s=6,vmin=Q5,vmax=Q95)
-            plt.colorbar(col,ax=ax[r],shrink=0.7)
-            ax[r].title.set_text(nc_data[e*nb_res+r])
-            ax[r].set_xlabel(ncx[e])
-            ax[r].set_ylabel(ncy[e])
-            ax[r].set_aspect('equal')
-        plt.show(block=False)
-        plt.pause(CONFIG.fig_render_time) # À augmenter si la figure ne s'affiche pas, sinon on pourra le baisser pour accélérer la vitesse de l'input
-        plt.savefig(CONFIG.script_path+"Output/CMDEX_f_" +str(e)+'.png')
-        pickle.dump(fig, open(CONFIG.script_path+"Output/CMDEX_f_" +str(e)+'.pickle', 'wb'))
-    
+    # Résultat enregistré en .dat (option)
     if output_file == None:
         final_df.to_csv("frt.dat", index=False, sep=sep)
     else:
@@ -2502,7 +2614,7 @@ def CMD_frontiere_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_ecarts,nb_res,choice=Fa
 
 # Corrige les décalages entre deux fichiers en sélectionnant des points frontaliers, si ils existent. Activer "choice" pour valider ou non les ajustements.
 
-def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,nb=30,tol_inter=0.1,tol_intra=0.2,m_size=14,choice=False,verif=False,verif_pts=False,dat_to_test=0):
+def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,choice=False,nb=30,tol_inter=0.1,tol_intra=0.2,m_size=40,verif=False,verif_pts=False,dat_to_test=0):
     """ [TA]\n
     Given two dataframes, try to adjust the second one by juncture if they are close enough.\n
     Frontiers are approximated by distincts pairs of points between both set of points.\n
@@ -2527,16 +2639,16 @@ def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,nb=30,tol_inte
         Number of X and Y columns. The number of coils.
     nb_res : int
         The number of data per coil.
+    ``[opt]`` choice : bool, default : ``False``
+        Enables manual acceptance of each adjustment.
     ``[opt]`` nb : int, default : ``30``
         Minimum number of pairs of points to find for adjustment. Scale with the number of total points in ``don1`` and ``don2``.
     ``[opt]`` tol_inter : float, default : ``0.1``
         Tolerance of acceptance for pairs distance.
     ``[opt]`` tol_intra : float, default : ``0.2``
         Tolerance of acceptance for intern points dispersion.
-    ``[opt]`` m_size : float, default : ``14``
+    ``[opt]`` m_size : float, default : ``40``
         Plotting size of points.
-    ``[opt]`` choice : bool, default : ``False``
-        Enables manual acceptance of each adjustment.
     ``[opt]`` verif : bool, default : ``False``
         Display various informations regarding step 2 (adjust).
     ``[opt]`` verif_pts : bool, default : ``False``
@@ -2555,6 +2667,7 @@ def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,nb=30,tol_inte
     """
     i_max = len(don1.index)-1
     j_max = len(don2.index)-1
+    # Nombre de points sur la frontière
     nb += int(np.sqrt(min(i_max,j_max))*0.2)
     for e in range(nb_ecarts):
         curr_e = e*nb_res
@@ -2569,6 +2682,7 @@ def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,nb=30,tol_inte
         i_excl = []
         j_excl = []
         
+        # Affichage des deux ensembles en nuage de points
         if verif_pts:
             fig,ax=plt.subplots(nrows=1,ncols=1,figsize=(9,9))
             ax.plot(x1,y1,'+r',alpha=0.3)
@@ -2578,16 +2692,23 @@ def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,nb=30,tol_inte
             ax.set_aspect('equal')
         
         d_moy = 0
+        # On effectue l'opération suivante nb fois
         for i in range(nb):
+            # On cherche deux points sur la frontière entre les deux ensembles
             i_min,j_min,d = CMD_appr_border(x1,x2,y1,y2,i_max,j_max,i_excl,j_excl)
             d_moy = d_moy + d
+            # On empêche qu'un point déjà trouvé soit tiré deux fois
             i_excl.append(i_min)
             j_excl.append(j_min)
+            # Affichage des points trouvés sur les ensembles
             if verif_pts:
                 ax.plot(x1[i_min],y1[i_min],'ok')
                 ax.plot(x2[j_min],y2[j_min],'om')
+        # Distance moyenne entre les duos de points trouvés
         d_moy = np.sqrt(d_moy / nb)
+        # Distance maximale entre deux points frontaliers du même ensemble (représentatif de la dispersion)
         d_max = np.sqrt(max(CMD_max_frontiere(x1,y1,i_excl),CMD_max_frontiere(x2,y2,j_excl)))
+        # Distance caractéristique de l'ensemble, base sur la "diagonale"
         d_caract = np.sqrt(min(CMD_appr_taille_grp(x1,y1),CMD_appr_taille_grp(x2,y2)))
         
         if verif:
@@ -2599,10 +2720,11 @@ def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,nb=30,tol_inte
             print("d_max = ",d_max)
             print("d_caract (intra) = ",d_caract*tol_intra)
         
+        # Si les points trouvés sont trop éloignés (pas de frontière) ou trop concentrés (coin)
         if d_moy > d_caract*tol_inter or d_max < d_caract*tol_intra:
             return don2.copy(), False
         
-        # Calcul de la différence / 
+        # Calcul de la différence / écart-type
         #data2[dat_to_test] = [x+0 for x in data2[dat_to_test]]
         diff = []
         mult = []
@@ -2612,7 +2734,8 @@ def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,nb=30,tol_inte
             mult.append(m)
             # print("diff (",r,") = ",d)
             # print("mult (",r,") = ",m)
-            
+        
+        # Sélection dynamique de l'ajustement
         if choice:
             print("----------------------------- FRONTIERE -----------------------------")
             i = 0
@@ -2681,9 +2804,9 @@ def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,nb=30,tol_inte
                         MESS_warn_mess("Réponse non reconnue !")
                 plt.close(fig)
         
+        # DEBUG : Affichage d'une donnée avec une déformation manuelle
         else:
             if verif and dat_to_test >= 0:
-                print("----------------------------- FRONTIERE -----------------------------")
                 fig,ax=plt.subplots(nrows=2,ncols=1,figsize=(CONFIG.fig_height,CONFIG.fig_width))
                 testouh = don1[nc_data[curr_e+dat_to_test]].tolist() + don2[nc_data[curr_e+dat_to_test]].tolist()
                 Q = np.quantile(testouh,[0.05,0.95])
@@ -2774,6 +2897,10 @@ def CMD_appr_border(x1,x2,y1,y2,i_max,j_max,i_excl,j_excl):
     d_min = (x1[i_min]-x2[j_min])**2 + (y1[i_min]-y2[j_min])**2
     turn = True
     
+    # On parcourt les ensembles dans l'ordre de l'index à partir de points de départ aléatoires p1 et p2.
+    # On parcourt le premier jeu jusqu'à trouver un point plus proche de p2 que p1. Dans ce cas, il devient p1, et on itère sur l'autre jeu.
+    # La démarche est identique avec p2.
+    # On continue jusqu'à avoir exploré une fois tous les points des ensembles.
     # Complexité : O(n)
     while i < i_max or j < j_max:
         if turn:
@@ -2865,7 +2992,8 @@ def CMD_compute_coeff(col1,col2,excl1,excl2):
 
 # Fonction principale de l'étalonnage par base
 
-def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,output_file_list=None,nb_ecarts=1,diff=True,auto_adjust=True,man_adjust=False,verif=False,line=False):
+def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,output_file_list=None,nb_ecarts=1,\
+                     diff=True,auto_adjust=True,man_adjust=False,line=False,verif=False,in_file=False):
     """ [TA]\n
     Main function for profile calibration from bases.\n
     See ``CMD_evol_profils_solo`` for more infos.
@@ -2877,9 +3005,9 @@ def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
     
     Parameters
     ----------
-    file_prof_list : list of str
+    file_prof_list : list of str or list of dataframe
         List of profiles files to process.
-    file_prof_list : list of str
+    file_base_list : list of str or list of dataframe
         List of bases files to process, ordered as ``file_prof_list``.
     col_z : list of int
         Index of every Z coordinates columns (actual data).
@@ -2888,7 +3016,7 @@ def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
     ``[opt]`` replace : bool, default : ``False``
         If the previous file is overwritten.
     ``[opt]`` output_file_list : ``None`` or list of str, default : ``None``
-        List of output files names, ordered as ``file_prof_list``, otherwise do not save the result (plot only).
+        List of output files names, ordered as ``file_prof_list``, otherwise add the suffix ``"_ep"``.
     ``[opt]`` nb_ecarts : int, default : ``1``
         Number of X and Y columns. The number of coils.
     ``[opt]`` diff : bool, default : ``True``
@@ -2901,6 +3029,16 @@ def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
         Enables plotting.
     ``[opt]`` line : bool, default : ``False``
         Shows lines between profiles. Makes the visualization easier.
+    ``[opt]`` in_file : bool, default : ``False``
+        If ``True``, save result in a file. If ``False``, return the dataframe.
+    
+    Returns
+    -------
+    * ``in_file = True``
+        none, but save output dataframe in a .dat
+    * ``in_file = False``
+        file_list : dataframe
+            Output dataframe list.
 
     Raises
     ------
@@ -2912,23 +3050,35 @@ def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
     """
     if auto_adjust and len(file_prof_list) != len(file_base_list):
         MESS_err_mess("Le nombre de fichiers profil ({}) et base ({}) ne correspondent pas".format(len(file_prof_list),len(file_base_list)))
-    if output_file_list == None:
-        MESS_warn_mess("Le résultat ne sera pas enregistré")
-    elif not replace and len(file_prof_list) != len(output_file_list):
+    if not replace and output_file_list != None and len(file_prof_list) != len(output_file_list):
         MESS_err_mess("Le nombre de fichiers profil ({}) et résultat ({}) ne correspondent pas".format(len(file_prof_list),len(output_file_list)))
     for i in range(len(file_prof_list)):
-        data_prof = TOOL_check_time_date(file_prof_list[i],sep)
+        if isinstance(file_prof_list[i],str):
+            data_prof = TOOL_check_time_date(file_prof_list[i],sep)
+            label = file_prof_list[i]
+        else:
+            data_prof = file_prof_list[i]
+            label = str(i+1)
         if auto_adjust:
-            data_base = TOOL_check_time_date(file_base_list[i],sep)
+            if isinstance(file_base_list[i],str):
+                data_base = TOOL_check_time_date(file_base_list[i],sep)
+            else:
+                data_base = file_base_list[i]
         else:
             data_base = pd.DataFrame()
-        res = CMD_evol_profils_solo(data_prof,data_base,file_prof_list[i],col_z,nb_ecarts,diff=diff,auto_adjust=auto_adjust,man_adjust=man_adjust,verif=verif,line=line)
-        if replace:
-            res.to_csv(file_prof_list[i], index=False, sep=sep)
-        elif output_file_list == None:
-            continue
+        res = CMD_evol_profils_solo(data_prof,data_base,label,col_z,nb_ecarts,diff=diff,auto_adjust=auto_adjust,man_adjust=man_adjust,verif=verif,line=line)
+        
+        if not in_file:
+            file_prof_list[i] = res
         else:
-            res.to_csv(output_file_list[i], index=False, sep=sep)
+            if replace:
+                res.to_csv(file_prof_list[i], index=False, sep=sep)
+            elif output_file_list == None:
+                res.to_csv(file_prof_list[i][:-4]+"_ep.dat", index=False, sep=sep)
+            else:
+                res.to_csv(output_file_list[i], index=False, sep=sep)
+    if not in_file:
+        return file_prof_list
 
 # Détecte le décalage des données en fonction du temps grace à la base, puis propose une correction.
 # Correction par différence si diff=True, sinon correction par proportion.
@@ -2990,7 +3140,6 @@ def CMD_evol_profils_solo(don,bas,nom_fich,col_z,nb_ecarts,diff=True,auto_adjust
         mrk = 'x-'
     else:
         mrk = 'x'
-    
     try:
         prof_deb = don['Profil'].iat[0]
         prof_fin = don['Profil'].iat[-1]
@@ -3035,16 +3184,16 @@ def CMD_evol_profils_solo(don,bas,nom_fich,col_z,nb_ecarts,diff=True,auto_adjust
             fig,ax = plt.subplots(nrows=1,ncols=nb_res,figsize=(nb_res*CONFIG.fig_width//2,CONFIG.fig_height),squeeze=False)
             if diff:
                 for j in range(nb_data):
-                    ax[0][j%nb_res].plot(prof_bp,(prof_med[j]-prof_med[j,0]),mrk,label=col_names[j]+" (profil)",color=color[int(j/2)])
-                    ax[0][j%nb_res].plot(base_bp,(base_med[j]-base_med[j,0]),'o--',label=col_names[j]+" (base)",color=color[int(j/2)])
+                    ax[0][j%nb_res].plot(prof_bp,(prof_med[j]-prof_med[j,0]),mrk,label=col_names[j]+" (profil)",color=color[j//nb_res])
+                    ax[0][j%nb_res].plot(base_bp,(base_med[j]-base_med[j,0]),'o--',label=col_names[j]+" (base)",color=color[j//nb_res])
                     ax[0][j%nb_res].set_xlabel("Profil")
                     ax[0][j%nb_res].set_ylabel("Valeur en diff .avec la première")
                     ax[0][j%nb_res].grid(axis="x")
                     ax[0][j%nb_res].legend()
             else:
                 for j in range(nb_data):
-                    ax[0][j%nb_res].plot(prof_bp,prof_med[j]/max(prof_med[j]),mrk,label=col_names[j]+" (profil)",color=color[int(j/nb_res)])
-                    ax[0][j%nb_res].plot(base_bp,base_med[j]/max(base_med[j]),'o--',label=col_names[j]+" (base)",color=color[int(j/nb_res)])
+                    ax[0][j%nb_res].plot(prof_bp,prof_med[j]/max(prof_med[j]),mrk,label=col_names[j]+" (profil)",color=color[j//nb_res])
+                    ax[0][j%nb_res].plot(base_bp,base_med[j]/max(base_med[j]),'o--',label=col_names[j]+" (base)",color=color[j//nb_res])
                     ax[0][j%nb_res].set_xlabel("Profil")
                     ax[0][j%nb_res].set_ylabel("Valeur en prop. du max")
                     ax[0][j%nb_res].grid(axis="x")
@@ -3052,7 +3201,8 @@ def CMD_evol_profils_solo(don,bas,nom_fich,col_z,nb_ecarts,diff=True,auto_adjust
             fig.suptitle(nom_fich+" (données de base)")
             plt.show(block=False)
             plt.pause(CONFIG.fig_render_time) # À augmenter si la figure ne s'affiche pas, sinon on pourra le baisser pour accélérer la vitesse de l'input
-    
+            
+        #Ajustement par base
         for i in range(prof_l):
             prof = don[don["Profil"] == i+prof_deb]
             r = prof["b et p"].iat[0]
@@ -3080,7 +3230,12 @@ def CMD_evol_profils_solo(don,bas,nom_fich,col_z,nb_ecarts,diff=True,auto_adjust
                 don.loc[index_list[i]:index_list[i+1], col_names[j]] = new_val.round(CONFIG.prec_data)
                 if index_list[i+1] != None:
                     don.loc[index_list[i+1], col_names[j]] = temp
-                
+        
+        # Retrait de la valeur de la base pour le signal en phase
+        in_phase_cols = [ic for ic,c in enumerate(col_names) if "Inph" in c]
+        for Inph in in_phase_cols:
+            don.loc[:, col_names[Inph]] = (don.loc[:, col_names[Inph]] - base_med[Inph,0]).round(CONFIG.prec_data)
+        
         for i in range(prof_l):
             prof = don[don["Profil"] == i+prof_deb]
             for j in range(nb_data):
@@ -3112,6 +3267,7 @@ def CMD_evol_profils_solo(don,bas,nom_fich,col_z,nb_ecarts,diff=True,auto_adjust
             plt.show(block=False)
             plt.pause(CONFIG.fig_render_time) # À augmenter si la figure ne s'affiche pas, sinon on pourra le baisser pour accélérer la vitesse de l'input
             
+            # Ajustement manuel
             if man_adjust:
                 try:
                     if GUI:
@@ -3128,6 +3284,7 @@ def CMD_evol_profils_solo(don,bas,nom_fich,col_z,nb_ecarts,diff=True,auto_adjust
                                         "Ici, cet indice peut varier de 1 à {}.".format(nb_data),"Cette procédure se relance automatiquement, faites un bloc à la fois.",
                                         "","a-b x y z: Du profil a à b (inclus), sur les colonnes x,y et z","n : Non (terminer la procédure)"])
                         inp = input()
+                        print(inp)
                     if inp == "n":
                         correct = True
                     else:
@@ -3138,17 +3295,26 @@ def CMD_evol_profils_solo(don,bas,nom_fich,col_z,nb_ecarts,diff=True,auto_adjust
                         column_to_do = []
                         for r in res[1:]:
                             column_to_do.append(int(r)-1)
-                        #print(first," ",last)
+                        #print(first,last)
+                        #print(prof_fin,prof_deb)
                         new_med = []
                         av = first
                         ap = last
                         if first == 0:
                             av = last
-                        elif last == prof_fin-prof_deb-1:
-                            ap = first
+                            if last == 0:
+                                av = first+1
+                            if last == prof_fin-prof_deb:
+                                av = first+1
+                                ap = last-1
+                        elif last == prof_fin-prof_deb:
+                            ap = first  
+                            if first == prof_fin-prof_deb:
+                                ap = last-1
+                        print(av,ap)
                         for j in range(nb_data):
                             new_med.append(np.linspace(prof_med[j,av-1],prof_med[j,ap+1],(last-first)+3))
-                        # print(new_med)
+                        #print(new_med)
                         # print(prof_med[1])
                         for i in range(first,last+1):
                             prof = don[(don["Profil"] == i+prof_deb)]
@@ -3177,8 +3343,9 @@ def CMD_evol_profils_solo(don,bas,nom_fich,col_z,nb_ecarts,diff=True,auto_adjust
                                 prof_med[j,i] = prof[col_names[j]].median()
                 except ValueError:
                     MESS_warn_mess("Réponse non reconnue !")
-                except IndexError:
-                    MESS_warn_mess("Un des profils {} n'existe pas !".format(id_prof))
+                # except IndexError:
+                #     MESS_warn_mess("Un des profils {} n'existe pas !".format(id_prof))
+                plt.close()
             else:
                 correct = True
     
@@ -3209,8 +3376,8 @@ def CMD_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_type=N
         Index of every Y coordinates columns.
     col_z : list of int
         Index of every Z coordinates columns (actual data).
-    ``[opt]`` file_list : ``None`` or list of str, default : ``None``
-        List of files to process.
+    ``[opt]`` file_list : ``None`` or list of str or list of dataframe, default : ``None``
+        List of files or loaded dataframes to process, or a single one.
     ``[opt]`` sep : str, default : ``'\\t'``
         Dataframe separator.
     ``[opt]`` output_file : ``None`` or str, default : ``None``
@@ -3248,7 +3415,10 @@ def CMD_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_type=N
     ``TOOL_check_time_date, TOOL_manage_cols, CMD_dat_to_grid, CMD_kriging, CMD_scipy_interp, CMD_grid_plot, TOOL_true_file_list``
     """
     global GUI_VAR_LIST
-    file_list = TOOL_true_file_list(file_list)
+    try:
+        file_list = TOOL_true_file_list(file_list)
+    except:
+        pass
     m_type_list = ['h','k','i']
     if m_type == None:
         correct = False
@@ -3272,7 +3442,10 @@ def CMD_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_type=N
     
     df_l = []
     for f in file_list :
-        data = TOOL_check_time_date(f,sep)
+        if isinstance(f,str):
+            data = TOOL_check_time_date(f,sep)
+        else:
+            data = f
         df_l.append(data)
     don_raw = pd.concat(df_l)
     don_l = len(don_raw)
@@ -4482,7 +4655,7 @@ def CMD_grid_plot(don,grid_final,ncx,ncy,ext,pxy,nc_data,nb_ecarts,nb_res,output
 
 # Effectue la transformation du signal en données géophysique
 
-def CMD_calibration(uid,col_ph,col_qu,file_list=None,sep='\t',output_file_list=None):
+def CMD_calibration(uid,col_ph,col_qu,file_list=None,sep='\t',output_file_list=None,in_file=False):
     """ [TA]\n
     Given two arrays ``X`` and ``Y``, compute the coefficients of the chosen regression.\n
     To be used in the context of finding a formula for a physical relation.
@@ -4525,6 +4698,9 @@ def CMD_calibration(uid,col_ph,col_qu,file_list=None,sep='\t',output_file_list=N
     print(const_dict)
     sigma_a_ph = const_dict["sigma_a_ph"]
     sigma_a_qu = const_dict["sigma_a_qu"]
+    for e in range(app_data["nb_ecarts"]):
+        sigma_a_ph[e] = [-c for c in sigma_a_ph[e]]
+        sigma_a_qu[e] = [-c for c in sigma_a_qu[e]]
     
     fortran_folder = "Fortran/"
     cfg_file = fortran_folder+"_config_.cfg"
@@ -4535,7 +4711,7 @@ def CMD_calibration(uid,col_ph,col_qu,file_list=None,sep='\t',output_file_list=N
         os.chdir(CONFIG.data_path)
         try:
             df_ = pd.read_csv(file, sep=sep)
-            df = df_[::25]
+            df = df_[::100]
         except FileNotFoundError:
             MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
         
@@ -4543,25 +4719,25 @@ def CMD_calibration(uid,col_ph,col_qu,file_list=None,sep='\t',output_file_list=N
         for e in range(app_data["nb_ecarts"]):
             ncph = df.columns[col_ph[e]]
             ncqu = df.columns[col_qu[e]]
-            df[ncph] *= app_data["coeff_c_ph"][e]
-            df[ncqu] *= app_data["coeff_c_qu"][e]
+            df[ncph] *= app_data["coeff_c_ph"][e] # unité en ppt => ppt
+            df[ncqu] *= app_data["coeff_c_qu"][e] # unité en mS/m => ppt
             
-            df["sigma_"+str(e)] = 0
-            df["Kph_a_ph_"+str(e)] = 0
-            df["Kph_"+str(e)] = 0
+            df["sigma_"+str(e+1)] = 0
+            df["Kph_a_ph_"+str(e+1)] = 0
+            df["Kph_"+str(e+1)] = 0
+            df["eff_sig"+str(e+1)] = 0
         
             v = 100
             print("e = ",e)
             for index,row in df.iterrows():
-                qu = row[ncqu]
-                sigma = sigma_a_qu[e][0] + qu*sigma_a_qu[e][1] + qu**2*sigma_a_qu[e][2] + qu**3*sigma_a_qu[e][3]
+                qu = row[ncqu]/1000 # unité en ppt => SI
+                sigma_c = (qu*sigma_a_qu[e][1] + qu**2*sigma_a_qu[e][2] + qu**3*sigma_a_qu[e][3])
                 # print(sigma_a_qu[e][0])
                 # print(qu*sigma_a_qu[e][1])
                 # print(qu**2*sigma_a_qu[e][2])
                 # print(qu**3*sigma_a_qu[e][3])
-                # print("sigma = ",sigma)
-                #sigma = -sigma
-                FORTRAN_constab(app_data,cfg_file,e,variation=v,S_rau=sigma,S_eps_r=1,S_kph=0.1E-5,S_kqu=0.1E-7,F_rau=None,F_eps_r=None,F_kph=0.01,F_kqu=None)
+                #print("sigma_c = ",sigma_c," vrai = ",df.loc[index,df.columns[col_qu[e]]]/app_data["coeff_c_qu"][e])
+                FORTRAN_constab(app_data,cfg_file,e,variation=v,S_rau=1/sigma_c,S_eps_r=1,S_kph=0.1E-5,S_kqu=0.1E-7,F_rau=None,F_eps_r=None,F_kph=0.01,F_kqu=None)
                 if OS_KERNEL == "Linux":
                     error_code = subprocess.Popen(["./{}".format(fortran_linux),"{}".format(cfg_file)], stdin=subprocess.PIPE, stderr=subprocess.STDOUT, stdout=subprocess.PIPE).communicate()[1]
                     #error_code = os.system("./{} {}".format(fortran_linux,cfg_file))
@@ -4579,23 +4755,27 @@ def CMD_calibration(uid,col_ph,col_qu,file_list=None,sep='\t',output_file_list=N
                 don = pd.read_csv(cfg_file[:-4]+".dat",sep='\s+',header=None)
                 #print(don)
                 
-                HsHp_ph = np.array(don.iloc[:,4])
+                # unité en SI => SI
+                eff_sig = (sigma_c*sigma_a_ph[e][1] + sigma_c**2*sigma_a_ph[e][2] + sigma_c**3*sigma_a_ph[e][3])
+                HsHp_ph = np.array(don.iloc[:,4]) - (-eff_sig)
                 Kph_col = np.array(don.iloc[:,2])
                 Kph_a_ph = CMD_coeffs_relation(HsHp_ph,Kph_col,m_type="linear")[1]
                 #print(Kph_a_ph)
-                Kph = row[ncph]*Kph_a_ph
+                # unité en SI => SI
+                Kph = (row[ncph]/1000)*Kph_a_ph
                 #print(Kph)
-                df.loc[index,"sigma_"+str(e)] = sigma
-                df.loc[index,"Kph_a_ph_"+str(e)] = Kph_a_ph
-                df.loc[index,"Kph_"+str(e)] = Kph
+                df.loc[index,"eff_sig"+str(e+1)] = eff_sig
+                df.loc[index,"sigma_"+str(e+1)] = sigma_c
+                df.loc[index,"Kph_a_ph_"+str(e+1)] = Kph_a_ph
+                df.loc[index,"Kph_"+str(e+1)] = Kph
                 if index%250 == 0:
                     print(index)
             
             df.loc[:,ncph] = df[ncph].round(CONFIG.prec_data)
             df.loc[:,ncqu] = df[ncqu].round(CONFIG.prec_data)
-            df.loc[:,"sigma_"+str(e)] = df["sigma_"+str(e)].round(CONFIG.prec_data)
-            df.loc[:,"Kph_a_ph_"+str(e)] = df["Kph_a_ph_"+str(e)].round(CONFIG.prec_data)
-            df.loc[:,"Kph_"+str(e)] = df["Kph_"+str(e)].round(CONFIG.prec_data)
+        
+        if not in_file:
+            return df
         
         os.chdir(CONFIG.data_path)
         if output_file_list == None:
@@ -4956,7 +5136,7 @@ def CMD_convergence_inv_step(X,Y,coef_list,mse,cc):
 
 # Change la date dans un fichier .dat
 
-def DAT_change_date(file_list,date_str,sep='\t',replace=False,output_file_list=None,not_in_file=False):
+def DAT_change_date(file_list,date_str,sep='\t',replace=False,output_file_list=None,in_file=False):
     """ [TA]\n
     Change the date of a dataframe.
     
@@ -4966,8 +5146,8 @@ def DAT_change_date(file_list,date_str,sep='\t',replace=False,output_file_list=N
     
     Parameters
     ----------
-    file_list : list of str
-        List of files to process.
+    file_list : (list of) str or (list of) dataframe
+        List of files or loaded dataframes to process, or a single one.
     date_str : str
         New date in the correct date format.
     ``[opt]`` sep : str, default : ``'\\t'``
@@ -4976,16 +5156,16 @@ def DAT_change_date(file_list,date_str,sep='\t',replace=False,output_file_list=N
         If the previous file is overwritten.
     ``[opt]`` output_file_list : ``None`` or list of str, default : ``None``
         List of output files names, ordered as ``file_list``, otherwise add the suffix ``"_corr"``. Is ignored if ``replace = True``.
-    ``[opt]`` not_in_file : bool, default : ``False``
-        If call comes from script function instead of user.
+    ``[opt]`` in_file : bool, default : ``False``
+        If ``True``, save result in a file. If ``False``, return the dataframe.
     
     Returns
     -------
-    * ``not_in_file = False``
+    * ``in_file = True``
         none, but save output dataframe in a .dat
-    * ``not_in_file = True``
-        df : dataframe
-            Output dataframe.
+    * ``in_file = False``
+        file_list : dataframe
+            Output dataframe list.
     
     Raises
     ------
@@ -4994,13 +5174,19 @@ def DAT_change_date(file_list,date_str,sep='\t',replace=False,output_file_list=N
     * ``file_list`` and ``output_file_list`` are different sizes.
     * Invalid date.
     """
-    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and not not_in_file:
+    if not isinstance(file_list,list):
+        file_list = [file_list]
+    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and in_file:
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     for ic, file in enumerate(file_list):
-        try:
-            df = pd.read_csv(file, sep=sep, dtype=object)
-        except FileNotFoundError:
-            MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
+        if isinstance(file,str):
+            try:
+                df = pd.read_csv(file, sep=sep, dtype=object)
+            except FileNotFoundError:
+                MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
+        else:
+            df = file
+            
         oc = re.split(r"/",date_str)
         
         if len(oc) != 3:
@@ -5019,19 +5205,21 @@ def DAT_change_date(file_list,date_str,sep='\t',replace=False,output_file_list=N
         for i, row in df.iterrows():
             df.at[i,'Date'] = date_str
             
-        if not_in_file:
-            return df
-        
-        if replace:
-            df.to_csv(file, index=False, sep=sep)
-        elif output_file_list == None:
-            df.to_csv(file[:-4]+"_corr.dat", index=False, sep=sep)
+        if not in_file:
+            file_list[ic] = df
         else:
-            df.to_csv(output_file_list[ic], index=False, sep=sep)
+            if replace:
+                df.to_csv(file, index=False, sep=sep)
+            elif output_file_list == None:
+                df.to_csv(file[:-4]+"_corr.dat", index=False, sep=sep)
+            else:
+                df.to_csv(output_file_list[ic], index=False, sep=sep)
+    if not in_file:
+        return file_list
  
 # Retire le nom d'une colonne et décale le reste du jeu de données   
 
-def DAT_pop_and_dec(file_list,colsup,sep='\t',replace=False,output_file_list=None,not_in_file=False):
+def DAT_pop_and_dec(file_list,colsup,sep='\t',replace=False,output_file_list=None,in_file=False):
     """ [TA]\n
     Remove specified column name from dataframe.\n
     Does not interfere with the data.
@@ -5043,8 +5231,8 @@ def DAT_pop_and_dec(file_list,colsup,sep='\t',replace=False,output_file_list=Non
     
     Parameters
     ----------
-    file_list : list of str
-        List of files to process.
+    file_list : (list of) str or (list of) dataframe
+        List of files or loaded dataframes to process, or a single one.
     colsup : str
         Column label to remove.
     ``[opt]`` sep : str, default : ``'\\t'``
@@ -5053,16 +5241,16 @@ def DAT_pop_and_dec(file_list,colsup,sep='\t',replace=False,output_file_list=Non
         If the previous file is overwritten.
     ``[opt]`` output_file_list : ``None`` or list of str, default : ``None``
         List of output files names, ordered as ``file_list``, otherwise add the suffix ``"_corr"``. Is ignored if ``replace = True``.
-    ``[opt]`` not_in_file : bool, default : ``False``
-        If call comes from script function instead of user.
+    ``[opt]`` in_file : bool, default : ``False``
+        If ``True``, save result in a file. If ``False``, return the dataframe.
     
     Returns
     -------
-    * ``not_in_file = False``
+    * ``in_file = True``
         none, but save output dataframe in a .dat
-    * ``not_in_file = True``
-        shift_df : dataframe
-            Output dataframe.
+    * ``in_file = False``
+        file_list : dataframe
+            Output dataframe list.
     
     Raises
     ------
@@ -5070,44 +5258,52 @@ def DAT_pop_and_dec(file_list,colsup,sep='\t',replace=False,output_file_list=Non
     * Wrong separator or column not found.
     * ``file_list`` and ``output_file_list`` are different sizes.
     """
-    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and not not_in_file:
+    if not isinstance(file_list,list):
+        file_list = [file_list]
+    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and in_file:
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     for ic, file in enumerate(file_list):
-        try:
-            df = pd.read_csv(file, sep=sep, dtype=object)
-        except FileNotFoundError:
-            MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
+        if isinstance(file,str):
+            try:
+                df = pd.read_csv(file, sep=sep, dtype=object)
+            except FileNotFoundError:
+                MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
+        else:
+            df = file
+        
         try:
             dec_ind = df.columns.get_loc(colsup)
         except KeyError:
             MESS_err_mess("Le fichier '{}' ne contient pas de colonne '{}', le séparateur {} est-il correct ?".format(file,colsup,repr(sep)))
         shift_df = pd.concat([df.iloc[:,:dec_ind],df.iloc[:,dec_ind:].shift(periods=1, axis="columns").iloc[:,1:]], axis = 1)
         
-        if not_in_file:
-            return shift_df
-        
-        if replace:
-            shift_df.to_csv(file, index=False, sep=sep)
-        elif output_file_list == None:
-            shift_df.to_csv(file[:-4]+"_corr.dat", index=False, sep=sep)
+        if not in_file:
+            file_list[ic] = shift_df
         else:
-            shift_df.to_csv(output_file_list[ic], index=False, sep=sep)
+            if replace:
+                shift_df.to_csv(file, index=False, sep=sep)
+            elif output_file_list == None:
+                shift_df.to_csv(file[:-4]+"_corr.dat", index=False, sep=sep)
+            else:
+                shift_df.to_csv(output_file_list[ic], index=False, sep=sep)
+    if not in_file:
+        return file_list
 
 # Echange les données de deux colonnes (garde le même ordre) 
 
-def DAT_switch_cols(file_list,col_a,col_b,sep='\t',replace=False,output_file_list=None,not_in_file=False):
+def DAT_switch_cols(file_list,col_a,col_b,sep='\t',replace=False,output_file_list=None,in_file=False):
     """ [TA]\n
     Switches specified column names from dataframe.\n
-    Does not interfere with the data.
+    Does not interfere with the data.\n
     To be used if some columns labels are mismatched, like X and Y being misplaced.
     
     Parameters
     ----------
-    file_list : list of str
-        List of files to process.
-    col_a: str
+    file_list : (list of) str or (list of) dataframe
+        List of files or loaded dataframes to process, or a single one.
+    col_a : str
         First column label to switch.
-    col_b: str
+    col_b : str
         Second column label to switch.
     ``[opt]`` sep : str, default : ``'\\t'``
         Dataframe separator.
@@ -5115,16 +5311,16 @@ def DAT_switch_cols(file_list,col_a,col_b,sep='\t',replace=False,output_file_lis
         If the previous file is overwritten.
     ``[opt]`` output_file_list : ``None`` or list of str, default : ``None``
         List of output files names, ordered as ``file_list``, otherwise add the suffix ``"_corr"``. Is ignored if ``replace = True``.
-    ``[opt]`` not_in_file : bool, default : ``False``
-        If call comes from script function instead of user.
+    ``[opt]`` in_file : bool, default : ``False``
+        If ``True``, save result in a file. If ``False``, return the dataframe.
     
     Returns
     -------
-    * ``not_in_file = False``
+    * ``in_file = True``
         none, but save output dataframe in a .dat
-    * ``not_in_file = True``
-        df : dataframe
-            Output dataframe.
+    * ``in_file = False``
+        file_list : dataframe
+            Output dataframe list.
     
     Raises
     ------
@@ -5132,41 +5328,45 @@ def DAT_switch_cols(file_list,col_a,col_b,sep='\t',replace=False,output_file_lis
     * Wrong separator or column not found.
     * ``file_list`` and ``output_file_list`` are different sizes.
     """
-    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and not not_in_file:
+    if not isinstance(file_list,list):
+        file_list = [file_list]
+    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and in_file:
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     for ic, file in enumerate(file_list):
-        try:
-            df = pd.read_csv(file, sep=sep, dtype=object)
-        except FileNotFoundError:
-            MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
+        if isinstance(file,str):
+            try:
+                df = pd.read_csv(file, sep=sep, dtype=object)
+            except FileNotFoundError:
+                MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
+        else:
+            df = file
         
-        ind = df.columns.values
         try:
-            data_a = df[col_a]
+            df[col_a]
         except KeyError:
             MESS_err_mess("Le fichier '{}' ne contient pas de colonne '{}', le séparateur {} est-il correct ?".format(file,col_a,repr(sep)))
         try:
-            data_b = df[col_b]
+            df[col_b]
         except KeyError:
             MESS_err_mess("Le fichier '{}' ne contient pas de colonne '{}', le séparateur {} est-il correct ?".format(file,col_b,repr(sep)))
 
-        df[col_a] = data_a
-        df[col_b] = data_b
-        df.columns = ind
+        df.rename(columns={col_a: col_b, col_b: col_a}, inplace=True)
         
-        if not_in_file:
-            return df
-        
-        if replace:
-            df.to_csv(file, index=False, sep=sep)
-        elif output_file_list == None:
-            df.to_csv(file[:-4]+"_corr.dat", index=False, sep=sep)
+        if not in_file:
+            file_list[ic] = df
         else:
-            df.to_csv(output_file_list[ic], index=False, sep=sep)
+            if replace:
+                df.to_csv(file, index=False, sep=sep)
+            elif output_file_list == None:
+                df.to_csv(file[:-4]+"_corr.dat", index=False, sep=sep)
+            else:
+                df.to_csv(output_file_list[ic], index=False, sep=sep)
+    if not in_file:
+        return file_list
 
 # Retire les colonnes spécifiées des fichiers. On peut aussi, à l'inverse, préciser les colonnes à garder (en supprimant les autres).
 
-def DAT_remove_cols(file_list,colsup_list,keep=False,sep='\t',replace=False,output_file_list=None,not_in_file=False):
+def DAT_remove_cols(file_list,colsup_list,keep=False,sep='\t',replace=False,output_file_list=None,in_file=False):
     """ [TA]\n
     Remove specified columns from dataframe.\n
     To be used if some columns are not significant to lighten data or improve readability.
@@ -5179,7 +5379,7 @@ def DAT_remove_cols(file_list,colsup_list,keep=False,sep='\t',replace=False,outp
     ----------
     file_list : list of str
         List of files to process.
-    colsup_list: list of str
+    colsup_list : list of str
         Column names.
     ``[opt]`` keep : bool, default : ``False``
         If the specified columns are to be kept, and removing the others instead.
@@ -5189,16 +5389,16 @@ def DAT_remove_cols(file_list,colsup_list,keep=False,sep='\t',replace=False,outp
         If the previous file is overwritten.
     ``[opt]`` output_file_list : ``None`` or list of str, default : ``None``
         List of output files names, ordered as ``file_list``, otherwise add the suffix ``"_corr"``. Is ignored if ``replace = True``.
-    ``[opt]`` not_in_file : bool, default : ``False``
-        If call comes from script function instead of user.
+    ``[opt]`` in_file : bool, default : ``False``
+        If ``True``, save result in a file. If ``False``, return the dataframe.
     
     Returns
     -------
-    * ``not_in_file = False``
+    * ``in_file = True``
         none, but save output dataframe in a .dat
-    * ``not_in_file = True``
-        small_df : dataframe
-            Output dataframe.
+    * ``in_file = False``
+        file_list : dataframe
+            Output dataframe list.
     
     Raises
     ------
@@ -5210,7 +5410,7 @@ def DAT_remove_cols(file_list,colsup_list,keep=False,sep='\t',replace=False,outp
     --------
     ``DAT_light_format``
     """
-    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and not not_in_file:
+    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and in_file:
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     for ic, file in enumerate(file_list):
         try:
@@ -5229,19 +5429,21 @@ def DAT_remove_cols(file_list,colsup_list,keep=False,sep='\t',replace=False,outp
             except KeyError:
                 MESS_err_mess("Le fichier '{}' ne contient pas les colonnes {}, le séparateur {} est-il correct ?".format(file,colsup_list,repr(sep)))
         
-        if not_in_file:
-            return small_df
-        
-        if replace:
-            small_df.to_csv(file, index=False, sep=sep)
-        elif output_file_list == None:
-            small_df.to_csv(file[:-4]+"_corr.dat", index=False, sep=sep)
+        if not in_file:
+            file_list[ic] = small_df
         else:
-            small_df.to_csv(output_file_list[ic], index=False, sep=sep)
+            if replace:
+                small_df.to_csv(file, index=False, sep=sep)
+            elif output_file_list == None:
+                small_df.to_csv(file[:-4]+"_corr.dat", index=False, sep=sep)
+            else:
+                small_df.to_csv(output_file_list[ic], index=False, sep=sep)
+    if not in_file:
+        return file_list
 
 # Retire les données des lignes i_min à i_max dans les colonnes colsup. Utile si elles sont défectueuses, pour les détecter dans le traitement 
 
-def DAT_remove_data(file_list,colsup_list,i_min,i_max,sep='\t',replace=False,output_file_list=None,not_in_file=False):
+def DAT_remove_data(file_list,colsup_list,i_min,i_max,sep='\t',replace=False,output_file_list=None,in_file=False):
     """ [TA]\n
     Remove data between two lines in specified columns from dataframe.\n
     In this context, deleting means setting values to ``NaN``.\n
@@ -5256,9 +5458,9 @@ def DAT_remove_data(file_list,colsup_list,i_min,i_max,sep='\t',replace=False,out
     
     Parameters
     ----------
-    file_list : list of str
-        List of files to process.
-    colsup_list: list of str
+    file_list : (list of) str or (list of) dataframe
+        List of files or loaded dataframes to process, or a single one.
+    colsup_list : list of str
         Column names.
     i_min : bool
         First line of the block.
@@ -5270,16 +5472,16 @@ def DAT_remove_data(file_list,colsup_list,i_min,i_max,sep='\t',replace=False,out
         If the previous file is overwritten.
     ``[opt]`` output_file_list : ``None`` or list of str, default  ``None``
         List of output files names, ordered as ``file_list``, otherwise add the suffix ``"_corr"``. Is ignored if ``replace = True``.
-    ``[opt]`` not_in_file : bool, default : ``False``
-        If call comes from script function instead of user.
+    ``[opt]`` in_file : bool, default : ``False``
+        If ``True``, save result in a file. If ``False``, return the dataframe.
     
     Returns
     -------
-    * ``not_in_file = False``
+    * ``in_file = True``
         none, but save output dataframe in a .dat
-    * ``not_in_file = True``
-        df : dataframe
-            Output dataframe.
+    * ``in_file = False``
+        file_list : dataframe
+            Output dataframe list.
     
     Raises
     ------
@@ -5294,17 +5496,22 @@ def DAT_remove_data(file_list,colsup_list,i_min,i_max,sep='\t',replace=False,out
     --------
     ``DAT_stats``
     """
-    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and not not_in_file:
+    if not isinstance(file_list,list):
+        file_list = [file_list]
+    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and in_file:
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     if i_min > i_max:
         MESS_err_mess("La ligne de fin ({}) et avant celle du début ({})".format(i_max,i_min))
     if i_min < 0:
         MESS_err_mess("La fonction ne prend pas en compte les indices négatifs")
     for ic, file in enumerate(file_list):
-        try:
-            df = pd.read_csv(file, sep=sep, dtype=object)
-        except FileNotFoundError:
-            MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
+        if isinstance(file,str):
+            try:
+                df = pd.read_csv(file, sep=sep, dtype=object)
+            except FileNotFoundError:
+                MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
+        else:
+            df = file
         
         try:
             col_list = df[colsup_list]
@@ -5317,15 +5524,17 @@ def DAT_remove_data(file_list,colsup_list,i_min,i_max,sep='\t',replace=False,out
             for col in col_list:
                 df.loc[index, col] = np.nan
         
-        if not_in_file:
-            return df
-        
-        if replace:
-            df.to_csv(file, index=False, sep=sep)
-        elif output_file_list == None:
-            df.to_csv(file[:-4]+"_corr.dat", index=False, sep=sep)
+        if not in_file:
+            file_list[ic] = df
         else:
-            df.to_csv(output_file_list[ic], index=False, sep=sep)
+            if replace:
+                df.to_csv(file, index=False, sep=sep)
+            elif output_file_list == None:
+                df.to_csv(file[:-4]+"_corr.dat", index=False, sep=sep)
+            else:
+                df.to_csv(output_file_list[ic], index=False, sep=sep)
+    if not in_file:
+         return file_list
 
 # Génère des histogrammes sur des colonnnes spécifiées
 # Permet d'afficher les valeurs extrêmes d'une colonne, pour potentiellement détecter des données à retirer
@@ -5337,9 +5546,9 @@ def DAT_stats(file_list,col_list,sep='\t',bins=25,n=10,**kwargs):
     
     Parameters
     ----------
-    file_list : list of str
-        List of files to process.
-    col_list: list of str
+    file_list : (list of) str or (list of) dataframe
+        List of files or loaded dataframes to process, or a single one.
+    col_list : list of str
         Column names.
     ``[opt]`` sep : str, default : ``'\\t'``
         Dataframe separator.
@@ -5359,11 +5568,16 @@ def DAT_stats(file_list,col_list,sep='\t',bins=25,n=10,**kwargs):
     --------
     ``pandas.Dataframe.hist``
     """
+    if not isinstance(file_list,list):
+        file_list = [file_list]
     for ic, file in enumerate(file_list):
-        try:
-            df = pd.read_csv(file, sep=sep)
-        except FileNotFoundError:
-            MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
+        if isinstance(file,str):
+            try:
+                df = pd.read_csv(file, sep=sep)
+            except FileNotFoundError:
+                MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
+        else:
+            df = file
         
         try:
             cl = df[col_list]
@@ -5386,7 +5600,7 @@ def DAT_stats(file_list,col_list,sep='\t',bins=25,n=10,**kwargs):
 
 # Trie les colonnes du .dat pour uniformiser la structure : X_int_1|Y_int_1|Donnée1|Donnée2|...|Num fich|b et p|Base|Profil
 
-def DAT_light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_ecarts=3,restr=None,not_in_file=False):
+def DAT_light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_ecarts=3,restr=None,in_file=False):
     """ [TA]\n
     Sort columns to match the following structure :\n
     ``X_int_1|Y_int_1|data1_1|data1_2|...|X_int_2|...|Num fich|b et p|Base|Profil``\n
@@ -5402,8 +5616,8 @@ def DAT_light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_e
     
     Parameters
     ----------
-    file_list : list of str
-        List of files to process.
+    file_list : (list of) str or (list of) dataframe
+        List of files or loaded dataframes to process, or a single one.
     ``[opt]`` sep : str, default : ``'\\t'``
         Dataframe separator.
     ``[opt]`` replace : bool, default : ``False``
@@ -5414,16 +5628,16 @@ def DAT_light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_e
         Number of X and Y columns. The number of coils.
     ``[opt]`` restr : ``None`` or list of str, default : ``None``
         Exclusion strings: any data including one of the specified strings will be ignored. If ``None``, is an empty list.
-    ``[opt]`` not_in_file : bool, default : ``False``
-        If call comes from script function instead of user.
+    ``[opt]`` in_file : bool, default : ``False``
+        If ``True``, save result in a file. If ``False``, return the dataframe.
     
     Returns
     -------
-    * ``not_in_file = False``
+    * ``in_file = True``
         none, but save output dataframe in a .dat
-    * ``not_in_file = True``
-        clean_df : dataframe
-            Output dataframe.
+    * ``in_file = False``
+        file_list : dataframe
+            Output dataframe list.
     
     Raises
     ------
@@ -5435,16 +5649,21 @@ def DAT_light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_e
     --------
     ``DAT_remove_cols``
     """
-    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and not not_in_file:
+    if not isinstance(file_list,list):
+        file_list = [file_list]
+    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and in_file:
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     if restr in [[''],None]:
         restr = []
     for ic, file in enumerate(file_list):
-        try:
-            df = pd.read_csv(file, sep=sep, dtype=object)
-        except FileNotFoundError:
-            MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
-            
+        if isinstance(file,str):
+            try:
+                df = pd.read_csv(file, sep=sep, dtype=object)
+            except FileNotFoundError:
+                MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
+        else:
+            df = file
+        
         clean_df = pd.DataFrame()
         for e in range(nb_ecarts):
             try:
@@ -5464,19 +5683,21 @@ def DAT_light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_e
             except KeyError:
                 MESS_warn_mess("Le fichier '{}' ne contient pas la colonne {}".format(file,c))
         
-        if not_in_file:
-            return clean_df
-        
-        if replace:
-            clean_df.to_csv(file, index=False, sep=sep)
-        elif output_file_list == None:
-            clean_df.to_csv(file[:-4]+"_clean.dat", index=False, sep=sep)
+        if not in_file:
+            file_list[ic] = clean_df
         else:
-            clean_df.to_csv(output_file_list[ic], index=False, sep=sep)
+            if replace:
+                clean_df.to_csv(file, index=False, sep=sep)
+            elif output_file_list == None:
+                clean_df.to_csv(file[:-4]+"_clean.dat", index=False, sep=sep)
+            else:
+                clean_df.to_csv(output_file_list[ic], index=False, sep=sep)
+    if not in_file:
+        return file_list
 
 # Change le séparateur du fichier
 
-def DAT_change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,not_in_file=False):
+def DAT_change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,in_file=False):
     """ [TA]\n
     Change dataframe sepator in file
     To be used if files with different separators are to be used in a single operation.
@@ -5493,16 +5714,16 @@ def DAT_change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,not
         If the previous file is overwritten.
     ``[opt]`` output_file_list : ``None`` or list of str, default : ``None``
         List of output files names, ordered as ``file_list``, otherwise add the suffix ``"_corr"``. Is ignored if ``replace = True``.
-    ``[opt]`` not_in_file : bool, default : ``False``
-        If call comes from script function instead of user.
+    ``[opt]`` in_file : bool, default : ``False``
+        If ``True``, save result in a file. If ``False``, return the dataframe.
     
     Returns
     -------
-    * ``not_in_file = False``
+    * ``in_file = True``
         none, but save output dataframe in a .dat
-    * ``not_in_file = True``
-        df : dataframe
-            Output dataframe.
+    * ``in_file = False``
+        file_list : dataframe
+            Output dataframe list.
     
     Warns
     -----
@@ -5513,7 +5734,7 @@ def DAT_change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,not
     * File not found.
     * ``file_list`` and ``output_file_list`` are different sizes.
     """
-    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and not not_in_file:
+    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and in_file:
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     for ic, file in enumerate(file_list):
         try:
@@ -5525,19 +5746,21 @@ def DAT_change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,not
             MESS_warn_mess('Le fichier "{}" ne possède pas le séparateur {} : cas ignoré'.format(file,repr(sep)))
             continue
         
-        if not_in_file:
-            return df
-        
-        if replace:
-            df.to_csv(file, index=False, sep=new_sep)
-        elif output_file_list == None:
-            df.to_csv(file[:-4]+"_corr.dat", index=False, sep=new_sep)
+        if not in_file:
+            file_list[ic] = df
         else:
-            df.to_csv(output_file_list[ic], index=False, sep=new_sep)
+            if replace:
+                df.to_csv(file, index=False, sep=new_sep)
+            elif output_file_list == None:
+                df.to_csv(file[:-4]+"_corr.dat", index=False, sep=new_sep)
+            else:
+                df.to_csv(output_file_list[ic], index=False, sep=new_sep)
+    if not in_file:
+        return file_list
 
 # Met un fichier de prospection en grille (carré sans GPS) dans un format lisible par le traitement
 
-def DAT_no_gps_pos(file_list,sep='\t',replace=False,output_file_list=None,not_in_file=False):
+def DAT_no_gps_pos(file_list,sep='\t',replace=False,output_file_list=None,i_f=False,in_file=False):
     """ [TA]\n
     Fuses a list of prospection files in one .dat\n
     This procedure works as soon as all columns are matching 
@@ -5549,24 +5772,24 @@ def DAT_no_gps_pos(file_list,sep='\t',replace=False,output_file_list=None,not_in
     
     Parameters
     ----------
-    file_list : list of str
-        List of files to process.
+    file_list : (list of) str or (list of) dataframe
+        List of files or loaded dataframes to process, or a single one.
     ``[opt]`` sep : str, default : ``'\\t'``
         Dataframe separator.
     ``[opt]`` replace : bool, default : ``False``
         If the previous file is overwritten.
     ``[opt]`` output_file_list : ``None`` or list of str, default : ``None``
         List of output files names, ordered as ``file_list``, otherwise add the suffix ``"_pos"``. Is ignored if ``replace = True``.
-    ``[opt]`` not_in_file : bool, default : ``False``
-        If call comes from script function instead of user.
+    ``[opt]`` in_file : bool, default : ``False``
+        If ``True``, save result in a file. If ``False``, return the dataframe.
     
     Returns
     -------
-    * ``not_in_file = False``
+    * ``in_file = True``
         none, but save output dataframe in a .dat
-    * ``not_in_file = True``
-        df : dataframe
-            Output base dataframe.
+    * ``in_file = False``
+        file_list : dataframe
+            Output dataframe list.
     
     Raises
     ------
@@ -5575,45 +5798,53 @@ def DAT_no_gps_pos(file_list,sep='\t',replace=False,output_file_list=None,not_in
     * ``file_list`` and ``output_file_list`` are different sizes.
     * ``y[m]`` column not found.
     """
-    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and not not_in_file:
+    if not isinstance(file_list,list):
+        file_list = [file_list]
+    if output_file_list != None and len(file_list) != len(output_file_list) and not replace and in_file:
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     for ic, file in enumerate(file_list):
+        if isinstance(file,str):
+            try:
+                df = pd.read_csv(file, sep=sep)
+                if len(df.columns) < 2:
+                    MESS_err_mess("Le fichier '{}' ne possède pas le séparateur {}".format(file,repr(sep)))
+            except FileNotFoundError:
+                MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
+        else:
+            df = file
+            
         try:
-            df = pd.read_csv(file, sep=sep)
-            if len(df.columns) < 2:
-                MESS_err_mess("Le fichier '{}' ne possède pas le séparateur {}".format(file,repr(sep)))
-        except FileNotFoundError:
-            MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
-    try:
-        df["y[m]"]
-    except KeyError:
-        MESS_err_mess("Le fichier '{}' ne possède pas la colonne 'y[m]', mauvais format".format(file))
+            df["y[m]"]
+        except KeyError:
+            MESS_err_mess("Le fichier '{}' ne possède pas la colonne 'y[m]', mauvais format".format(file))
+            
+        pos_pts=df[df[df.columns[2]].isna()].index.insert(0,-1)
         
-    pos_pts=df[df[df.columns[2]].isna()].index.insert(0,-1)
-    
-    for ic,index_fin in enumerate(pos_pts[1:]):
-        index_deb = pos_pts[ic]+1
-        deb = df.loc[index_deb,"y[m]"]
-        fin = df.loc[index_fin,"y[m]"]
-        y_pos = np.round(np.linspace(deb,fin,index_fin-index_deb,endpoint=True),2)
-        df.loc[index_deb:index_fin-1,"y[m]"] = y_pos
+        for ic,index_fin in enumerate(pos_pts[1:]):
+            index_deb = pos_pts[ic]+1
+            deb = df.loc[index_deb,"y[m]"]
+            fin = df.loc[index_fin,"y[m]"]
+            y_pos = np.round(np.linspace(deb,fin,index_fin-index_deb,endpoint=True),2)
+            df.loc[index_deb:index_fin-1,"y[m]"] = y_pos
+            
+        df.dropna(subset = df.columns[2],inplace=True)
+        df.reset_index(drop=True,inplace=True)
         
-    df.dropna(subset = df.columns[2],inplace=True)
-    df.reset_index(drop=True,inplace=True)
-    
-    if not_in_file:
-        return df
-    
-    if replace:
-        df.to_csv(file, index=False, sep=sep)
-    elif output_file_list == None:
-        df.to_csv(file[:-4]+"_pos.dat", index=False, sep=sep)
-    else:
-        df.to_csv(output_file_list[ic], index=False, sep=sep)
+        if not in_file:
+            file_list[ic] = df
+        else:
+            if replace:
+                df.to_csv(file, index=False, sep=sep)
+            elif output_file_list == None:
+                df.to_csv(file[:-4]+"_pos.dat", index=False, sep=sep)
+            else:
+                df.to_csv(output_file_list[ic], index=False, sep=sep)
+    if not in_file:
+        return file_list
 
 # Rassemble plusieurs fichiers .dat en un seul.
 
-def DAT_fuse_data(file_list,sep='\t',output_file="fused.dat",not_in_file=False):
+def DAT_fuse_data(file_list,sep='\t',output_file="fused.dat",in_file=True):
     """ [TA]\n
     Fuses a list of prospection files in one .dat\n
     This procedure works as soon as all columns are matching 
@@ -5631,14 +5862,14 @@ def DAT_fuse_data(file_list,sep='\t',output_file="fused.dat",not_in_file=False):
         Dataframe separator.
     ``[opt]`` output_file : str, default : "fused.dat"
         Output file name.
-    ``[opt]`` not_in_file : bool, default : ``False``
-        If call comes from script function instead of user.
+    ``[opt]`` in_file : bool, default : ``False``
+        If ``True``, save result in a file. If ``False``, return the dataframe.
     
     Returns
     -------
-    * ``not_in_file = False``
+    * ``in_file = True``
         none, but save output dataframe in a .dat
-    * ``not_in_file = True``
+    * ``in_file = False``
         big_df : dataframe
             Output base dataframe.
     
@@ -5669,14 +5900,14 @@ def DAT_fuse_data(file_list,sep='\t',output_file="fused.dat",not_in_file=False):
     except Exception as e:
         MESS_err_mess("Erreur de fusion : {}".format(e))
     
-    if not_in_file:
+    if not in_file:
         return big_df
         
     big_df.to_csv(output_file, index=False, sep=sep)
 
 # Dans le cas d'un duo de bases (avant et après prospection), les rassemble et les indice par rapport aux profils de la même parcelle
 
-def DAT_fuse_bases(file_B1,file_B2,file_prof,sep='\t',output_file=None,not_in_file=False):
+def DAT_fuse_bases(file_B1,file_B2,file_prof,sep='\t',output_file=None,in_file=False):
     """ [TA]\n
     Given two files containing bases from the same prospection, fuse them and add ``"b et p"`` and ``"Base"`` columns.\n
     To be used if bases have been taken separately.
@@ -5698,14 +5929,14 @@ def DAT_fuse_bases(file_B1,file_B2,file_prof,sep='\t',output_file=None,not_in_fi
         Dataframe separator.
     ``[opt]`` output_file : ``None`` or str, default : ``None``
         Output file name, otherwise add the suffix ``"_B"`` to ``file_prof``.
-    ``[opt]`` not_in_file : bool, default : ``False``
-        If call comes from script function instead of user.
+    ``[opt]`` in_file : bool, default : ``False``
+        If ``True``, save result in a file. If ``False``, return the dataframe.
     
     Returns
     -------
-    * ``not_in_file = False``
+    * ``in_file = True``
         none, but save output dataframe in a .dat
-    * ``not_in_file = True``
+    * ``in_file = False``
         base : dataframe
             Output base dataframe.
     
@@ -5734,7 +5965,7 @@ def DAT_fuse_bases(file_B1,file_B2,file_prof,sep='\t',output_file=None,not_in_fi
     base = pd.concat([B1[1::2],B2[1::2]])
     base.reset_index(drop=True,inplace=True)
     
-    if not_in_file:
+    if not in_file:
         return base
         
     if output_file == None:
@@ -6702,13 +6933,13 @@ def JSON_add_coeff(app_data):
 
 def FORTRAN_ball_calibr(ball_file,config,TR,radius,z,x_min,x_max,sep='\t',y=0,step=5,bucking_coil=0,plot=True):
     """ [TA]\n
-    Uses Fortran to estimate the device coefficient for quadrature.\n
+    Uses Fortran to estimate the device coefficient for quadrature.
     
     Parameters
     ----------
     ball_file : dict
         File containing the user measurements.
-    config : str, {``"PRP_CS"``, ``"PRP_DEM"``, ``HCP``,``"VCP"``}
+    config : str, {``"PRP_CS"``, ``"PRP_DEM"``, ``HCP``, ``"VCP"``}
         Coil configuration.
     TR : list of int
         Distance between each coil and the transmitter coil (in cm).
@@ -6731,7 +6962,7 @@ def FORTRAN_ball_calibr(ball_file,config,TR,radius,z,x_min,x_max,sep='\t',y=0,st
     -----
     Subfunction of ``FORTRAN_ball_calibr``.\n
     The indents are mandatory for the Fortran executable.\n
-    Each new line (except the last one) must end by ``"\x0d\n"``, which is the Windows end of line + new line combination.\n
+    Each new line (except the last one) must end by ``\\x0d\\n``, which is the Windows end of line + new line combination.\n
     All parameters must be int as float shoud not be read correctly by Fortran.\n
     If the ``config`` would be ``"VVCP"``, must instead specify ``"HCP"`` or ``"VCP"`` depending on which methode has been used in the practical file.
     
@@ -6746,8 +6977,6 @@ def FORTRAN_ball_calibr(ball_file,config,TR,radius,z,x_min,x_max,sep='\t',y=0,st
     --------
     ``FORTRAN_ball_calibr``
     """
-    print(TR)
-    print(sep)
     nb_ecarts = len(TR)
     config_list = ["PRP_CS","PRP_DEM","HCP","VCP"]
     if config not in config_list:
@@ -6780,6 +7009,7 @@ def FORTRAN_ball_calibr(ball_file,config,TR,radius,z,x_min,x_max,sep='\t',y=0,st
     coeff = []
     try:
         for e in range(nb_ecarts):
+            # Unité en ppm
             c_pr = cols_pr.iloc[:,e]*1000
             c_th = cols_th.iloc[:,e]
             if plot:
@@ -6789,7 +7019,6 @@ def FORTRAN_ball_calibr(ball_file,config,TR,radius,z,x_min,x_max,sep='\t',y=0,st
                 ax.set_xlabel("Pratique")
                 ax.set_ylabel("Théorique")
                 plt.show()
-                print(c_pr,c_th)
             lin_reg = linregress(c_pr,c_th)
             coeff.append(lin_reg.slope)
     except ValueError:
@@ -6908,13 +7137,13 @@ def FORTRAN_new_const(app_data,plot=True):
         don = pd.read_csv(cfg_file[:-4]+".dat",sep='\s+',header=None)
         print(don)
         
+        # unité en SI
         HsHp_qu = np.array(don.iloc[:,5])
         sigma = np.array(1/don.iloc[:,0])
         saqu = CMD_coeffs_relation(HsHp_qu,sigma,m_type="poly_3",plot=plot)
         const_dict["sigma_a_qu"].append(saqu)
         
-        #true_sigma = saqu[0] + HsHp_qu*saqu[1] + (HsHp_qu)**(1/2)*saqu[2] + (HsHp_qu)**(1/3)*saqu[3]
-        #true_sigma = saqu[0] + HsHp_qu*saqu[1] + (HsHp_qu)**(2)*saqu[2] + (HsHp_qu)**(2)*saqu[3]
+        # unité en SI
         HsHp_ph = np.array(don.iloc[:,4])
         HsHp_ph_corr = HsHp_ph.copy()
         last_bar = (v-1)*v
@@ -6940,7 +7169,7 @@ def FORTRAN_constab(app_data,cfg_file,e,variation=None,S_rau=1,S_eps_r=1,S_kph=0
     e : int
         Index of the chosen coil (the procedure manage one coil at a time).
     ``[opt]`` variation : ``None`` or int, default : ``None``
-        Number of different values for each moving parameter. The maximum values are
+        Number of different values for each moving parameter. The maximum values are:
             * 1 parameter : ``10000``.
             * 2 parameters : ``100``.
             * 3 parameters : ``21``.
@@ -6950,22 +7179,23 @@ def FORTRAN_constab(app_data,cfg_file,e,variation=None,S_rau=1,S_eps_r=1,S_kph=0
     ``[opt]`` S_eps_r : int, default : ``1``
         Starting value for :math:`\\epsilon_{r}`.
     ``[opt]`` S_kph : int, default : ``0``
-        Starting value for :math:`k_{ph}`.
+        Starting value for :math:`\\kappa_{ph}`.
     ``[opt]`` S_kqu : int, default : ``0``
-        Starting value for :math:`k_{qu}`.
+        Starting value for :math:`\\kappa_{qu}`.
     ``[opt]`` F_rau : ``None`` or int, default : ``None``
         Ending value for :math:`\\rho`. If ``None``, :math:`\\rho` is constant.
     ``[opt]`` F_eps_r : ``None`` or int, default : ``None``
         Ending value for :math:`\\epsilon_{r}`. If ``None``, :math:`\\epsilon_{r}` is constant.
     ``[opt]`` F_kph : ``None`` or int, default : ``None``
-        Ending value for :math:`k_{ph}`. If ``None``, :math:`k_{ph}` is constant.
+        Ending value for :math:`\\kappa_{ph}`. If ``None``, :math:`\\kappa_{ph}` is constant.
     ``[opt]`` F_kqu : ``None`` or int, default : ``None``
-        Ending value for :math:`k_{qu}`. If ``None``, :math:`k_{qu}` is constant.
+        Ending value for :math:`\\kappa_{qu}`. If ``None``, :math:`\\kappa_{qu}` is constant.
     
     Notes
     -----
     Subfunction of ``FORTRAN_new_const``.\n
     The indents are mandatory for the Fortran executable.\n
+    Each new line (except the last one) must end by ``\\x0d\\n``, which is the Windows end of line + new line combination.\n
     At least one of the 4 ``F_{arg}`` should be set.\n
     TODO : Custom configuration.
     

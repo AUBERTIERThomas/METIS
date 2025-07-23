@@ -21,7 +21,7 @@ Created on Thu Jun  5 10:53:05 2025
 #data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/donnees SG/2018_CMD/2018_CMD_zone2_test/"
 data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/CMD mini explorer 3L GPS/"
 #data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/CMD explorer GPS/HCP/"
-data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/Divers/"
+#data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/Divers/"
 #data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/cmd_aravo/cmd/"
 json_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/JSONs/"
 script_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/CMD_code/"

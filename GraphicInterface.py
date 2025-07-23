@@ -507,9 +507,9 @@ def GUI_CMDEX_init(from_EXEC=None):
 
     root, canvas, bg_im, button_im, settings_im = LOAD_root("CMDEX_init")
 
-    label_list = ["uid","file_list","sep","sup_na","regr","corr_base","no_base"]
-    type_list = ["int","str[]","str","bool","bool","bool","bool"]
-    default_list = ["*","None",'\\t',"True","False","True","False"]
+    label_list = ["uid","file_list","sep","sup_na","regr","corr_base","no_base","pseudo_prof","l_p"]
+    type_list = ["int","str[]","str","bool","bool","bool","bool","bool","float[]"]
+    default_list = ["*","None",'\\t',"True","False","True","False","False","None"]
     
     EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "CMDEX_init", "CMDEX_i_", "Interpolation, décalage et complétion", GUI_main_CMDEX, from_EXEC)
     

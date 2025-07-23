@@ -1,6 +1,3 @@
-CMDEX_init
-8
-file_list=["Lim2705Lo_pos.dat"]
-sup_na=False
-regr=False
-corr_base=False
+DAT_stats
+all_calibr.dat
+Kph_1,Kph_2,Kph_3
