@@ -19,7 +19,8 @@ Created on Thu Jun  5 10:53:05 2025
 # script_path : Chemin contenant les fichiers .py CMD (et le reste de l'infrastructure)
 #data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/donnees SG/2018_CMDm/2018_CMDm_zone1_test/"
 #data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/donnees SG/2018_CMD/2018_CMD_zone2_test/"
-data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/CMD mini explorer 3L GPS/"
+data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/CMD mini explorer 3L GPS/HCP/"
+data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/CMD mini explorer 3L GPS/VCP/"
 #data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/CMD explorer GPS/HCP/"
 #data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/Divers/"
 #data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/cmd_aravo/cmd/"

@@ -113,7 +113,7 @@ def main(app_data,file_list,file_list_rev,sep,output_file,output_file_base,light
         ls_mes = ls_pd_done_before
     
     if nb_fich > 1:
-        ls_mes = EM_CMD.CMD_frontiere_loop(ls_mes,ncx,ncy,col_T,nb_fich,app_data["nb_ecarts"],nb_res,choice,None,None,not_in_file=True)
+        ls_mes = EM_CMD.CMD_frontiere_loop(ls_mes,ncx,ncy,col_T,nb_fich,app_data["nb_ecarts"],nb_res,choice,not_in_file=True)
     
     os.chdir(CONFIG.script_path)
     if split:
@@ -444,14 +444,16 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("5) Décalage GPS et bobines en n voies.")
         print(EM_CMD.code_color)
         print(">>> CMDEX_init("+EM_CMD.success_color+"uid"+EM_CMD.code_color+","+EM_CMD.success_low_color+"[file_list"+EM_CMD.code_color+","+EM_CMD.success_low_color+"sep"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"sup_na"+EM_CMD.code_color+","+EM_CMD.success_low_color+"regr"+EM_CMD.code_color+","+EM_CMD.success_low_color+"corr_base"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"no_base"+EM_CMD.code_color+","+EM_CMD.success_low_color+"pseudo_prof"+EM_CMD.code_color+","+EM_CMD.success_low_color+"l_p]"+EM_CMD.code_color+")")
+              EM_CMD.success_low_color+"sup_na"+EM_CMD.code_color+","+EM_CMD.success_low_color+"regr"+EM_CMD.code_color+","+EM_CMD.success_low_color+"l_r"+EM_CMD.code_color+","+
+              EM_CMD.success_low_color+"corr_base"+EM_CMD.code_color+","+EM_CMD.success_low_color+"no_base"+EM_CMD.code_color+","+EM_CMD.success_low_color+"pseudo_prof"+EM_CMD.code_color+","+
+              EM_CMD.success_low_color+"l_p]"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"uid"+EM_CMD.type_color+" : int "+EM_CMD.base_color+"= indentifiant de l'appareil dans la base JSON")
         print("       "+EM_CMD.success_low_color+"file_list = None"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à traiter (laisser vide pour traiter tous les fichiers du dossier)")
         print("       "+EM_CMD.success_low_color+"sep = '\\t'"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= caractère de séparation du .dat (par défaut '\\t')")
         print("       "+EM_CMD.success_low_color+"sup_na = True"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= suppression des données incomplètes (sinon redressage)")
         print("       "+EM_CMD.success_low_color+"regr = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= propose d'appliquer ou non une régression linéaire sur les profils, si certains ne sont pas droits (par défaut, ne le fait pas)")
+        print("       "+EM_CMD.success_low_color+"l_r = None"+EM_CMD.type_color+" : int/str[] "+EM_CMD.base_color+"= définit la liste des choix pour la régression des profils (inutile si 'regr = False')")
         print("       "+EM_CMD.success_low_color+"corr_base = True"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= si activé, applique une correction par base sur les données d'un même fichier (voir CMDEX_evol_profils pour plus d'options)")
         print("       "+EM_CMD.success_low_color+"no_base = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= si activé, ne considère que des profils (si le jeu ne contient pas de base)")
         print("       "+EM_CMD.success_low_color+"pseudo_prof = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= si activé, force l'utilisation d'un algorithme plus souple mais moins précis pour la détection de profils")
@@ -1100,17 +1102,17 @@ def CMDEX_ball_calibr(ball_file,config,TR,radius,z,x_min,x_max,sep='\t',y=0,step
     --------
     ``EM_CMD.FORTRAN_ball_calibr``
     """
-    EM_CMD.FORTRAN_ball_calibr(ball_file,config,TR,radius,z,x_min,x_max,sep,y,step,bucking_coil)
+    EM_CMD.FORTRAN_ball_calibr(ball_file,config,TR,radius,z,x_min,x_max,sep,y,step,bucking_coil,plot=True)
     EM_CMD.MESS_succ_mess("Fin de l'exécution !")
     EM_CMD.keep_plt_for_cmd()
 
-def CMDEX_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,corr_base=True,no_base=False,pseudo_prof=False,l_p=None):
+def CMDEX_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,l_r=None,corr_base=True,no_base=False,pseudo_prof=False,l_p=None):
     """
     See also
     --------
     ``main, EM_CMD.JSON_add_device``
     """
-    EM_CMD.CMD_init(uid,file_list,sep,sup_na,regr,corr_base,no_base,pseudo_prof,l_p,in_file=True)
+    EM_CMD.CMD_init(uid,file_list,sep,sup_na,regr,l_r,corr_base,no_base,pseudo_prof,l_p,in_file=True)
     EM_CMD.MESS_succ_mess("Fin de l'exécution !")
     EM_CMD.keep_plt_for_cmd()
 
@@ -1122,7 +1124,7 @@ def CMDEX_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=Fals
     ``EM_CMD.CMD_evol_profils``
     """
     EM_CMD.CMD_evol_profils(file_prof_list,file_base_list,col_z,sep,replace,output_file_list,nb_ecarts,diff,auto_adjust,\
-                            man_adjust,line,verif=True,in_file=True)
+                            man_adjust,None,line,verif=True,in_file=True)
     EM_CMD.MESS_succ_mess("Fin de l'exécution !")
     EM_CMD.keep_plt_for_cmd()
 
@@ -1144,7 +1146,7 @@ def CMDEX_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_type
     ``EM_CMD.CMD_grid``
     """
     EM_CMD.CMD_grid(col_x,col_y,col_z,file_list,sep,output_file,m_type,radius,prec,step,seuil,i_method,only_nan,\
-                    no_crop,all_models,plot_pts,matrix)
+                    no_crop,all_models,plot_pts=plot_pts,matrix=matrix)
     EM_CMD.MESS_succ_mess("Fin de l'exécution !")
     EM_CMD.keep_plt_for_cmd()
 
@@ -1408,10 +1410,10 @@ def function_call():
     Using ``globals()[sys.argv[1]] == [function_name]`` helps to identificate if the requested function is protected or does not exists.\n
     Remarks regarding how to correctly assign mandatory parameters to variables :\n
     * If parameter is a file path, use ``EM_CMD.TOOL_str_clean`` with ``path = True``.
-    * If parameter is a file path list, use ``EM_CMD.TOOL_split_list`` with ``path = True``.
+    * If parameter is a file path list, use ``EM_CMD.TOOL_split_str_list`` with ``path = True``.
     * If parameter is a column label, use ``EM_CMD.TOOL_str_clean`` with ``noclean = True``.
-    * If parameter is a column label list, use ``EM_CMD.TOOL_split_list`` with ``noclean = True``.
-    * If parameter is a regular list, use ``EM_CMD.TOOL_split_list`` with default parameters.
+    * If parameter is a column label list, use ``EM_CMD.TOOL_split_str_list`` with ``noclean = True``.
+    * If parameter is a regular list, use ``EM_CMD.TOOL_split_str_list`` with default parameters.
     * If parameter is a regular string, simply assign the corresponding ``sys.argv`` element.
     * If parameter is a boolean, use ``EM_CMD.TOOL_str_to_bool``.
     * If parameter is a numeric, simply convert the corresponding ``sys.argv`` element to right type.
@@ -1442,7 +1444,7 @@ def function_call():
     
     See also
     --------
-    ``CMD_help, EM_CMD.TOOL_optargs_list, EM_CMD.TOOL_str_clean, EM_CMD.TOOL_split_list, EM_CMD.TOOL_str_to_bool``
+    ``CMD_help, EM_CMD.TOOL_optargs_list, EM_CMD.TOOL_str_clean, EM_CMD.TOOL_split_str_list, EM_CMD.TOOL_str_to_bool``
     """
     # tekst = matplotlib.get_backend()
     # print("Backend = ", tekst)
@@ -1515,7 +1517,7 @@ def function_call():
             app_name = EM_CMD.TOOL_str_clean(sys.argv[2])
             config = EM_CMD.TOOL_str_clean(sys.argv[3])
             nb_ecarts = int(sys.argv[4])
-            freq_list = EM_CMD.TOOL_split_list(sys.argv[5], float)
+            freq_list = EM_CMD.TOOL_split_str_list(sys.argv[5], float)
             gps = True
             gps_dec = [0.0,0.0]
             TR_l = None
@@ -1566,7 +1568,7 @@ def function_call():
         elif globals()[sys.argv[1]] == CMDEX_ball_calibr:
             ball_file = EM_CMD.TOOL_str_clean(sys.argv[2], path=True)
             config = EM_CMD.TOOL_str_clean(sys.argv[3])
-            TR = EM_CMD.TOOL_split_list(sys.argv[4], int)
+            TR = EM_CMD.TOOL_split_str_list(sys.argv[4], int)
             radius = int(sys.argv[5])
             z = int(sys.argv[6])
             x_min = int(sys.argv[7])
@@ -1588,25 +1590,27 @@ def function_call():
             sep = '\t'
             sup_na = True
             regr = False
+            l_r = None
             corr_base = True
             no_base = False
             pseudo_prof = False
             l_p = None
             if len(sys.argv) > 3:
-                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[3:], ["file_list","sep","sup_na","regr","corr_base","no_base","pseudo_prof","l_p"], [[str],str,bool,bool,bool,bool,bool,[float]])
+                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[3:], ["file_list","sep","sup_na","regr","l_r","corr_base","no_base","pseudo_prof","l_p"], [[str],str,bool,bool,[int],bool,bool,bool,[float]])
                 file_list = opt_params.get("file_list", None)
                 sep = opt_params.get("sep", '\t')
                 sup_na = opt_params.get("sup_na", True)
                 regr = opt_params.get("regr", False)
+                l_r = opt_params.get("l_r", None)
                 corr_base = opt_params.get("corr_base", True)
                 no_base = opt_params.get("no_base", False)
                 pseudo_prof = opt_params.get("pseudo_prof", False)
                 l_p = opt_params.get("l_p", False)
-            CMDEX_init(uid,file_list,sep,sup_na,regr,corr_base,no_base,pseudo_prof,l_p)
+            CMDEX_init(uid,file_list,sep,sup_na,regr,l_r,corr_base,no_base,pseudo_prof,l_p)
         elif globals()[sys.argv[1]] == CMDEX_evol_profils:
-            file_prof_list = EM_CMD.TOOL_split_list(sys.argv[2], str, path=True)
-            file_base_list = EM_CMD.TOOL_split_list(sys.argv[3], str, path=True)
-            col_z = EM_CMD.TOOL_split_list(sys.argv[4], int)
+            file_prof_list = EM_CMD.TOOL_split_str_list(sys.argv[2], str, path=True)
+            file_base_list = EM_CMD.TOOL_split_str_list(sys.argv[3], str, path=True)
+            col_z = EM_CMD.TOOL_split_str_list(sys.argv[4], int)
             sep = '\t'
             replace = False
             output_file_list = None
@@ -1628,9 +1632,9 @@ def function_call():
                 line = opt_params.get("line", False)
             CMDEX_evol_profils(file_prof_list,file_base_list,col_z,sep,replace,output_file_list,nb_ecarts,diff,auto_adjust,man_adjust,line)
         elif globals()[sys.argv[1]] == CMDEX_frontiere:
-            col_x = EM_CMD.TOOL_split_list(sys.argv[2], int)
-            col_y = EM_CMD.TOOL_split_list(sys.argv[3], int)
-            col_z = EM_CMD.TOOL_split_list(sys.argv[4], int)
+            col_x = EM_CMD.TOOL_split_str_list(sys.argv[2], int)
+            col_y = EM_CMD.TOOL_split_str_list(sys.argv[3], int)
+            col_z = EM_CMD.TOOL_split_str_list(sys.argv[4], int)
             file_list = None
             sep = '\t'
             output_file = None
@@ -1643,9 +1647,9 @@ def function_call():
                 choice = opt_params.get("choice", False)
             CMDEX_frontiere(col_x,col_y,col_z,file_list,sep,output_file,choice)
         elif globals()[sys.argv[1]] == CMDEX_grid:
-            col_x = EM_CMD.TOOL_split_list(sys.argv[2], int)
-            col_y = EM_CMD.TOOL_split_list(sys.argv[3], int)
-            col_z = EM_CMD.TOOL_split_list(sys.argv[4], int)
+            col_x = EM_CMD.TOOL_split_str_list(sys.argv[2], int)
+            col_y = EM_CMD.TOOL_split_str_list(sys.argv[3], int)
+            col_z = EM_CMD.TOOL_split_str_list(sys.argv[4], int)
             file_list = None
             sep = '\t'
             output_file = None
@@ -1681,8 +1685,8 @@ def function_call():
             CMDEX_grid(col_x,col_y,col_z,file_list,sep,output_file,m_type,radius,prec,step,seuil,i_method,only_nan,no_crop,all_models,plot_pts,matrix)
         elif globals()[sys.argv[1]] == CMDEX_calibration:
             uid = int(sys.argv[2])
-            col_ph = EM_CMD.TOOL_split_list(sys.argv[3], int)
-            col_qu = EM_CMD.TOOL_split_list(sys.argv[4], int)
+            col_ph = EM_CMD.TOOL_split_str_list(sys.argv[3], int)
+            col_qu = EM_CMD.TOOL_split_str_list(sys.argv[4], int)
             file_list = None
             sep = '\t'
             output_file_list = None
@@ -1702,7 +1706,7 @@ def function_call():
             app_name = EM_CMD.TOOL_str_clean(sys.argv[2])
             config = EM_CMD.TOOL_str_clean(sys.argv[3])
             nb_ecarts = int(sys.argv[4])
-            freq_list = EM_CMD.TOOL_split_list(sys.argv[5], float)
+            freq_list = EM_CMD.TOOL_split_str_list(sys.argv[5], float)
             gps = True
             gps_dec = [0.0,0.0]
             TR_l = None
@@ -1736,7 +1740,7 @@ def function_call():
                                                                     [str,str,int,[float],bool,[float],[float],[float],float,float,[float],[float],[float]])
             JSON_modify_device(uid,opt_params)
         elif globals()[sys.argv[1]] == DAT_change_date:
-            file_list = EM_CMD.TOOL_split_list(sys.argv[2], str, path=True)
+            file_list = EM_CMD.TOOL_split_str_list(sys.argv[2], str, path=True)
             date_str = sys.argv[3]
             sep = '\t'
             replace = False
@@ -1748,7 +1752,7 @@ def function_call():
                 output_file_list = opt_params.get("output_file_list", None)
             DAT_change_date(file_list,date_str,sep,replace,output_file_list)
         elif globals()[sys.argv[1]] == DAT_pop_and_dec:
-            file_list = EM_CMD.TOOL_split_list(sys.argv[2], str, path=True)
+            file_list = EM_CMD.TOOL_split_str_list(sys.argv[2], str, path=True)
             colsup = sys.argv[3]
             sep = '\t'
             replace = False
@@ -1760,7 +1764,7 @@ def function_call():
                 output_file_list = opt_params.get("output_file_list", None)
             DAT_pop_and_dec(file_list,colsup,sep,replace,output_file_list)
         elif globals()[sys.argv[1]] == DAT_switch_cols:
-            file_list = EM_CMD.TOOL_split_list(sys.argv[2], str, path=True)
+            file_list = EM_CMD.TOOL_split_str_list(sys.argv[2], str, path=True)
             col_a = sys.argv[3]
             col_b = sys.argv[4]
             sep = '\t'
@@ -1773,8 +1777,8 @@ def function_call():
                 output_file_list = opt_params.get("output_file_list", None)
             DAT_switch_cols(file_list,col_a,col_b,sep,replace,output_file_list)
         elif globals()[sys.argv[1]] == DAT_remove_cols:
-            file_list = EM_CMD.TOOL_split_list(sys.argv[2], str, path=True)
-            colsup_list = EM_CMD.TOOL_split_list(sys.argv[3], str, noclean=True)
+            file_list = EM_CMD.TOOL_split_str_list(sys.argv[2], str, path=True)
+            colsup_list = EM_CMD.TOOL_split_str_list(sys.argv[3], str, noclean=True)
             keep = False
             sep = '\t'
             replace = False
@@ -1787,8 +1791,8 @@ def function_call():
                 output_file_list = opt_params.get("output_file_list", None)
             DAT_remove_cols(file_list,colsup_list,keep,sep,replace,output_file_list)
         elif globals()[sys.argv[1]] == DAT_remove_data:
-            file_list = EM_CMD.TOOL_split_list(sys.argv[2], str, path=True)
-            colsup_list = EM_CMD.TOOL_split_list(sys.argv[3], str, noclean=True)
+            file_list = EM_CMD.TOOL_split_str_list(sys.argv[2], str, path=True)
+            colsup_list = EM_CMD.TOOL_split_str_list(sys.argv[3], str, noclean=True)
             i_min = int(sys.argv[4])
             i_max = int(sys.argv[5])
             sep = '\t'
@@ -1801,8 +1805,8 @@ def function_call():
                 output_file_list = opt_params.get("output_file_list", None)
             DAT_remove_data(file_list,colsup_list,i_min,i_max,sep,replace,output_file_list)
         elif globals()[sys.argv[1]] == DAT_stats:
-            file_list = EM_CMD.TOOL_split_list(sys.argv[2], str, path=True)
-            col_list = EM_CMD.TOOL_split_list(sys.argv[3], str, noclean=True)
+            file_list = EM_CMD.TOOL_split_str_list(sys.argv[2], str, path=True)
+            col_list = EM_CMD.TOOL_split_str_list(sys.argv[3], str, noclean=True)
             sep = '\t'
             bins = 25
             n = 10
@@ -1813,7 +1817,7 @@ def function_call():
                 n = opt_params.get("n", 10)
             DAT_stats(file_list,col_list,sep,bins,n)
         elif globals()[sys.argv[1]] == DAT_light_format:
-            file_list = EM_CMD.TOOL_split_list(sys.argv[2], str, path=True)
+            file_list = EM_CMD.TOOL_split_str_list(sys.argv[2], str, path=True)
             sep = '\t'
             replace = False
             output_file_list = None
@@ -1828,7 +1832,7 @@ def function_call():
                 restr = opt_params.get("restr", [])
             DAT_light_format(file_list,sep,replace,output_file_list,nb_ecarts,restr)
         elif globals()[sys.argv[1]] == DAT_change_sep:
-            file_list = EM_CMD.TOOL_split_list(sys.argv[2], str, path=True)
+            file_list = EM_CMD.TOOL_split_str_list(sys.argv[2], str, path=True)
             sep = EM_CMD.TOOL_str_clean(sys.argv[3])
             new_sep = EM_CMD.TOOL_str_clean(sys.argv[4])
             replace = False
@@ -1839,7 +1843,7 @@ def function_call():
                 output_file_list = opt_params.get("output_file_list", None)
             DAT_change_sep(file_list,sep,new_sep,replace,output_file_list)
         elif globals()[sys.argv[1]] == DAT_no_gps_pos:
-            file_list = EM_CMD.TOOL_split_list(sys.argv[2], str, path=True)
+            file_list = EM_CMD.TOOL_split_str_list(sys.argv[2], str, path=True)
             sep = '\t'
             replace = False
             output_file_list = None
@@ -1850,7 +1854,7 @@ def function_call():
                 output_file_list = opt_params.get("output_file_list", None)
             DAT_no_gps_pos(file_list,sep,replace,output_file_list)
         elif globals()[sys.argv[1]] == DAT_fuse_data:
-            file_list = EM_CMD.TOOL_split_list(sys.argv[2], str, path=True)
+            file_list = EM_CMD.TOOL_split_str_list(sys.argv[2], str, path=True)
             sep = '\t'
             output_file = "fused.dat"
             if len(sys.argv) > 3:
@@ -1896,7 +1900,7 @@ def function_call():
                 output_file = opt_params.get("output_file", None)
             TRANS_matrix_to_grd(file,fmt,output_file)
         elif globals()[sys.argv[1]] == TRANS_grd_to_matrix:
-            file_list = EM_CMD.TOOL_split_list(sys.argv[2], str, path=True)
+            file_list = EM_CMD.TOOL_split_str_list(sys.argv[2], str, path=True)
             fmt = EM_CMD.TOOL_str_clean(sys.argv[3])
             output_file = None
             if len(sys.argv) > 4:
