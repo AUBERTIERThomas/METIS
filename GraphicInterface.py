@@ -519,7 +519,7 @@ def GUI_CMDEX_evol_profils(from_EXEC=None):
 
     root, canvas, bg_im, button_im, settings_im = LOAD_root("CMDEX_evol_profils")
 
-    label_list = ["file_prof_list","file_base_list","col_z","sep","replace","output_file_list","nb_ecarts","diff","auto_adjust","man_adjust","line"]
+    label_list = ["file_prof_list","file_base_list","col_z","sep","replace","output_file_list","nb_ecarts","diff","base_adjust","man_adjust","line"]
     type_list = ["str[]","str[]","int[]","str","bool","str[]","int","bool","bool","bool","bool"]
     default_list = ["*","*","*",'\\t',"False","None","1","True","True","False","False"]
     
@@ -555,9 +555,9 @@ def GUI_CMDEX_calibration(from_EXEC=None):
 
     root, canvas, bg_im, button_im, settings_im = LOAD_root("CMDEX_calibration")
 
-    label_list = ["uid","col_ph","col_qu","file_list","sep","output_file_list"]
-    type_list = ["str","int[]","int[]","str[]","str","str[]"]
-    default_list = ["*","*","*","None","\\t","None"]
+    label_list = ["uid","col_ph","col_qu","file_list","eff_sigma","sep","output_file_list"]
+    type_list = ["str","int[]","int[]","str[]","bool","str","str[]"]
+    default_list = ["*","*","*","None","True","\\t","None"]
     
     EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "CMDEX_calibration", "", "Étalonnage final des données par calibration (loi physique)", GUI_main_CMDEX, from_EXEC)
     

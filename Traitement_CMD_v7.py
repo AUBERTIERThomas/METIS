@@ -194,12 +194,6 @@ def init_app_dat():
 
 # EM_CMD.JSON_print_devices(CONFIG.json_path)
 
-# EM_CMD.JSON_add_coeff('VCP',[0.32,0.71,1.18],0.1,[0.00591,0.0281,0.0745])
-# EM_CMD.JSON_add_coeff('HCP',[0.32,0.71,1.18],0.2,[0.00591,0.0281,0.0745])
-# EM_CMD.JSON_add_coeff('HCP',[0.32,0.71,1.18],0.1,[0.00591,0.0281,0.0745])
-# EM_CMD.JSON_add_coeff('HCP',[0.32,0.71,1.18],0.3,[0.00591,0.0281,0.0745])
-# EM_CMD.JSON_add_coeff('HCP',[0.32,0.70,1.18],0.1,[0.00591,0.0281,0.0745])
-
 
 # EM_CMD.JSON_print_devices(uid=4)
 # app_data = EM_CMD.JSON_find_device( 5)
@@ -472,12 +466,12 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("L'opération se fait par différence, mais il est possible de faire par multiplication. Il est possible de traiter plusieurs coupes de fichiers (profil,base), mais l'ordre doit correspondre.")
         print("La sortie est par graphe et par fichier (pour le résultat).")
         print("Il est possible de demander la rectification de blocs de profils, si d'autres imperfections sont visibles, avec le paramètre "+'"man_adjust"'+".")
-        print("Si on souhaite uniquement effectuer cette opération, on peut désactiver l'opération avec bases, avec le paramètre "+'"auto_adjust"'+".")
+        print("Si on souhaite uniquement effectuer cette opération, on peut désactiver l'opération avec bases, avec le paramètre "+'"base_adjust"'+".")
         print(EM_CMD.code_color)
         print(">>> CMDEX_evol_profils("+EM_CMD.success_color+"file_prof_list"+EM_CMD.code_color+","+EM_CMD.success_color+"file_base_list"+EM_CMD.code_color+","+
               EM_CMD.success_color+"col_z"+EM_CMD.code_color+","+EM_CMD.success_low_color+"[sep"+EM_CMD.code_color+","+EM_CMD.success_low_color+"replace"+EM_CMD.code_color+","+
               EM_CMD.success_low_color+"output_file_list"+EM_CMD.code_color+","+EM_CMD.success_low_color+"nb_ecarts"+EM_CMD.code_color+","+EM_CMD.success_low_color+"diff"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"auto_adjust"+EM_CMD.code_color+","+EM_CMD.success_low_color+"man_adjust"+EM_CMD.code_color+","+EM_CMD.success_low_color+"line]"+EM_CMD.code_color+")")
+              EM_CMD.success_low_color+"base_adjust"+EM_CMD.code_color+","+EM_CMD.success_low_color+"man_adjust"+EM_CMD.code_color+","+EM_CMD.success_low_color+"line]"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"file_prof_list"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers profils à traiter")
         print("       "+EM_CMD.success_color+"file_base_list"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers bases à traiter, col_x='X_int', col_y='Y_int'")
@@ -487,7 +481,7 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("       "+EM_CMD.success_low_color+"output_file_list = None"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= nom des fichier de sortie pour les bases, n'est pas pris en compte si replace=True")
         print("       "+EM_CMD.success_low_color+"nb_ecarts = 1"+EM_CMD.type_color+" : int "+EM_CMD.base_color+"= nombres de voies/bobines")
         print("       "+EM_CMD.success_low_color+"diff = True"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= si le repositionnement se fait par addition/soustraction ou multiplication/division.")
-        print("       "+EM_CMD.success_low_color+"auto_adjust = True"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= permet d'activer la rectification automatique des profils par base")
+        print("       "+EM_CMD.success_low_color+"base_adjust = True"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= permet d'activer la rectification automatique des profils par base")
         print("       "+EM_CMD.success_low_color+"man_adjust = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= permet d'activer la rectification manuelle de blocs de profils")
         print("       "+EM_CMD.success_low_color+"line = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= si on trace la courbe des profils (sinon juste les points)")
         print("")
@@ -573,12 +567,14 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("La procédure nécessite de calculer les coefficients de passage entre différents paramètres physiques (condictivité, résistivité). Ils sont stockés dans le fichier 'Constantes.json'.")
         print(EM_CMD.code_color)
         print(">>> CMDEX_calibration("+EM_CMD.success_color+"uid"+EM_CMD.code_color+","+EM_CMD.success_color+"col_ph"+EM_CMD.code_color+","+EM_CMD.success_color+"col_qu"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"[file_list"+EM_CMD.code_color+EM_CMD.success_low_color+"sep"+EM_CMD.code_color+EM_CMD.success_low_color+"output_file_list]"+EM_CMD.code_color+")")
+              EM_CMD.success_low_color+"[file_list"+EM_CMD.code_color+","+EM_CMD.success_low_color+"eff_sigma"+EM_CMD.code_color+","+EM_CMD.success_low_color+"sep"+EM_CMD.code_color+","+
+              EM_CMD.success_low_color+"output_file_list]"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"uid"+EM_CMD.type_color+" : int "+EM_CMD.base_color+"= indentifiant de l'appareil dans la base JSON")
         print("       "+EM_CMD.success_color+"col_ph"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= position des colonnes en phase, la première est 0")
         print("       "+EM_CMD.success_color+"col_qu"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= position des colonnes en quadrature, la première est 0")
         print("       "+EM_CMD.success_low_color+"file_list = None"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à traiter (laisser vide pour traiter tous les fichiers du dossier)")
+        print("       "+EM_CMD.success_low_color+"eff_sigma = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= prend en compte l'effet de sigma sur le signal en phase")
         print("       "+EM_CMD.success_low_color+"sep = '\\t'"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= caractère de séparation du .dat (par défaut '\\t')")
         print("       "+EM_CMD.success_low_color+"output_file_list = None"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= nom des fichier de sortie (sinon, un nouveau est créé avec le suffixe '_calibr')")
         print("")
@@ -1117,13 +1113,13 @@ def CMDEX_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,l_r=None,corr_
     EM_CMD.keep_plt_for_cmd()
 
 def CMDEX_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,output_file_list=None,nb_ecarts=1,\
-                       diff=True,auto_adjust=True,man_adjust=False,line=False):
+                       diff=True,base_adjust=True,man_adjust=False,line=False):
     """
     See also
     --------
     ``EM_CMD.CMD_evol_profils``
     """
-    EM_CMD.CMD_evol_profils(file_prof_list,file_base_list,col_z,sep,replace,output_file_list,nb_ecarts,diff,auto_adjust,\
+    EM_CMD.CMD_evol_profils(file_prof_list,file_base_list,col_z,sep,replace,output_file_list,nb_ecarts,diff,base_adjust,\
                             man_adjust,None,line,verif=True,in_file=True)
     EM_CMD.MESS_succ_mess("Fin de l'exécution !")
     EM_CMD.keep_plt_for_cmd()
@@ -1134,7 +1130,7 @@ def CMDEX_frontiere(col_x,col_y,col_z,file_list=None,sep='\t',output_file="frt.d
     --------
     ``EM_CMD.CMD_frontiere``
     """
-    EM_CMD.CMD_frontiere(col_x,col_y,col_z,file_list,sep,output_file,choice)
+    EM_CMD.CMD_frontiere(col_x,col_y,col_z,file_list,choice,None,sep,output_file,plot=True,in_file=True)
     EM_CMD.MESS_succ_mess("Fin de l'exécution !")
     EM_CMD.keep_plt_for_cmd()
 
@@ -1150,13 +1146,13 @@ def CMDEX_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_type
     EM_CMD.MESS_succ_mess("Fin de l'exécution !")
     EM_CMD.keep_plt_for_cmd()
 
-def CMDEX_calibration(uid,col_ph,col_qu,file_list=None,sep='\t',output_file_list=None):
+def CMDEX_calibration(uid,col_ph,col_qu,file_list=None,eff_sigma=True,sep='\t',output_file_list=None):
     """
     See also
     --------
     ``EM_CMD.CMD_calibration``
     """
-    EM_CMD.CMD_calibration(uid,col_ph,col_qu,file_list,sep,output_file_list)
+    EM_CMD.CMD_calibration(uid,col_ph,col_qu,file_list,eff_sigma,True,sep,output_file_list)
     EM_CMD.MESS_succ_mess("Fin de l'exécution !")
     EM_CMD.keep_plt_for_cmd()
 
@@ -1616,21 +1612,21 @@ def function_call():
             output_file_list = None
             nb_ecarts = 1
             diff = True
-            auto_adjust = True
+            base_adjust = True
             man_adjust = False
             line = False
             if len(sys.argv) > 5:
-                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[5:], ["sep","replace","output_file_list","nb_ecarts","diff","auto_adjust","man_adjust","line"],\
+                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[5:], ["sep","replace","output_file_list","nb_ecarts","diff","base_adjust","man_adjust","line"],\
                                                                     [str,bool,[str],int,bool,bool,bool,bool])
                 sep = opt_params.get("sep", '\t')
                 replace = opt_params.get("replace", False)
                 output_file_list = opt_params.get("output_file_list", None)
                 nb_ecarts = opt_params.get("nb_ecarts", 1)
                 diff = opt_params.get("diff", True)
-                auto_adjust = opt_params.get("auto_adjust", True)
+                base_adjust = opt_params.get("base_adjust", True)
                 man_adjust = opt_params.get("man_adjust", False)
                 line = opt_params.get("line", False)
-            CMDEX_evol_profils(file_prof_list,file_base_list,col_z,sep,replace,output_file_list,nb_ecarts,diff,auto_adjust,man_adjust,line)
+            CMDEX_evol_profils(file_prof_list,file_base_list,col_z,sep,replace,output_file_list,nb_ecarts,diff,base_adjust,man_adjust,line)
         elif globals()[sys.argv[1]] == CMDEX_frontiere:
             col_x = EM_CMD.TOOL_split_str_list(sys.argv[2], int)
             col_y = EM_CMD.TOOL_split_str_list(sys.argv[3], int)
@@ -1688,14 +1684,16 @@ def function_call():
             col_ph = EM_CMD.TOOL_split_str_list(sys.argv[3], int)
             col_qu = EM_CMD.TOOL_split_str_list(sys.argv[4], int)
             file_list = None
+            eff_sigma = True
             sep = '\t'
             output_file_list = None
             if len(sys.argv) > 5:
-                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[5:], ["file_list","sep","output_file_list"],[[str],str,str])
+                opt_params = EM_CMD.TOOL_optargs_list(sys.argv[5:], ["file_list","eff_sigma","sep","output_file_list"],[[str],bool,str,str])
                 file_list = opt_params.get("file_list", None)
+                eff_sigma = opt_params.get("eff_sigma", True)
                 sep = opt_params.get("sep", '\t')
                 output_file_list = opt_params.get("output_file_list", None)
-            CMDEX_calibration(uid,col_ph,col_qu,file_list,sep,output_file_list)
+            CMDEX_calibration(uid,col_ph,col_qu,file_list,eff_sigma,sep,output_file_list)
         elif globals()[sys.argv[1]] == JSON_print_devices:
             uid = None
             if len(sys.argv) > 2:

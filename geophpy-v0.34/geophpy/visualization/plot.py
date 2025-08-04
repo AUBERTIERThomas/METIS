@@ -1,0 +1,522 @@
+# -*- coding: utf-8 -*-
+'''
+    geophpy.plotting.plot
+    ---------------------
+
+    Module regrouping map plotting functions.
+
+    :copyright: Copyright 2014-2020 L. Darras, P. Marty, Q. Vitale and contributors, see AUTHORS.
+    :license: GNU GPL v3.
+
+'''
+
+#import geophpy.plotting.plot2D as plot2D
+import geophpy.visualization.plot3D as plot3D
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from operator import itemgetter
+import os
+import json
+
+from geophpy.core.json import JSON_Indent_Encoder
+from geophpy.visualization.plot2D import (plot_surface,
+                                     plot_contour,
+                                     plot_contourf,
+                                     plot_scatter,
+                                     plot_postmap)
+import geophpy.__config__ as CONFIG
+
+#from geophpy.plotting.plot2D import UNFILLED_MARKERS
+
+# list of plot types available
+plottype_list = ['2D-SCATTER', '2D-SURFACE', '2D-CONTOUR', '2D-CONTOURF', '2D-POSTMAP']
+
+# list of interpolations available
+interpolation_list = ['none', 'nearest', 'bilinear', 'bicubic', 'spline16', 'sinc']
+
+# list of picture format files available
+pictureformat_list = ['.eps', '.jpeg', '.jpg', '.pdf', '.pgf', '.png', '.ps', '.raw', 
+                      '.rgba', '.svg', '.svgz', '.tif', '.tiff']
+
+
+def gettypelist():
+   ''' Return the list of available plot types. '''
+
+   return plottype_list
+
+
+def getinterpolationlist():
+   ''' Return the list of available interpolations for data display. '''
+
+   return interpolation_list
+
+
+def getpictureformatlist():
+    ''' Return the list of available picture format. '''
+
+    return pictureformat_list
+
+
+def plot(dataset, plottype, cmapname, creversed=False, fig=None, filename=None, 
+         cmmin=None, cmmax=None, interpolation='bilinear', levels=None, cmapdisplay=True, 
+         axisdisplay=True, labeldisplay=False, pointsdisplay=False, dpi=None, transparent=False, 
+         logscale=False, rects=None, points=None, marker='+', markersize=None):
+    ''' Dataset display.
+
+    cf. `:meth:`~geophpy.dataset.DataSet.plot`
+
+    '''
+
+    ret = None
+
+    if filename is None:
+        success = True
+    else:
+        success = ispictureformat(filename)
+
+    if success:
+        # 2D-SURFACE
+        if plottype.upper() in ['2D-SURFACE', 'SURFACE', 'SURF', 'SF']:
+
+            # ### display options
+            # filename = kwargs.get('filename', None)
+            # axisdisplay = kwargs.get('axisdisplay', True)
+            # cmapdisplay = kwargs.get('cmapdisplay', True)
+            # dpi = kwargs.get('dpi', 600)
+            # transparent = kwargs.get('transparent', True)
+
+            # dataset,
+            # cmapname,
+            # creversed = kwargs.get('creversed', False)
+            # fig = kwargs.get('fig', None)
+            # filename = kwargs.get('filename', None)
+            # cmmin = kwargs.get('cmmin', None)
+            # cmmax = kwargs.get('cmmax', None)
+            # interpolation = kwargs.get('interpolation', 'bilinear')
+            # cmapdisplay = kwargs.get('cmapdisplay', True)
+            # axisdisplay = kwargs.get('axisdisplay', True)
+            # labeldisplay = kwargs.get('labeldisplay', False)
+            # pointsdisplay = kwargs.get('pointsdisplay', False)
+            # dpi = kwargs.get('dpi', None)
+            # transparent = kwargs.get('transparent', False)
+            # logscale = kwargs.get('logscale', False)
+            # rects = kwargs.get('rects', None)
+            # points = kwargs.get('points', None)
+            # marker = kwargs.get('marker', '+')
+            # markersize = kwargs.get('markersize', None)
+
+            fig, cmap = plot_surface(dataset, cmapname,
+                                            creversed=creversed, fig=fig, filename=filename,
+                                            cmmin=cmmin, cmmax=cmmax,
+                                            interpolation=interpolation,
+                                            cmapdisplay=cmapdisplay, axisdisplay=axisdisplay,
+                                            labeldisplay=labeldisplay, pointsdisplay=pointsdisplay,
+                                            dpi=dpi, transparent=transparent,
+                                            logscale=logscale, rects=rects, points=points, marker=marker)
+
+        # 2D-CONTOUR
+        elif plottype.upper() in ['2D-CONTOUR', 'CONTOUR', 'CONT', 'CT']:
+            fig, cmap = plot_contour(dataset, cmapname, levels=levels, creversed=creversed, 
+                                     fig=fig, filename=filename, cmmin=cmmin, cmmax=cmmax, 
+                                     cmapdisplay=cmapdisplay, axisdisplay=axisdisplay, 
+                                     labeldisplay=labeldisplay, pointsdisplay=pointsdisplay, 
+                                     dpi=dpi, transparent=transparent, logscale=logscale, 
+                                     rects=rects, points=points, marker=marker)
+
+        # 2D-CONTOUR (Filled)
+        elif plottype.upper() in ['2D-CONTOURF', 'CONTOURF', 'CONTF', 'CF']:
+            fig, cmap = plot_contourf(dataset, cmapname, levels=levels, creversed=creversed, 
+                                      fig=fig, filename=filename, cmmin=cmmin, cmmax=cmmax, 
+                                      cmapdisplay=cmapdisplay, axisdisplay=axisdisplay, 
+                                      labeldisplay=labeldisplay, pointsdisplay=pointsdisplay, 
+                                      dpi=dpi, transparent=transparent, logscale=logscale, 
+                                      rects=rects, points=points, marker=marker)
+
+        # 2D-SCATTER
+        elif plottype in ['2D-SCATTER', 'SCATTER', 'SCAT', 'SC']:
+            fig, cmap = plot_scatter(dataset, cmapname, creversed=creversed, fig=fig, 
+                                     filename=filename, cmmin=cmmin, cmmax=cmmax, 
+                                     cmapdisplay=cmapdisplay, axisdisplay=axisdisplay, 
+                                     labeldisplay=labeldisplay, dpi=dpi, transparent=transparent, 
+                                     logscale=logscale, rects=rects, markersize=markersize)
+
+        # 2D-POSTMAP
+        elif plottype.upper() in ['2D-POSTMAP', 'POSTMAP', 'POST', 'PM']:
+            fig, cmap = plot_postmap(dataset, fig=fig, filename=filename, axisdisplay=axisdisplay, 
+                                     labeldisplay=labeldisplay, dpi=600, transparent=transparent, 
+                                     marker=marker, markersize=markersize)
+
+        # '3D-SURFACE'
+        else:
+            fig, cmap = plot3D.plot_surface(dataset, cmapname, creversed, fig, filename, 
+                                            cmmin, cmmax, cmapdisplay, axisdisplay, dpi, 
+                                            transparent, logscale)
+
+    else:
+        fig = None
+        cmap = None
+
+    return fig, cmap
+
+
+def completewithnan(dataset):
+   """
+   completes a data set with nan values in empty space
+   """
+   lbegin = 0
+   nanpoints=[]
+
+   x = dataset.data.values[0][0]
+   for l in range(len(dataset.data.values)):
+      if (dataset.data.values[l][0] != x):
+         # treats the previous profile
+         lend = l
+         delta_y = _profile_mindelta_get(dataset.data.values[lbegin:lend])
+         _profile_completewithnan(dataset.data.values[lbegin:lend],delta_y,
+                                  dataset.info.y_min, dataset.info.y_max, nanpoints)
+         lbegin = l
+         # if the previous profile is not next, adds nan profiles to avoid linearisations on the plot
+         if ((dataset.data.values[l][0] - x) > dataset.info.x_mindelta):
+            # nan profile created just after the previous profile
+            _profile_createwithnan(nanpoints, x+(dataset.info.x_mindelta/10),
+                                   dataset.info.y_min, dataset.info.y_max)
+            # nan profile created just before the current profile
+            _profile_createwithnan(nanpoints, dataset.data.values[l][0]-(dataset.info.x_mindelta/10),
+                                   dataset.info.y_min, dataset.info.y_max)
+         x = dataset.data.values[l][0]
+
+   # treats the last profile
+   delta_y = _profile_mindelta_get(dataset.data.values[lbegin:])
+   _profile_completewithnan(dataset.data.values[lbegin:],delta_y,dataset.info.y_min, 
+                            dataset.info.y_max, nanpoints)
+
+   # adds the nan points to the values array
+   # converts in a numpy array, sorted by column 0 then by column 1.
+   try:
+      dataset.data.values = np.array(sorted(np.concatenate((dataset.data.values, nanpoints)), 
+                                            key=itemgetter(0,1)))
+   except:
+      pass
+
+
+def ispictureformat(picturefilename):
+   '''
+   Detects if the picture format is available
+   '''
+   splitedfilename = os.path.splitext(picturefilename)
+   extension = (splitedfilename[-1]).lower()
+
+   ispictureformat = False
+   for ext in pictureformat_list:
+      if (extension == ext):
+         ispictureformat = True
+         break
+
+   return ispictureformat
+
+
+def _profile_completewithnan(profile,delta_y,dataset_ymin, dataset_ymax, nanpoints):
+   """
+   completes a profile with nan value in empty space
+   """
+   coef = 20
+
+   if (dataset_ymin != None):             # if ymin is not equal to None
+      profile[0][1] = dataset_ymin        # normalizes all begins of profiles with the same value
+
+   yprev = profile[0][1]                  # initialises previous y
+   valprev = profile[0][2]                # initialises previous value
+
+   for p in profile:                      # for each point in the profile
+      y = p[1]                            # y is the column 1 value
+      if (((y-yprev) > coef*delta_y) or np.isnan(p[2]) or np.isnan(valprev)):
+         yn = yprev + ((y-yprev)/1000)
+         while (yn < y):
+            nanpoints.append([p[0], yn, np.nan])
+            yn = yn + ((y-yprev)/10)
+         nanpoints.append([p[0], y - ((y-yprev)/1000), np.nan])
+      yprev = y                           # saves the y value as the previous for profile to be
+      valprev = p[2]                      # saves the value as the previous for profile to be
+
+   # treats the last point of profile
+   if ((dataset_ymax-yprev) > coef*delta_y):
+      y = yprev + ((dataset_ymax-yprev)/1000)
+      while (y < dataset_ymax):
+         nanpoints.append([p[0], y, np.nan])
+         y = y + ((dataset_ymax-yprev)/10)
+
+
+
+def _profile_createwithnan(nanpoints, x,dataset_ymin, dataset_ymax):
+   """
+   creates a profile with nan values
+   """
+
+   if ((dataset_ymin != None) and (dataset_ymax != None)):
+      for y in range(int(dataset_ymin), int(dataset_ymax)):
+         nanpoints.append([x, y, np.nan])
+
+
+def _profile_mindelta_get(profile):
+   '''
+   Get Minimal Delta between 2 values in a same profile.
+   '''
+   l = 0
+   deltamin = 0
+   while (deltamin == 0):
+      deltamin = abs(profile[l+1][1] - profile[l][1])
+      l = l+1
+
+   yprev = profile[l][1]
+
+   for p in profile[l+1:]:
+      delta = abs(p[1] - yprev)
+      if ((delta != 0) and (delta < deltamin)):
+         deltamin = delta
+
+   return deltamin
+
+
+def coord2rec(xmin, xmax, ymin, ymax):
+    '''
+    Convert rectangle extent coordinates to bottom left corner,
+    width and height coordinates.
+
+    '''
+
+    x = min(xmin,xmax)
+    y = min(ymin,ymax)
+    w = abs(xmax-xmin)
+    h = abs(ymax-ymin)
+
+    return [x, y, w, h]
+
+
+def extents2rectangles(extentlist):
+    '''
+    Convert a list of rectangle extent coordinates to a list of
+    bottom left corner width and height coordinates.
+
+    '''
+
+    rectanglelist = []
+
+    for extent in extentlist:
+       rectanglelist.append(coord2rec(*extent))
+
+    return rectanglelist
+
+
+def _init_figure(fig=None):
+    ''' Clear the given figure or return a new one and initialize an ax. '''
+
+    # First display
+    if fig is None:
+        fig = plt.figure()
+        #fig = Figure()
+        #FigureCanvas(fig)
+
+    # Existing display
+    else:
+        fig = plt.figure(fig.number, clear=True)
+        #fig.clf()
+
+    # Axes initialization
+    ax = fig.add_subplot(111)
+
+    return fig, ax
+
+
+def grid_plot(don,grid_final,ncx,ncy,ext,pxy,nc_data,nb_ecarts,nb_res,output_file=None,
+              sep='\t',plot_pts=False,matrix=False):
+    """
+    Plot the result of ``interp_grid``.
+    
+    Parameters
+    ----------
+    don : dataframe
+        Active dataframe.
+    grid_final : np.ndarray (dim 3) of float
+        For each data column, contains the grid values after the chosen method.
+    ncx : list of str
+        Names of every X columns.
+    ncy : list of str
+        Names of every Y columns.
+    ext : [float, float, float, float]
+        Extend of the grid. Contains ``[min_X, max_X, min_Y, max_Y]``.
+    pxy : list of 4 floats
+        Steps of the grid for each axis. Contains ``[pas_X, pas_Y]``.
+    nc_data : list of str
+        Names of every Z columns (actual data).
+    nb_ecarts : int
+        Number of X and Y columns. The number of coils.
+    nb_res : int
+        The number of data per coil.
+    ``[opt]`` output_file : ``None`` or str, default : ``None``
+        Name of output file. If ``None``, do not save.
+    ``[opt]`` sep : str, default : ``'\\t'``
+        Dataframe separator.
+    ``[opt]`` plot_pts : bool, default : ``False``
+        Plots the raw points on top of the grid.
+    ``[opt]`` matrix : bool, default : ``False``
+        Whether the output should be saved as a dataframe or as the custom 'matrix' format.
+    
+    Returns
+    -------
+    none, but plots the final grid and saves the figures.\n
+    * ``output_file = None``
+        Nothing more
+    * ``output_file != None``
+        Saves the grid in a dataframe or in the custom 'matrix format'.
+    
+    Notes
+    -----
+    Subfunction of ``interp_grid``\n
+    Is not called if heatmap was activated.
+    
+    See also
+    --------
+    ``interp_grid, df_to_matrix``
+    """
+    nb_data = len(nc_data)
+    
+    # Calcule des dimensions de la grille
+    pas_X = (ext[1]-ext[0])/pxy[0]
+    pas_Y = (ext[3]-ext[2])/pxy[1]
+    gridx = [ext[0] + pas_X*(i+0.5) for i in range(pxy[0])]
+    gridy = [ext[2] + pas_Y*(j+0.5) for j in range(pxy[1])]
+    
+    # Cas de plusieurs voies
+    try:
+        int(ncx[0][-1])
+        col_x = ""
+        col_y = ""
+        for e in range(nb_ecarts):
+            col_x += ncx[e]+"|"
+            col_y += ncy[e]+"|"
+        col_x = col_x[:-1]
+        col_y = col_y[:-1]
+    # Cas d'une seule voie
+    except:
+        col_x = ncx[0]
+        col_y = ncy[0]
+    # Construction du dataframe représentatif de la grille
+    don_f = pd.DataFrame({col_x: np.array([[j for j in gridy] for i in gridx]).round(CONFIG.prec_coos).flatten(),
+                          col_y: np.array([[i for j in gridy] for i in gridx]).round(CONFIG.prec_coos).flatten()})
+    for n in range(nb_data):
+        don_temp = pd.DataFrame({nc_data[n]: grid_final[n].flatten().round(CONFIG.prec_data)})
+        don_f = pd.concat([don_f, don_temp], axis=1)
+    
+    # Résultat enregistré dans un fichier (option)
+    if output_file != None:
+        # Format matrice
+        if matrix:
+            grid_not_np = []
+            for n in range(nb_data):
+                grid_not_np.append(grid_final[n].T.round(CONFIG.prec_data).tolist())
+            grid_save = {"grid" : grid_not_np, "ext" : ext, "pxy" : pxy, "step" : [pas_X,pas_Y],
+                         "ncx" : ncx.to_list(), "ncy" : ncy.to_list(), "ncz" : nc_data.to_list()}
+            with open(output_file, "w") as f:
+                json.dump(grid_save, f, indent=None, cls=JSON_Indent_Encoder)
+        # Format dataframe
+        else:
+            don_f.to_csv(output_file, index=False, sep=sep)
+    
+    # Plot du résultat
+    plt.style.use('_mpl-gallery-nogrid')
+    for i in range(nb_ecarts):
+        fig,ax = plt.subplots(nrows=1,ncols=nb_res,figsize=(nb_res*CONFIG.fig_width//2,CONFIG.fig_height),\
+                              squeeze=False)
+        
+        for j in range(nb_res):
+            Q_l = [z for z in grid_final[i*nb_res+j].flatten() if z == z]
+            Q = np.quantile(Q_l,[0.05,0.95])
+            ims = ax[0][j].imshow(grid_final[i*nb_res+j].T, origin='lower', cmap='cividis', \
+                                  vmin = Q[0], vmax=Q[1], extent=ext)
+            ax[0][j].set_title(nc_data[i*nb_res+j])
+            ax[0][j].set_xlabel(ncx[i])
+            ax[0][j].set_ylabel(ncy[i])
+            ax[0][j].set_aspect('equal')
+            plt.colorbar(ims,ax=ax[0][j])
+            if plot_pts:
+                try:
+                    ax[0][j].scatter(don[ncx[i]],don[ncy[i]],marker='s',c=don["Num fich"],s=5)
+                except:
+                    ax[0][j].scatter(don[ncx[i]],don[ncy[i]],marker='s',s=5)
+        plt.show(block=False)
+        # À augmenter si la figure ne s'affiche pas, sinon on pourra le baisser 
+        # pour accélérer la vitesse de l'input
+        plt.pause(CONFIG.fig_render_time)
+    return don_f
+
+
+def plot_pos(file,sep='\t'):
+    """
+    Plots positions of each coil.
+    
+    Parameters
+    ----------
+    file : str or dataframe
+        Dataframe file or loaded dataframe.
+    ``[opt]`` sep : str, default : ``'\\t'``
+        Dataframe separator.
+    
+    Notes
+    -----
+    Coil position columns must be named as such : ``[X/Y] + _int_ + [coil_id]``.\n
+    Output figure can be heavy.
+    
+    Raises
+    ------
+    * File not found.
+    * Wrong separator.
+    * No positions for each coil.
+    """
+    if isinstance(file,str):
+        try:
+            # Chargement des données
+            df = pd.read_csv(file, sep=sep)
+        except FileNotFoundError:
+            raise FileNotFoundError('File "{}" not found'.format(file))
+    else:
+        df = file
+    
+    if len(df.columns) <= 1:
+        raise OSError("File '{}' does not have '{}' as its separator.".format(file,repr(sep)))
+    
+    # Solution du pauvre : on propose jusqu'à 8 couleurs pour les différentes voies
+    color = ["blue","green","orange","magenta","red","cyan","black","yellow"]
+    ncx = []
+    ncy = []
+    # Va être égal au nombre de voies
+    cpt = 0
+    while True: # Programmassion is my passion
+        # Nom des positions des différentes voies
+        new_x = "X_int_"+str(cpt+1)
+        new_y = "Y_int_"+str(cpt+1)
+        try:
+            df[new_x]
+            ncx.append(new_x)
+            ncy.append(new_y)
+        except KeyError:
+            break
+        cpt += 1
+    if cpt == 0:
+        raise KeyError("Paths positions should be named as \"X_int_1\" [...]")
+    
+    # Affichage des positions
+    fig,ax=plt.subplots(nrows=1,ncols=1,figsize=(CONFIG.fig_width,CONFIG.fig_height))
+    # Trait noir reliant les positions d'un même point
+    for index, row in df.iterrows():
+        ax.plot(row[ncx],row[ncy],'-k')
+    # Point de la couleur de sa voie
+    for i in range(cpt):
+        ax.plot(df[ncx[i]],df[ncy[i]],'o',color=color[i%8],label="Coil "+str(i+1))
+    ax.set_title("Coil position")
+    ax.set_xlabel("X_int")
+    ax.set_ylabel("Y_int")
+    ax.set_aspect('equal')
+    plt.legend()
+    plt.show(block=False)
+    plt.pause(CONFIG.fig_render_time) # À augmenter si la figure ne s'affiche pas, sinon on pourra le baisser pour accélérer la vitesse de l'input

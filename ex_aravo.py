@@ -16,14 +16,14 @@ import EM_CMD
 os.chdir(CONFIG.data_path)
 # %%
 
-a1 = EM_CMD.CMD_init(0,file_list=["aravo1.dat"],sep='\t',sup_na=False,regr=False,corr_base=False,no_base=True)[1][0]
+a1 = EM_CMD.CMD_init(0,file_list=["aravo1.dat"],sep='\t',sup_na=False,regr=False,corr_base=False,no_base=True,plot=True)[1][0]
 a2 = EM_CMD.CMD_init(0,file_list=["aravo2_1.dat"],sep='\t',sup_na=False,regr=False,corr_base=False,no_base=True)[1][0]
 a3 = EM_CMD.CMD_init(0,file_list=["aravo3.dat"],sep='\t',sup_na=False,regr=False,corr_base=False,no_base=True)[1][0]
 a4 = EM_CMD.CMD_init(0,file_list=["aravo4.dat"],sep='\t',sup_na=False,regr=False,corr_base=False,no_base=True)[1][0]
 a5 = EM_CMD.CMD_init(0,file_list=["aravo5.dat"],sep='\t',sup_na=False,regr=False,corr_base=False,no_base=True)[1][0]
 a6 = EM_CMD.CMD_init(0,file_list=["aravo6.dat"],sep='\t',sup_na=False,regr=False,corr_base=False,no_base=True,pseudo_prof=True,l_p=[])[1][0]
 a22 = EM_CMD.CMD_init(0,file_list=["aravo22.dat"],sep='\t',sup_na=False,regr=False,corr_base=False,no_base=True,pseudo_prof=True,\
-                l_p=[[4993710.01,294875.01],[04993710.01,294930.01],[4993875.01,294930.01],[4993875.01,295020.01],[4993775.01,295020],[4993775.01,294950.01]])[1][0]
+                l_p=[[4993710.01,294875.01],[4993710.01,294930.01],[4993875.01,294930.01],[4993875.01,295020.01],[4993775.01,295020],[4993775.01,294950.01]])[1][0]
 a31 = EM_CMD.CMD_init(0,file_list=["aravo31.dat"],sep='\t',sup_na=False,regr=False,corr_base=False,no_base=True,pseudo_prof=True,\
                 l_p=[[4993700,294690],[4993650,294755],[4993640,294890],[4993740,294990],[4993665,294850],[4993720,294840]])[1][0]
 a221= EM_CMD.CMD_init(0,file_list=["aravo221.dat"],sep='\t',sup_na=False,regr=False,corr_base=False,no_base=True,pseudo_prof=True,\
@@ -33,46 +33,46 @@ a221= EM_CMD.CMD_init(0,file_list=["aravo221.dat"],sep='\t',sup_na=False,regr=Fa
 df_list = EM_CMD.DAT_light_format([a1,a2,a3,a4,a5,a6,a22,a31,a221],restr=["Inv"])
 # %%
 
-df_list = EM_CMD.CMD_evol_profils(df_list,[],[2,3,6,7,10,11],nb_ecarts=3,auto_adjust=False,man_adjust=True,line=True)
+df_list = EM_CMD.CMD_evol_profils(df_list,[],[2,3,6,7,10,11],nb_ecarts=3,base_adjust=False,man_adjust=True,line=True)
 # %%
 
-uwu = EM_CMD.CMD_evol_profils([df_list[0]],[],[2,3,6,7,10,11],nb_ecarts=3,auto_adjust=False,man_adjust=True,line=True)[0]
+uwu = EM_CMD.CMD_evol_profils([df_list[0]],[],[2,3,6,7,10,11],nb_ecarts=3,base_adjust=False,man_adjust=True,line=True)[0]
 # %%
 
 df_list[0] = uwu
 # %%
 
-uwu = EM_CMD.CMD_evol_profils([df_list[2]],[],[2,3,6,7,10,11],nb_ecarts=3,auto_adjust=False,man_adjust=True,line=True)[0]
+uwu = EM_CMD.CMD_evol_profils([df_list[2]],[],[2,3,6,7,10,11],nb_ecarts=3,base_adjust=False,man_adjust=True,line=True)[0]
 # %%
 
 df_list[2] = uwu
 # %%
 
-uwu = EM_CMD.CMD_evol_profils([df_list[3]],[],[2,3,6,7,10,11],nb_ecarts=3,auto_adjust=False,man_adjust=True,line=True)[0]
+uwu = EM_CMD.CMD_evol_profils([df_list[3]],[],[2,3,6,7,10,11],nb_ecarts=3,base_adjust=False,man_adjust=True,line=True)[0]
 # %%
 
 df_list[3] = uwu
 # %%
 
-uwu = EM_CMD.CMD_evol_profils([df_list[4]],[],[2,3,6,7,10,11],nb_ecarts=3,auto_adjust=False,man_adjust=True,line=True)[0]
+uwu = EM_CMD.CMD_evol_profils([df_list[4]],[],[2,3,6,7,10,11],nb_ecarts=3,base_adjust=False,man_adjust=True,line=True)[0]
 # %%
 
 df_list[4] = uwu
 # %%
 
-uwu = EM_CMD.CMD_evol_profils([df_list[5]],[],[2,3,6,7,10,11],nb_ecarts=3,auto_adjust=False,man_adjust=True,line=True)[0]
+uwu = EM_CMD.CMD_evol_profils([df_list[5]],[],[2,3,6,7,10,11],nb_ecarts=3,base_adjust=False,man_adjust=True,line=True)[0]
 # %%
 
 df_list[5] = uwu
 # %%
 
-uwu = EM_CMD.CMD_evol_profils([df_list[7]],[],[2,3,6,7,10,11],nb_ecarts=3,auto_adjust=False,man_adjust=True,line=True)[0]
+uwu = EM_CMD.CMD_evol_profils([df_list[7]],[],[2,3,6,7,10,11],nb_ecarts=3,base_adjust=False,man_adjust=True,line=True)[0]
 # %%
 
 df_list[7] = uwu
 # %%
 
-uwu = EM_CMD.CMD_evol_profils([df_list[8]],[],[2,3,6,7,10,11],nb_ecarts=3,auto_adjust=False,man_adjust=True,line=True)[0]
+uwu = EM_CMD.CMD_evol_profils([df_list[8]],[],[2,3,6,7,10,11],nb_ecarts=3,base_adjust=False,man_adjust=True,line=True)[0]
 # %%
 
 df_list[8] = uwu

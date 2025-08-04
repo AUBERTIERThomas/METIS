@@ -30,38 +30,45 @@ vcp_p = EM_CMD.DAT_light_format(vcp_p,restr=["Inv"])
 
 vcp_p_c = pd.concat(vcp_p)
 vcp_b_c = pd.concat(vcp_b)
-vcp_p_corr = EM_CMD.CMD_evol_profils(vcp_p_c.copy(),vcp_b_c,[2,3,6,7,10,11],nb_ecarts=app_data["nb_ecarts"],man_adjust=False,line=True,verif=True)[0]
+vcp_p_corr = EM_CMD.CMD_evol_profils(vcp_p_c.copy(),vcp_b_c,[2,3,6,7,10,11],nb_ecarts=app_data["nb_ecarts"],man_adjust=False,line=True,plot=True)[0]
 # %%
 vcp_p_corr_d = []
 for i in range(3):
     vcp_p_corr_d.append(vcp_p_corr[vcp_p_corr["Num fich"] == i+1])
 
-vcp_p_corr_d = EM_CMD.CMD_evol_profils(vcp_p_corr_d,[],[2,3,6,7,10,11],nb_ecarts=app_data["nb_ecarts"],auto_adjust=False,man_adjust=True,line=True)
+#vcp_p_man = EM_CMD.CMD_evol_profils(vcp_p_corr_d,[],[2,3,6,7,10,11],nb_ecarts=app_data["nb_ecarts"],base_adjust=False,man_adjust=True,line=True)
+vcp_p_man = EM_CMD.CMD_evol_profils(vcp_p_corr_d,[],[2,3,6,7,10,11],nb_ecarts=app_data["nb_ecarts"],base_adjust=False,man_adjust=True,line=True,l_m=[["2-24 2 4 6","24-36 2 4 6"],["110-115 1 3 5"],[]])
 # %%
 
-vcp_p_corr[0] = EM_CMD.CMD_evol_profils(vcp_p_corr[0],[],[2,3,6,7,10,11],nb_ecarts=app_data["nb_ecarts"],auto_adjust=False,man_adjust=True,line=True)[0]
+# uwu = EM_CMD.CMD_evol_profils(vcp_p_man[0],[],[2,3,6,7,10,11],nb_ecarts=app_data["nb_ecarts"],base_adjust=False,man_adjust=True,line=True)[0]
+# print("bjr",uwu[uwu.columns[3]][:10])
 # %%
 
-vcp_p_corr[1] = EM_CMD.CMD_evol_profils(vcp_p_corr[1],[],[2,3,6,7,10,11],nb_ecarts=app_data["nb_ecarts"],auto_adjust=False,man_adjust=True,line=True)[0]
+#vcp_p_man[0] = uwu
+# %%
+
+#vcp_p_man[1] = EM_CMD.CMD_evol_profils(vcp_p_man[1],[],[2,3,6,7,10,11],nb_ecarts=app_data["nb_ecarts"],base_adjust=False,man_adjust=True,line=True)[0]
 # %%
 
 fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(16,9))
 data_id = 0
-Z = vcp_p_corr[data_id]["Inph.1[ppt]"]
+Z = vcp_p_man[data_id]["Inph.1[ppt]"]
 Q5,Q95 = Z.quantile([0.05,0.95])
-col = ax.scatter(vcp_p_corr[data_id]["X_int_1"],vcp_p_corr[data_id]["Y_int_1"],marker='s',c=Z,cmap='cividis',s=6,vmin=Q5,vmax=Q95)
+col = ax.scatter(vcp_p_man[data_id]["X_int_1"],vcp_p_man[data_id]["Y_int_1"],marker='s',c=Z,cmap='cividis',s=6,vmin=Q5,vmax=Q95)
 plt.colorbar(col,ax=ax,shrink=0.7)
 ax.set_aspect('equal')
 plt.show()
 # %%
 
-ncx, ncy, nc_data, nb_data, nb_ecarts, nb_res = EM_CMD.TOOL_manage_cols(vcp_p_corr_d[0],[0,4,8],[1,5,9],[2,3,6,7,10,11])
-vcp_p_front = EM_CMD.CMD_frontiere_loop(vcp_p_corr_d,ncx,ncy,nc_data,nb_data,nb_ecarts,nb_res,choice=True,plot=True)
+vcp_p_front = EM_CMD.CMD_frontiere([0,4,8],[1,5,9],[2,3,6,7,10,11],vcp_p_man,choice=True,plot=True,l_c=[[1,0,1,1,1,1],[1,1,1,0,1,1]])
 # %%
 
 final_list = pd.concat(vcp_p_front)
 final_list.to_csv("all.dat", index=False, sep='\t')
 df_grid = EM_CMD.CMD_grid([0,4,8],[1,5,9],[2,3,6,7,10,11],final_list,radius=5,step=0.5,seuil=0,only_nan=False)
+# %%
+
+b = EM_CMD.CMD_grid([0],[1],[2],final_list[::100],radius=4,step=2,seuil=-3,only_nan=True,m_type='h',l_d=False,l_e=[[-1,2],45,80,20],l_t=[11,0],l_c=[[4,3,12],[4,3,3.5]])
 # %%
 
 final_list = pd.read_csv("all.dat", sep='\t')

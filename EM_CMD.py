@@ -224,7 +224,10 @@ def MESS_input_mess(mess_list):
     mess_list : list of str
         Message to display, row per row.
     """ 
-    nc = os.get_terminal_size().columns - 1
+    try:
+        nc = os.get_terminal_size().columns - 1
+    except OSError:
+        nc = 49
     print(code_color+blink_color)
     print("+---"*(nc//4)+"+")
     print(code_color)
@@ -851,8 +854,6 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,l_r=None,corr_ba
         If the prospection is represented by one continuous line.
     ``[opt]`` l_p : ``None`` or list of [float, float], default : ``None``
         List of points coordinates for segments. If ``[]``, perform a linear regression instead. If ``None``, enables a choice procedure.
-    ``[opt]`` app : bool, default : ``False``
-        If ``uid`` is instead a loaded device
     ``[opt]`` plot : bool, default : ``False``
         Enables plotting.
     ``[opt]`` in_file : bool, default : ``False``
@@ -899,8 +900,8 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,l_r=None,corr_ba
     
     See Also
     --------
-    ``TOOL_check_time_date, CMD_set_time, CMD_detect_chgt, CMD_intrp_prof, CMD_detect_base_pos, CMD_detec_profil_carre,
-    CMD_XY_Nan_completion, CMD_sep_BM, CMD_detec_pseudoprof, CMD_synthBase, CMD_pts_rectif, CMD_evol_profils, CMD_dec_voies``
+    ``TOOL_check_time_date, CMD_set_time, CMD_detect_chgt, CMD_intrp_prof, CMD_detect_base_pos, CMD_detect_profil_carre,
+    CMD_XY_Nan_completion, CMD_sep_BM, CMD_detect_pseudoprof, CMD_synthBase, CMD_pts_rectif, CMD_evol_profils, CMD_dec_voies``
     """
     # Conversion en liste si 'file_list' ne l'est pas
     try:
@@ -922,10 +923,10 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,l_r=None,corr_ba
     ls_pd_done_before = []
     nb_file = len(file_list)
     for ic,f in enumerate(file_list) :
-        try:
+        if isinstance(f,str):
             # Chargement des données
             data = TOOL_check_time_date(f,sep)
-        except:
+        else:
             data = f
             is_loaded = True
         # Numérotation des fichiers
@@ -996,8 +997,8 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,l_r=None,corr_ba
         
         # Détection profils et interpolation des positions répétées
         if app_data["GPS"]:
-            don_d=CMD_detect_chgt(don_raw)
-            don_i=CMD_intrp_prof(don_d,acq_GPS=app_data["GPS"])
+            don_d=CMD_detect_chgt(don_raw,[n_col_X,n_col_Y])
+            don_i=CMD_intrp_prof(don_d,n_col_X,n_col_Y)
             # Si le fichier ne contient pas de base, on ne considère que des profils
             if no_base:
                 don_i["Base"] = 0
@@ -1007,7 +1008,7 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,l_r=None,corr_ba
         else:
             don_raw["X_int"] = don_raw.iloc[:,0]
             don_raw["Y_int"] = don_raw.iloc[:,1]
-            don_i = CMD_detec_profil_carre(don_raw)
+            don_i = CMD_detect_profil_carre(don_raw)
         
         # Suppression ou completion des données manquantes
         if sup_na:
@@ -1023,7 +1024,7 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,l_r=None,corr_ba
         if pseudo_prof or max(don_i["Profil"]) == 1:
             # Sélection dynamique
             if l_p == None:
-                don_i = CMD_detec_pseudoprof(don_i,"X_int","Y_int",l_p=None,verif=True)
+                don_i = CMD_detect_pseudoprof(don_i,"X_int","Y_int",l_p=None,verif=True)
                 correct = False
                 while correct == False:
                     if GUI:
@@ -1046,22 +1047,22 @@ def CMD_init(uid,file_list=None,sep='\t',sup_na=True,regr=False,l_r=None,corr_ba
                         if inp == "y":
                             correct = True
                         elif inp == "n":
-                            don_i = CMD_detec_pseudoprof(don_i,"X_int","Y_int",l_p=None,verif=True)
+                            don_i = CMD_detect_pseudoprof(don_i,"X_int","Y_int",l_p=None,verif=True)
                         else:
                             pts = re.split(r"[ ]+",inp)
                             vect = [[float(c) for c in re.split(r",",pt)] for pt in pts]
                             if len(vect) < 2:
                                 MESS_warn_mess("Choisir au moins deux points !")
                             else:
-                                don_i = CMD_detec_pseudoprof(don_i,"X_int","Y_int",l_p=vect,verif=True)
+                                don_i = CMD_detect_pseudoprof(don_i,"X_int","Y_int",l_p=vect,verif=True)
                     except:
                         MESS_warn_mess("Réponse non reconnue !")
             # Si on veut juste prendre la droite de régression comme référence
             elif l_p == []:
-                don_i = CMD_detec_pseudoprof(don_i,"X_int","Y_int",l_p=None,verif=False)
+                don_i = CMD_detect_pseudoprof(don_i,"X_int","Y_int",l_p=None,verif=False)
             # Si on prend une liste de segments
             else:
-                don_i = CMD_detec_pseudoprof(don_i,"X_int","Y_int",l_p=l_p,verif=False)
+                don_i = CMD_detect_pseudoprof(don_i,"X_int","Y_int",l_p=l_p,verif=False)
             plt.close('all')
         # Séparation base/profil en fonction des colonnes "Base" et "Profil". La base peut être vide
         don_base,don_mes=CMD_sep_BM(don_i)
@@ -1371,7 +1372,7 @@ def CMD_detect_basec(don,acq_GPS=True,seuil=1.,deb=True):
         
     X,Y=don[colXY[0]],don[colXY[1]]
     if not('b et p' in don.columns) :
-        don=CMD_detect_chgt(don)
+        don=CMD_detect_chgt(don,colXY)
         MESS_warn_mess("[DEV] Attention, création par défaut d'une colonne 'b et p'")
     
     baseD,baseF=don['b et p'].iloc[[0,-1]]
@@ -1560,7 +1561,7 @@ def CMD_detect_base_pos(don_c, seuil,trace=False):
 # déplacement à la base est plus long que l'écart entre deux mesures)
 # fonctionnelle
 
-def CMD_detect_chgt(don,acq_GPS=True,verif=False):
+def CMD_detect_chgt(don,colXY,verif=False):
     """ [JT]\n
     Detect profiles (or bases) from time difference (gap means new profile).
     
@@ -1568,8 +1569,8 @@ def CMD_detect_chgt(don,acq_GPS=True,verif=False):
     ----------
     don : dataframe
         Active dataframe.
-    ``[opt]`` acq_GPS : bool, default : ``True``
-        If got GPS data.
+    colXY : [str, str]
+        Name of X and Y position columns
     ``[opt]`` verif : bool, default : ``False``
         Enables plotting.
     
@@ -1578,11 +1579,6 @@ def CMD_detect_chgt(don,acq_GPS=True,verif=False):
     don : dataframe
         Output dataframe.
     """ 
-    if acq_GPS :
-        colXY=['Northing','Easting']
-    else:
-        colXY=['x[m]','y[m]']
-    
     X,Y=don[colXY[0]],don[colXY[1]]
    
     if 'temps (s)' in don.columns :
@@ -1621,7 +1617,7 @@ def CMD_detect_chgt(don,acq_GPS=True,verif=False):
     
     return(don.copy())
     
-def CMD_num_prof(don, acq_GPS=True):
+def CMD_num_prof(don):
     """ [JT]\n
     Numbers each profile (or base) in chronological order.
     
@@ -1629,8 +1625,6 @@ def CMD_num_prof(don, acq_GPS=True):
     ----------
     don : dataframe
         Active dataframe.
-    ``[opt]`` acq_GPS : bool, default : ``True``
-        If got GPS data.
     
     Returns
     -------
@@ -1783,7 +1777,7 @@ def CMD_sep_BM(don):
 
 # Dans le cas d'une prospection sur un carré, on peut identifier les profils par la première coordonnée
 
-def CMD_detec_profil_carre(don):
+def CMD_detect_profil_carre(don):
     """ [TA]\n
     Detect profiles (or bases) from X coordinates (data without GPS only).\n
     Bases must be marked with negative coordinates.
@@ -1828,7 +1822,7 @@ def CMD_detec_profil_carre(don):
         don.loc[index, "b et p"] = base_nb + prof_nb
     return don.copy()
 
-def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=False):
+def CMD_detect_pseudoprof(don,x_col,y_col,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=False):
     """ [TA]\n
     Given a database with continuous timestamps, estimate profiles by finding one point (called `center`) per profile, possibly at the center.\n
     Each prospection point is then assigned to the closest center in term of index to form pseudo-profiles.\n
@@ -1840,15 +1834,15 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=F
     It is advised to check if the result is coherent by setting ``verif = True``.\n
     If many centers are missing, raise ``tn`` and / or ``tn_c``. On the contrary, lowering them also works.\n
     If you can expect profiles of less than 8 points, try lowering ``min_conseq``. If some profiles are detected twice, you can raise it.\n
-    Profiles found this way are not neccesarely straight. To improve the detection, try setting 
+    Profiles found this way are not neccesarely straight.
     
     Parameters
     ----------
     don : dataframe
         Profile dataframe.
-    X_n : str
+    x_col : str
         Name of X column.
-    Y_n : str
+    y_col : str
         Name of Y column.
     ``[opt]`` l_p : ``None`` or list of [float, float], default : ``None``
         List of points coordinates for segments. If ``None``, perform a linear regression instead.
@@ -1872,7 +1866,7 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=F
     
     See also
     --------
-    ``CMD_init, CMD_detec_profil_carre, CMD_detect_chgt`` 
+    ``CMD_init, CMD_detect_profil_carre, CMD_detect_chgt`` 
     """
     # Pour être propre, on enlève les anciennes colonnes obsolètes
     for label in ["Profile","Base","b et p"]:
@@ -1883,9 +1877,9 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=F
     
     # Colonnes position manquantes
     try:
-        don[X_n], don[Y_n]
+        don[x_col], don[y_col]
     except KeyError:
-        MESS_err_mess('Les colonnes "{}" et/ou "{}" n\'existent pas'.format(X_n,Y_n))
+        MESS_err_mess('Les colonnes "{}" et/ou "{}" n\'existent pas'.format(x_col,y_col))
     
     nb_pts = len(don)
     # Si aucun point n'est spécifié, on prendra la droite de régression comme référence
@@ -1896,8 +1890,8 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=F
     # Régression
     if regr:
         lin_tab_i = np.array(don.index)
-        lin_tab_x = np.array(don[X_n])
-        lin_tab_y = np.array(don[Y_n])
+        lin_tab_x = np.array(don[x_col])
+        lin_tab_y = np.array(don[y_col])
         # X par rapport à l'indice
         lin_reg_x = linregress(lin_tab_i,lin_tab_x)
         # Y par rapport à l'indice
@@ -1908,7 +1902,7 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=F
         
         # Expression de la distance entre un point et la droite, à une constante multiplicative près (bon pour les rapports)
         for index, row in don.iterrows():
-            dist_list.append(np.abs(eq[2]*(row[X_n]-eq[1]) - eq[0]*(row[Y_n]-eq[3])))
+            dist_list.append(np.abs(eq[2]*(row[x_col]-eq[1]) - eq[0]*(row[y_col]-eq[3])))
     # Distance aux segments
     else:
         l_p = np.array(l_p)
@@ -1920,7 +1914,7 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=F
             d_l = []
             # Pour chaque segment, on prend ses deux extrémités a/p1 et b/p2
             for p1,p2 in zip(l_p,l_p[1:]):
-                p3 = np.array([row[X_n],row[Y_n]])
+                p3 = np.array([row[x_col],row[y_col]])
                 ba = p1 - p2
                 lba = np.linalg.norm(ba)
                 bc = p3 - p2
@@ -2029,22 +2023,22 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=F
         ax[0][0].set_ylabel("Distance")
         ax[0][0].set_title("Évolution de la distance à la droite")
         # Axe 2 : Affichage du nuage de point des données, droite/segments et des centres trouvés
-        ax[0][1].plot(don[X_n],don[Y_n],'x')
+        ax[0][1].plot(don[x_col],don[y_col],'x')
         if regr:
             ax[0][1].plot([eq[0]*i+eq[1] for i in index_list],[eq[2]*i+eq[3] for i in index_list],'-k')
         else:
             ax[0][1].plot(l_p[:,0],l_p[:,1],'-k')
-        ax[0][1].plot([don[X_n][index_list[i]] for i in min_list],[don[Y_n][index_list[i]] for i in min_list],'xr')
+        ax[0][1].plot([don[x_col][index_list[i]] for i in min_list],[don[y_col][index_list[i]] for i in min_list],'xr')
         ax[0][1].set_aspect('equal')
-        ax[0][1].set_xlabel(X_n)
-        ax[0][1].set_ylabel(Y_n)
+        ax[0][1].set_xlabel(x_col)
+        ax[0][1].set_ylabel(y_col)
         ax[0][1].set_title("Centres et droite")
         ax[0][1].ticklabel_format(useOffset=False)
         # Axe 2 : Affichage des pseudo-profils finaux, par couleur
-        ax[0][2].scatter(don[X_n],don[Y_n],marker='x',c=don["Profil"]%8, cmap='nipy_spectral')
+        ax[0][2].scatter(don[x_col],don[y_col],marker='x',c=don["Profil"]%8, cmap='nipy_spectral')
         ax[0][2].set_aspect('equal')
-        ax[0][2].set_xlabel(X_n)
-        ax[0][2].set_ylabel(Y_n)
+        ax[0][2].set_xlabel(x_col)
+        ax[0][2].set_ylabel(y_col)
         ax[0][2].set_title("Division en pseudo-profils")
         ax[0][2].ticklabel_format(useOffset=False)
         plt.show(block=False)
@@ -2056,7 +2050,7 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=F
 # fonctionne le 01/01/2025
 # doit être testé avec des données sans GPS et sur plusieurs cas
 
-def CMD_intrp_prof(don_mes,acq_GPS=True):
+def CMD_intrp_prof(don_mes,x_col,y_col):
     """ [JT]\n
     Interpolate groups of points of same coordinates by linear regression.
     Used if the GPS refresh time is slower than the actual prospection.
@@ -2065,8 +2059,10 @@ def CMD_intrp_prof(don_mes,acq_GPS=True):
     ----------
     don : dataframe
         Active dataframe.
-    ``[opt]`` acq_GPS : bool, default : ``True``
-        If got GPS data.
+    x_col : str
+        Name of X column.
+    y_col : str
+        Name of Y column.
     
     Returns
     -------
@@ -2077,10 +2073,7 @@ def CMD_intrp_prof(don_mes,acq_GPS=True):
     ------
     * Profiles not detected.
     """
-    if acq_GPS :
-        colXY=['Easting','Northing']
-    else:
-        colXY=['x[m]','y[m]']
+    colXY=[x_col,y_col]
         
     don_mes['X_int']=0.
     don_mes['Y_int']=0.
@@ -2181,7 +2174,7 @@ def CMD_XY_Nan_completion_old(X,Y):
 
 # Estime la position et le temps des points défectueux à l'aide de ses voisins, si aucun profil n'a pu être détecté.
 
-def CMD_XY_Nan_completion_solo(don):
+def CMD_XY_Nan_completion_solo(don,x_col="X_int",y_col="Y_int"):
     """ [TA]\n
     Estimates ``NaN`` points coordinates by linear regression from neighbors.
     Others are left unchanged.
@@ -2196,6 +2189,10 @@ def CMD_XY_Nan_completion_solo(don):
     ----------
     don : dataframe
         Active dataframe.
+    ``[opt]`` x_col : str, default : ``"X_int"``
+        X column label
+    ``[opt]`` y_col : str, default : ``"Y_int"``
+        Y column label
     
     Returns
     -------
@@ -2206,8 +2203,8 @@ def CMD_XY_Nan_completion_solo(don):
     --------
     ``CMD_init, CMD_XY_Nan_completion``
     """
-    X = don["X_int"]
-    Y = don["Y_int"]
+    X = don[x_col]
+    Y = don[y_col]
     indXNan=X.index[X.isna()]
     indYNan=Y.index[Y.isna()]
     if len(indXNan)<1:
@@ -2228,33 +2225,33 @@ def CMD_XY_Nan_completion_solo(don):
         if bnai[0] == 0: # Bloc au début
             row1 = don.iloc[bnai[-1]+1]
             row2 = don.iloc[bnai[-1]+2]
-            pas_x = row2["X_int"] - row1["X_int"]
-            pas_y = row2["Y_int"] - row1["Y_int"]
-            new_x = [row1["X_int"] - pas_x*i for i in range(1,l_n+1,-1)]
-            new_y = [row1["Y_int"] - pas_y*i for i in range(1,l_n+1,-1)]
+            pas_x = row2[x_col] - row1[x_col]
+            pas_y = row2[y_col] - row1[y_col]
+            new_x = [row1[x_col] - pas_x*i for i in range(1,l_n+1,-1)]
+            new_y = [row1[y_col] - pas_y*i for i in range(1,l_n+1,-1)]
         elif bnai[-1] == len(don)-1: # Bloc à la fin
             row1 = don.iloc[bnai[0]-2]
             row2 = don.iloc[bnai[0]-1]
-            pas_x = row2["X_int"] - row1["X_int"]
-            pas_y = row2["Y_int"] - row1["Y_int"]
-            new_x = [row2["X_int"] + pas_x*i for i in range(1,l_n+1)]
-            new_y = [row2["Y_int"] + pas_y*i for i in range(1,l_n+1)]
+            pas_x = row2[x_col] - row1[x_col]
+            pas_y = row2[y_col] - row1[y_col]
+            new_x = [row2[x_col] + pas_x*i for i in range(1,l_n+1)]
+            new_y = [row2[y_col] + pas_y*i for i in range(1,l_n+1)]
         else: # Cas général
             row1 = don.iloc[bnai[0]-1]
             row2 = don.iloc[bnai[-1]+1]
-            pas_x = (row2["X_int"] - row1["X_int"]) / (l_n+1)
-            pas_y = (row2["Y_int"] - row1["Y_int"]) / (l_n+1)
-            new_x = [row1["X_int"] + pas_x*i for i in range(1,l_n+1)]
-            new_y = [row1["Y_int"] + pas_y*i for i in range(1,l_n+1)]
-        don.loc[bnai, "X_int"] = new_x
-        don.loc[bnai, "Y_int"] = new_y
+            pas_x = (row2[x_col] - row1[x_col]) / (l_n+1)
+            pas_y = (row2[y_col] - row1[y_col]) / (l_n+1)
+            new_x = [row1[x_col] + pas_x*i for i in range(1,l_n+1)]
+            new_y = [row1[y_col] + pas_y*i for i in range(1,l_n+1)]
+        don.loc[bnai, x_col] = new_x
+        don.loc[bnai, y_col] = new_y
     
     print('Valeurs remplacées : {}'.format(len(indXNan)))
     return don.copy()
 
 # Estime la position et le temps des points défectueux à l'aide d'une régression linéaire des points de même profil.
 
-def CMD_XY_Nan_completion(don):
+def CMD_XY_Nan_completion(don,x_col="X_int",y_col="Y_int"):
     """ [TA]\n
     Estimates ``NaN`` points coordinates by linear regression on associated profile.
     Others are left unchanged.
@@ -2270,6 +2267,10 @@ def CMD_XY_Nan_completion(don):
     ----------
     don : dataframe
         Active dataframe.
+    ``[opt]`` x_col : str, default : ``"X_int"``
+        X column label
+    ``[opt]`` y_col : str, default : ``"Y_int"``
+        Y column label
     
     Returns
     -------
@@ -2280,8 +2281,8 @@ def CMD_XY_Nan_completion(don):
     --------
     ``CMD_init, CMD_pts_rectif``
     """
-    X = don["X_int"]
-    Y = don["Y_int"]
+    X = don[x_col]
+    Y = don[y_col]
     indXNan=X.index[X.isna()]
     indYNan=Y.index[Y.isna()]
     if len(indXNan)<1:
@@ -2302,8 +2303,8 @@ def CMD_XY_Nan_completion(don):
     for i_d in ind_aux:
         prof = don.loc[i_d,'b et p']
         bloc = don.loc[don['b et p'] == prof]
-        bloc_notna = bloc.dropna(subset = ["X_int","Y_int"])
-        bloc_na = bloc.loc[bloc.index.difference(bloc.dropna(subset = ["X_int","Y_int"]).index)]
+        bloc_notna = bloc.dropna(subset = [x_col,y_col])
+        bloc_na = bloc.loc[bloc.index.difference(bloc.dropna(subset = [x_col,y_col]).index)]
         bloc_notna_l = bloc_notna.shape[0]
         
         if bloc_notna_l == 1:
@@ -2311,8 +2312,8 @@ def CMD_XY_Nan_completion(don):
         else:
             lin_tab_i = np.array(bloc_notna.index)
             lin_tab1 = np.array(bloc_notna["temps (s)"])
-            lin_tab2 = np.array(bloc_notna["X_int"])
-            lin_tab3 = np.array(bloc_notna["Y_int"])
+            lin_tab2 = np.array(bloc_notna[x_col])
+            lin_tab3 = np.array(bloc_notna[y_col])
             # La régression ne marche pas avec deux points, mais on peut en créer un troisième
             if bloc_notna_l == 2:
                 lin_tab1 = np.concatenate([lin_tab1,[sum(lin_tab1[:,1])/len(lin_tab1[:,1])]])
@@ -2328,9 +2329,9 @@ def CMD_XY_Nan_completion(don):
                 c = lin_reg1.intercept + lin_reg1.slope*index
                 don.loc[index, "temps (s)"] = c
                 c = lin_reg2.intercept + lin_reg2.slope*index
-                don.loc[index, "X_int"] = c
+                don.loc[index, x_col] = c
                 c = lin_reg3.intercept + lin_reg3.slope*index
-                don.loc[index, "Y_int"] = c
+                don.loc[index, y_col] = c
         
     
     print('Valeurs remplacées : {}'.format(len(indXNan)))
@@ -2339,7 +2340,7 @@ def CMD_XY_Nan_completion(don):
 # Estime la position de tous les points à l'aide d'une régression linéaire. On considère alors que la trajectoire lors d'un passage est toujours linéaire.
 # Sert à corriger les erreurs en cosinus du GPS. Attention, part du principe qu'aucun point n'est NaN.
    
-def CMD_pts_rectif(don,ind_deb=None,ind_fin=None):
+def CMD_pts_rectif(don,x_col="X_int",y_col="Y_int",ind_deb=None,ind_fin=None):
     """ [TA]\n
     Estimates all points coordinates of same profile by linear regression.\n
     To be used if the GPS error is too important.
@@ -2353,6 +2354,10 @@ def CMD_pts_rectif(don,ind_deb=None,ind_fin=None):
     ----------
     don : dataframe
         Active dataframe.
+    ``[opt]`` x_col : str, default : ``"X_int"``
+        X column label
+    ``[opt]`` y_col : str, default : ``"Y_int"``
+        Y column label
     ``[opt]`` ind_deb : ``None`` or int, default : ``None``
         Index of first profile to interpolate. ``None`` for all.
     ``[opt]`` ind_fin : ``None`` or int, default : ``None``
@@ -2384,8 +2389,8 @@ def CMD_pts_rectif(don,ind_deb=None,ind_fin=None):
         else:
             lin_tab_i = np.array(bloc.index)
             # lin_tab1 = np.array(bloc["temps (s)"])
-            lin_tab2 = np.array(bloc["X_int"])
-            lin_tab3 = np.array(bloc["Y_int"])
+            lin_tab2 = np.array(bloc[x_col])
+            lin_tab3 = np.array(bloc[y_col])
             # La régression ne marche pas avec deux points, mais on peut en créer un troisième
             if bloc_l == 2:
                 # lin_tab1 = np.concatenate([lin_tab1,[sum(lin_tab1[:,1])/len(lin_tab1[:,1])]])
@@ -2400,9 +2405,9 @@ def CMD_pts_rectif(don,ind_deb=None,ind_fin=None):
                 # c = lin_reg1.intercept + lin_reg1.slope*index
                 # don.loc[index, "temps (s)"] = c
                 c = lin_reg2.intercept + lin_reg2.slope*index
-                don.loc[index, "X_int"] = c
+                don.loc[index, x_col] = c
                 c = lin_reg3.intercept + lin_reg3.slope*index
-                don.loc[index, "Y_int"] = c
+                don.loc[index, y_col] = c
     
     return don.copy()
 
@@ -2532,7 +2537,7 @@ def CMD_dec_voies(don,ncx,ncy,nb_ecarts,TR_l,TR_t,gps_dec):
 
 # Fonction principale de la frontière (si on appelle depuis le terminal).
 
-def CMD_frontiere(col_x,col_y,col_z,file_list=None,sep='\t',output_file="frt.dat",choice=False):
+def CMD_frontiere(col_x,col_y,col_z,file_list=None,choice=False,l_c=None,sep='\t',output_file="frt.dat",plot=False,in_file=False,**kwargs):
     """
     Main function for calibration from borders.\n
     See ``CMD_frontiere_loop`` for more infos.
@@ -2545,30 +2550,49 @@ def CMD_frontiere(col_x,col_y,col_z,file_list=None,sep='\t',output_file="frt.dat
         Index of every Y coordinates columns.
     col_z : list of int
         Index of every Z coordinates columns (actual data).
-    ``[opt]`` file_list : ``None`` or list of str, default : ``None``
-        List of files to process.
+    ``[opt]`` file_list : ``None`` or list of str or dataframe, default : ``None``
+        List of files or loaded dataframes to process.
+    ``[opt]`` choice : bool, default : ``False``
+        Enables manual acceptance of each adjustment.
+    ``[opt]`` l_c : ``None`` or list of list of bool or int, default : ``None``
+        List of decisions (yes = ``1`` or ``True``, no = ``0`` or ``False``) for ``choice``. If ``None``, enables a choice procedure.
     ``[opt]`` sep : str, default : ``'\\t'``
         Dataframe separator.
     ``[opt]`` output_file : ``None`` or str, default : ``None``
         Name of output file. If ``None``, is set to ``"frt.dat"``.
-    ``[opt]`` choice : bool, default : ``False``
-        Enables manual acceptance of each adjustment.
+    ``[opt]`` plot : bool, default : ``False``
+        Enables plotting.
+    ``[opt]`` in_file : bool, default : ``False``
+        If ``True``, save result in a file. If ``False``, return the dataframe.
+    **kwargs
+        Optional arguments for ``calc_frontier`` that are not `already specified (overwritten).
+    
+    Returns
+    -------
+    * ``in_file = True``
+        none, but save dataframe for profiles and bases in separated .dat
+    * ``in_file = False``
+        ls_mes : list of dataframe
+            List of output dataframes.
     
     See also
     --------
     ``CMD_frontiere_loop, TOOL_check_time_date, TOOL_true_file_list``
     """
-    file_list = TOOL_true_file_list(file_list)
-    df_list = []
-    # Chargement des données
-    for ic, file in enumerate(file_list):
-        df = TOOL_check_time_date(file,sep)
-        df_list.append(df)
+    if file_list == None and isinstance(file_list[0],str):
+        file_list = TOOL_true_file_list(file_list)
+        # Chargement des données
+        df_list = []
+        for ic, file in enumerate(file_list):
+            df = TOOL_check_time_date(file,sep)
+            df_list.append(df)
+    else:
+        df_list = file_list
     
     # On obtient les informations relatives aux colonnes
     ncx, ncy, nc_data, nb_data, nb_ecarts, nb_res = TOOL_manage_cols(df_list[0],col_x,col_y,col_z)
     # La procédure se fait dans une autre fonction
-    CMD_frontiere_loop(df_list,ncx,ncy,nc_data,nb_data,nb_ecarts,nb_res,choice,None,sep,output_file,plot=True,in_file=True)
+    return CMD_frontiere_loop(df_list,ncx,ncy,nc_data,nb_data,nb_ecarts,nb_res,choice,l_c,sep,output_file,plot,in_file,**kwargs)
 
 # Boucle sur tous les duos de fichiers et essaie d'établir une frontière. Si elle existe, calcule les ajustements.
 
@@ -2598,7 +2622,7 @@ def CMD_frontiere_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_ecarts,nb_res,choice=Fa
         The number of data per coil.
     ``[opt]`` choice : bool, default : ``False``
         Enables manual acceptance of each adjustment.
-    ``[opt]`` l_c : ``None`` or list of bool or int, default : ``None``
+    ``[opt]`` l_c : ``None`` or list of list of bool or int, default : ``None``
         List of decisions (yes = ``1`` or ``True``, no = ``0`` or ``False``) for ``choice``. If ``None``, enables a choice procedure.
     ``[opt]`` sep : str, default : ``'\\t'``
         Dataframe separator.
@@ -2634,6 +2658,9 @@ def CMD_frontiere_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_ecarts,nb_res,choice=Fa
         for c in l_c:
             if len(c) != nb_data:
                 MESS_err_mess("Toute sous-liste de 'l_c' doit être de taille {}, pas {}".format(nb_data,len(c)))
+    # Indexation de None
+    if l_c == None:
+        l_c = [None for i in range(len(ls_mes)-1)]
     
     # Liste des indices des fichiers à ajuster
     don_to_corr = [i for i in range(1,len(ls_mes))]
@@ -2641,6 +2668,7 @@ def CMD_frontiere_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_ecarts,nb_res,choice=Fa
     don_corr = [0]
     # Flag de fin de boucle
     is_corr_done = False
+    cpt = 0 # Uniquement pour 'l_c'
     while is_corr_done == False:
         don_corr_copy = don_corr.copy()
         for i in don_corr_copy:
@@ -2650,11 +2678,12 @@ def CMD_frontiere_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_ecarts,nb_res,choice=Fa
                 # print(ls_mes[i])
                 # print("---------------------------")
                 # print(ls_mes[j])
-                ls_mes[j], done = CMD_calc_frontiere(ls_mes[i], ls_mes[j], ncx, ncy, nc_data, nb_res, nb_ecarts, choice, l_c, **kwargs)
+                ls_mes[j], done = CMD_calc_frontiere(ls_mes[i], ls_mes[j], ncx, ncy, nc_data, nb_res, nb_ecarts, choice, l_c[cpt], **kwargs)
                 # Une frontière a bien été trouvé si done = True
                 if done:
                     don_to_corr.remove(j)
                     don_corr.append(j)
+                    cpt += 1
             don_corr.remove(i)
             # Fin 1 : Tous les fichiers ont été ajustés
             if len(don_to_corr) == 0:
@@ -2780,8 +2809,8 @@ def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,choice=False,l
             fig,ax=plt.subplots(nrows=1,ncols=1,figsize=(9,9))
             ax.plot(x1,y1,'+r',alpha=0.3)
             ax.plot(x2,y2,'+y',alpha=0.3)
-            ax.set_xlabel(ncx)
-            ax.set_ylabel(ncy)
+            ax.set_xlabel(ncx[e])
+            ax.set_ylabel(ncy[e])
             ax.set_aspect('equal')
         
         d_moy = 0
@@ -2817,6 +2846,10 @@ def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,choice=False,l
         if d_moy > d_caract*tol_inter or d_max < d_caract*tol_intra:
             return don2.copy(), False
         
+        # On a trouvé une frontière !
+        if l_c == None:
+            print("----------------------------- FRONTIER -----------------------------")
+        
         # Calcul de la différence / écart-type
         #data2[dat_to_test] = [x+0 for x in data2[dat_to_test]]
         diff = []
@@ -2830,36 +2863,36 @@ def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,choice=False,l
         
         # Sélection dynamique de l'ajustement
         if choice:
-            print("----------------------------- FRONTIERE -----------------------------")
             i = 0
             while i < nb_res:
-                fig,ax=plt.subplots(nrows=2,ncols=1,figsize=(CONFIG.fig_height,CONFIG.fig_width))
-                testouh = don1[nc_data[curr_e+i]].tolist() + don2[nc_data[curr_e+i]].tolist()
-                Q = np.quantile(testouh,[0.05,0.95])
-                sc1 = ax[0].scatter(x1+x2,y1+y2,marker='8',s=m_size,c=testouh,cmap='cividis',vmin=Q[0],vmax=Q[1])
-                ax[0].title.set_text('Avant')
-                ax[0].set_xlabel(ncx[e])
-                ax[0].set_ylabel(ncy[e])
-                ax[0].set_aspect('equal')
-                cbar = plt.colorbar(sc1,ax=ax[0])
-                cbar.set_label(nc_data[curr_e+i], rotation=270, labelpad=15)
-                
+                # Application de la transformation
                 new_don2 = (don2[nc_data[curr_e+i]]*mult[i] + diff[i]).round(CONFIG.prec_data)
-            
-                testouh = don1[nc_data[curr_e+i]].tolist() + new_don2.tolist()
-                Q = np.quantile(testouh,[0.05,0.95])
-                sc2 = ax[1].scatter(x1+x2,y1+y2,marker='8',s=m_size,c=testouh,cmap='cividis',vmin=Q[0],vmax=Q[1])
-                ax[1].title.set_text('Après')
-                ax[1].set_xlabel(ncx[e])
-                ax[1].set_ylabel(ncy[e])
-                ax[1].set_aspect('equal')
-                cbar = plt.colorbar(sc2,ax=ax[1])
-                cbar.set_label(nc_data[curr_e+i], rotation=270, labelpad=15)
-                plt.show(block=False)
-                plt.pause(CONFIG.fig_render_time) # À augmenter si la figure ne s'affiche pas, sinon on pourra le baisser pour accélérer la vitesse de l'input
                 
                 # Cas classique
                 if l_c == None:
+                    fig,ax=plt.subplots(nrows=2,ncols=1,figsize=(CONFIG.fig_height,CONFIG.fig_width))
+                    testouh = don1[nc_data[curr_e+i]].tolist() + don2[nc_data[curr_e+i]].tolist()
+                    Q = np.quantile(testouh,[0.05,0.95])
+                    sc1 = ax[0].scatter(x1+x2,y1+y2,marker='8',s=m_size,c=testouh,cmap='cividis',vmin=Q[0],vmax=Q[1])
+                    ax[0].title.set_text('Avant')
+                    ax[0].set_xlabel(ncx[e])
+                    ax[0].set_ylabel(ncy[e])
+                    ax[0].set_aspect('equal')
+                    cbar = plt.colorbar(sc1,ax=ax[0])
+                    cbar.set_label(nc_data[curr_e+i], rotation=270, labelpad=15)
+                
+                    testouh = don1[nc_data[curr_e+i]].tolist() + new_don2.tolist()
+                    Q = np.quantile(testouh,[0.05,0.95])
+                    sc2 = ax[1].scatter(x1+x2,y1+y2,marker='8',s=m_size,c=testouh,cmap='cividis',vmin=Q[0],vmax=Q[1])
+                    ax[1].title.set_text('Après')
+                    ax[1].set_xlabel(ncx[e])
+                    ax[1].set_ylabel(ncy[e])
+                    ax[1].set_aspect('equal')
+                    cbar = plt.colorbar(sc2,ax=ax[1])
+                    cbar.set_label(nc_data[curr_e+i], rotation=270, labelpad=15)
+                    plt.show(block=False)
+                    plt.pause(CONFIG.fig_render_time) # À augmenter si la figure ne s'affiche pas, sinon on pourra le baisser pour accélérer la vitesse de l'input
+                
                     correct = False
                     while correct == False:
                         if GUI:
@@ -2897,12 +2930,12 @@ def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,choice=False,l
                             correct = True
                         else:
                             MESS_warn_mess("Réponse non reconnue !")
+                    plt.close(fig)
                 # Si on a listé les réponses au préalable
                 else:
                     if l_c[i]:
                         don2.loc[:,nc_data[curr_e+i]] = new_don2
                     i += 1
-                plt.close(fig)
         
         # DEBUG : Affichage d'une donnée avec une déformation manuelle
         else:
@@ -3093,7 +3126,7 @@ def CMD_compute_coeff(col1,col2,excl1,excl2):
 # Fonction principale de l'étalonnage par base
 
 def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,output_file_list=None,nb_ecarts=1,\
-                     diff=True,auto_adjust=True,man_adjust=False,l_m=None,line=False,verif=False,in_file=False):
+                     diff=True,base_adjust=True,man_adjust=False,l_m=None,line=False,plot=False,in_file=False):
     """ [TA]\n
     Main function for profile calibration from bases.\n
     See ``CMD_evol_profils_solo`` for more infos.
@@ -3101,7 +3134,7 @@ def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
     Notes
     -----
     Each file is managed separately.\n
-    If ``auto_adjust = False``, ignore ``file_base_list``.
+    If ``base_adjust = False``, ignore ``file_base_list``.
     
     Parameters
     ----------
@@ -3121,7 +3154,7 @@ def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
         Number of X and Y columns. The number of coils.
     ``[opt]`` diff : bool, default : ``True``
         Define which adjustment method (difference or ratio) is used.
-    ``[opt]`` auto_adjust : bool, default : ``True``
+    ``[opt]`` base_adjust : bool, default : ``True``
         Enables the first step.
     ``[opt]`` man_adjust : bool, default : ``False``
         Enables the second step.
@@ -3129,7 +3162,7 @@ def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
         List of decisions (strings) for ``man_adjust``, orderd by 'file_prof_list'. If ``None``, enables a choice procedure.
     ``[opt]`` line : bool, default : ``False``
         Shows lines between profiles. Makes the visualization easier.
-    ``[opt]`` verif : bool, default : ``False``
+    ``[opt]`` plot : bool, default : ``False``
         Enables plotting.
     ``[opt]`` in_file : bool, default : ``False``
         If ``True``, save result in a file. If ``False``, return the dataframe.
@@ -3159,7 +3192,7 @@ def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
         file_base_list = [file_base_list]
     
     # Vérifier que les données sont cohérentes entre elles
-    if auto_adjust and len(file_prof_list) != len(file_base_list):
+    if base_adjust and len(file_prof_list) != len(file_base_list):
         MESS_err_mess("Le nombre de fichiers profil ({}) et base ({}) ne correspondent pas".format(len(file_prof_list),len(file_base_list)))
     if not replace and output_file_list != None and len(file_prof_list) != len(output_file_list):
         MESS_err_mess("Le nombre de fichiers profil ({}) et résultat ({}) ne correspondent pas".format(len(file_prof_list),len(output_file_list)))
@@ -3170,6 +3203,7 @@ def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
             MESS_err_mess("'l_m' doit être de taille {}, pas {}".format(len(file_prof_list),len(l_m)))
     
     # Pour chaque fichier/dataframe
+    res_list = []
     for i,file in enumerate(file_prof_list):
         if isinstance(file,str):
             # Chargement des données profils
@@ -3178,7 +3212,7 @@ def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
         else:
             data_prof = file
             label = str(i+1)
-        if auto_adjust:
+        if base_adjust:
             if isinstance(file_base_list[i],str):
                 # Chargement des données bases
                 data_base = TOOL_check_time_date(file_base_list[i],sep)
@@ -3194,10 +3228,10 @@ def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
             l_m_ = None
         
         # Procédure
-        res = CMD_evol_profils_solo(data_prof,data_base,label,col_z,nb_ecarts,diff,auto_adjust,man_adjust,l_m_,verif,line)
+        res = CMD_evol_profils_solo(data_prof,data_base,label,col_z,nb_ecarts,diff,base_adjust,man_adjust,l_m_,plot,line)
         
         if not in_file:
-            file = res
+            res_list.append(res)
         # Résultat enregistré en .dat (option)
         else:
             if replace:
@@ -3208,23 +3242,23 @@ def CMD_evol_profils(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
                 res.to_csv(output_file_list[i], index=False, sep=sep)
     # Sortie des dataframes (option)
     if not in_file:
-        return file_prof_list
+        return res_list
 
 # Détecte le décalage des données en fonction du temps grace à la base, puis propose une correction.
 # Correction par différence si diff=True, sinon correction par proportion.
 
-def CMD_evol_profils_solo(prof,bas,nom_fich,col_z,nb_ecarts,diff=True,auto_adjust=True,man_adjust=False,l_m=None,verif=False,line=False):
+def CMD_evol_profils_solo(prof,bas,nom_fich,col_z,nb_ecarts,diff=True,base_adjust=True,man_adjust=False,l_m=None,plot=False,line=False):
     """ [TA]\n
     Given a profile database and an associated base database, perform profile calibration by alignment of bases (bases are supposed to give the same value each time).\n
     The operation is performed by difference, but it is also possible to perform it by multiplication (ratio).\n
     It is possible to request the rectification of profile blocks if other imperfections are visible, using ``man_adjust = True``.\n
-    If you only want to perform this operation, you can disable the first step using the ``auto_adjust = False``.
+    If you only want to perform this operation, you can disable the first step using the ``base_adjust = False``.
     
     Notes
     -----
     If used as a standalone, plots every step.\n
-    If ``auto_adjust = False``, ignore ``bas``.\n
-    If both ``man_adjust`` and ``auto_adjust`` are set to false, nothing happens.
+    If ``base_adjust = False``, ignore ``bas``.\n
+    If both ``man_adjust`` and ``base_adjust`` are set to false, nothing happens.
     
     Parameters
     ----------
@@ -3240,13 +3274,13 @@ def CMD_evol_profils_solo(prof,bas,nom_fich,col_z,nb_ecarts,diff=True,auto_adjus
         Number of X and Y columns. The number of coils.
     ``[opt]`` diff : bool, default : ``True``
         Define which adjustment method (difference or ratio) is used.
-    ``[opt]`` auto_adjust : bool, default : ``True``
+    ``[opt]`` base_adjust : bool, default : ``True``
         Enables the first step.
     ``[opt]`` man_adjust : bool, default : ``False``
         Enables the second step.
     ``[opt]`` l_m : ``None`` or list of str, default : ``None``
         List of decisions (strings) for ``man_adjust``. If ``None``, enables a choice procedure.
-    ``[opt]`` verif : bool, default : ``False``
+    ``[opt]`` plot : bool, default : ``False``
         Enables plotting.
     ``[opt]`` line : bool, default : ``False``
         Shows lines between profiles. Makes the visualization easier.
@@ -3303,7 +3337,7 @@ def CMD_evol_profils_solo(prof,bas,nom_fich,col_z,nb_ecarts,diff=True,auto_adjus
             prof_med[j,i] = prof[col_names[j]].median()
     index_list.append(None)
     
-    if auto_adjust:
+    if base_adjust:
         # Si la colonne 'Base' n'existe pas, le fichier n'est pas interpolé ou invalide
         try:
             base_deb = bas['Base'].iat[0]
@@ -3323,7 +3357,7 @@ def CMD_evol_profils_solo(prof,bas,nom_fich,col_z,nb_ecarts,diff=True,auto_adjus
                 base_med[j,i] = base[col_names[j]].median()
         
         # Plot des médianes des données initiales
-        if verif:
+        if plot:
             fig,ax = plt.subplots(nrows=1,ncols=nb_res,figsize=(nb_res*CONFIG.fig_width//2,CONFIG.fig_height),squeeze=False)
             if diff:
                 for j in range(nb_data):
@@ -3355,22 +3389,13 @@ def CMD_evol_profils_solo(prof,bas,nom_fich,col_z,nb_ecarts,diff=True,auto_adjus
         #     don.loc[:, col_names[Cond]] = (don.loc[:, col_names[Cond]] - base_med[Cond,0]).round(CONFIG.prec_data)
         
         #Ajustement par base
-        print("prof_l = ",prof_l)
-        prev_base_fact = 0
-        prev_base_first = 0
-        prev_prof_fact = 0
-        aj = 0
+        prev_base_fact = [[base_med[j,k] - base_med[j,0] for k in range(len(base_bp))] for j in range(nb_data)]
         for i in range(prof_l):
             prof = don[don["Profil"] == i+prof_deb]
             r = prof["b et p"].iat[0]
             k = 0
             while k < base_l and base_bp[k] < r:
                 k = k+1
-            
-            if k != prev_base_first:
-                prev_base_first = k
-                prev_base_fact += prev_prof_fact
-            prev_prof_fact = aj
             
             # Gestion des cas début/fin
             av = k-1
@@ -3387,10 +3412,10 @@ def CMD_evol_profils_solo(prof,bas,nom_fich,col_z,nb_ecarts,diff=True,auto_adjus
                 # Affectation de la valeur après ajustement
                 if diff:
                     aj = fact*(base_med[j,ap]-base_med[j,av])
-                    new_val = prof[col_names[j]] - aj - prev_base_fact
+                    new_val = prof[col_names[j]] - aj - prev_base_fact[j][av]
                 else:
-                    aj = (fact*base_med[j,ap] + (1-fact)*base_med[j,av]) + prev_base_fact
-                    new_val = prof[col_names[j]]/aj - prev_base_fact
+                    aj = (fact*base_med[j,ap] + (1-fact)*base_med[j,av])
+                    new_val = prof[col_names[j]]/aj - prev_base_fact[j][av]
                 if index_list[i+1] != None:
                     temp = don.loc[index_list[i+1]][col_names[j]]
                 don.loc[index_list[i]:index_list[i+1], col_names[j]] = new_val.round(CONFIG.prec_data)
@@ -3403,40 +3428,44 @@ def CMD_evol_profils_solo(prof,bas,nom_fich,col_z,nb_ecarts,diff=True,auto_adjus
             for j in range(nb_data):
                 prof_med[j,i] = prof[col_names[j]].median()
     
-    if verif or man_adjust:
+    if plot or man_adjust:
+        cpt = 0 # Uniquement pour 'l_m'
         correct = False
         while correct == False:
             # Plot des médianes des données après ajusement par base (si il a eu lieu)
-            fig,ax = plt.subplots(nrows=1,ncols=nb_res,figsize=(nb_res*CONFIG.fig_width//2,CONFIG.fig_height),squeeze=False)
-            if diff:
-                for j in range(nb_data):
-                    ax[0][j%nb_res].plot(prof_bp,(prof_med[j]-prof_med[j,0]),mrk,label=col_names[j]+" (profil)",color=color[int(j/nb_res)])
-                    ax[0][j%nb_res].set_xlabel("Profil")
-                    ax[0][j%nb_res].set_ylabel("Valeur en diff .avec la première")
-                    ax[0][j%nb_res].grid(axis="x")
-                    ax[0][j%nb_res].legend()
-    
-            else:
-                for j in range(nb_data):
-                    ax[0][j%nb_res].plot(prof_bp,prof_med[j]/max(prof_med[j]),mrk,label=col_names[j]+" (profil)",color=color[int(j/nb_res)])
-                    ax[0][j%nb_res].set_xlabel("Profil")
-                    ax[0][j%nb_res].set_ylabel("Valeur en prop. du max")
-                    ax[0][j%nb_res].grid(axis="x")
-                    ax[0][j%nb_res].legend()
-            if auto_adjust:
-                fig.suptitle(nom_fich+" (données redressées)")
-            else:
-                fig.suptitle(nom_fich)
-            plt.show(block=False)
-            plt.pause(CONFIG.fig_render_time) # À augmenter si la figure ne s'affiche pas, sinon on pourra le baisser pour accélérer la vitesse de l'input
+            if l_m == None:
+                fig,ax = plt.subplots(nrows=1,ncols=nb_res,figsize=(nb_res*CONFIG.fig_width//2,CONFIG.fig_height),squeeze=False)
+                if diff:
+                    for j in range(nb_data):
+                        ax[0][j%nb_res].plot(prof_bp,(prof_med[j]-prof_med[j,0]),mrk,label=col_names[j]+" (profil)",color=color[int(j/nb_res)])
+                        ax[0][j%nb_res].set_xlabel("Profil")
+                        ax[0][j%nb_res].set_ylabel("Valeur en diff .avec la première")
+                        ax[0][j%nb_res].grid(axis="x")
+                        ax[0][j%nb_res].legend()
+        
+                else:
+                    for j in range(nb_data):
+                        ax[0][j%nb_res].plot(prof_bp,prof_med[j]/max(prof_med[j]),mrk,label=col_names[j]+" (profil)",color=color[int(j/nb_res)])
+                        ax[0][j%nb_res].set_xlabel("Profil")
+                        ax[0][j%nb_res].set_ylabel("Valeur en prop. du max")
+                        ax[0][j%nb_res].grid(axis="x")
+                        ax[0][j%nb_res].legend()
+                if base_adjust:
+                    fig.suptitle(nom_fich+" (données redressées)")
+                else:
+                    fig.suptitle(nom_fich)
+                plt.show(block=False)
+                plt.pause(CONFIG.fig_render_time) # À augmenter si la figure ne s'affiche pas, sinon on pourra le baisser pour accélérer la vitesse de l'input
             
             # Ajustement manuel
-            cpt = 0 # Uniquement pour 'l_m'
             if man_adjust:
                 try:
                     if l_m != None:
-                        inp = l_m[cpt]
-                        cpt += 1
+                        try:
+                            inp = l_m[cpt]
+                            cpt += 1
+                        except IndexError:
+                            inp = "n"
                     elif GUI:
                         MESS_input_GUI(["Sélectionner les bornes du bloc de profils à corriger, puis l'indice des colonnes concernées.",
                                        "Cette procédure se relance automatiquement, faites un bloc à la fois.",
@@ -3517,15 +3546,34 @@ def CMD_evol_profils_solo(prof,bas,nom_fich,col_z,nb_ecarts,diff=True,auto_adjus
                     if l_m == None:
                         MESS_warn_mess("Réponse non reconnue !")
                     else:
-                        MESS_err_mess("'l_m' = {} : Réponse non reconnue !".format(l_m[cpt]))
+                        MESS_err_mess("'l_m' = {} : Réponse non reconnue !".format(l_m[cpt-1]))
                 except IndexError:
                     if l_m == None:
                         MESS_warn_mess("Un des profils {} n'existe pas !".format(id_prof))
                     else:
-                        MESS_err_mess("'l_m' = {} : Un des profils n'existe pas !".format(l_m[cpt]))
+                        MESS_err_mess("'l_m' = {} : Un des profils n'existe pas !".format(l_m[cpt-1]))
                 plt.close()
             else:
                 correct = True
+    
+    # Affichage final si on a automatisé l'ajustement manuel
+    if man_adjust and plot and l_m != None:
+        fig,ax = plt.subplots(nrows=1,ncols=nb_res,figsize=(nb_res*CONFIG.fig_width//2,CONFIG.fig_height),squeeze=False)
+        if diff:
+            for j in range(nb_data):
+                ax[0][j%nb_res].plot(prof_bp,(prof_med[j]-prof_med[j,0]),mrk,label=col_names[j]+" (profil)",color=color[int(j/nb_res)])
+                ax[0][j%nb_res].set_xlabel("Profil")
+                ax[0][j%nb_res].set_ylabel("Valeur en diff .avec la première")
+                ax[0][j%nb_res].grid(axis="x")
+                ax[0][j%nb_res].legend()
+
+        else:
+            for j in range(nb_data):
+                ax[0][j%nb_res].plot(prof_bp,prof_med[j]/max(prof_med[j]),mrk,label=col_names[j]+" (profil)",color=color[int(j/nb_res)])
+                ax[0][j%nb_res].set_xlabel("Profil")
+                ax[0][j%nb_res].set_ylabel("Valeur en prop. du max")
+                ax[0][j%nb_res].grid(axis="x")
+                ax[0][j%nb_res].legend()
     
     # Sortie du dataframe ajusté
     return don.copy()
@@ -3576,7 +3624,7 @@ def CMD_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_type=N
     ``'RBF_multiquadric'``, ``'RBF_inverse_multiquadric'``, ``'RBF_inverse_quadratic'``, ``'RBF_gaussian'``}, default : ``None``
         Interpolation method from scipy. If ``None``, will ask the user.
     ``[opt]`` only_nan : bool, default : ``True``
-        If ``True``, tiles that contains at least one point are always kept. If ``False``, will remove those that are too eccentric.
+        If ``True``, tiles that contain at least one point are always kept. If ``False``, will remove those that are too eccentric.
     ``[opt]`` no_crop : bool, default : ``False``
         If dataframe must be cropped to 1000 points for kriging.
     ``[opt]`` all_models : bool, default : ``False``
@@ -3714,7 +3762,7 @@ def CMD_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_type=N
     
     # Krigeage : Calcul
     if m_type == 'k':
-        grid_k = CMD_kriging(don,ncx,ncy,ext,pxy,col_T,nb_data,nb_ecarts,nb_res,all_models,l_d,l_e,l_t,l_c,verif=False)
+        grid_k = CMD_kriging(don,ncx,ncy,ext,pxy,col_T,nb_data,nb_ecarts,nb_res,all_models,l_d,l_e,l_t,l_c,verif=True)
         grid_k_final = np.array([[[np.nan for j in range(pxy[1])] for i in range(pxy[0])] for n in range(nb_data)])
         for e in range(nb_ecarts):
             for j in range(pxy[1]):
@@ -3801,7 +3849,7 @@ def CMD_dat_to_grid(don,ncx,ncy,nb_ecarts,nb_res,radius=0,prec=100,step=None,seu
     ``[opt]`` seuil : float, default : ``0.0``
         Exponent of the function used to compute the detection window coefficients. If negative, will be set to 0 but widen the acceptance.
     ``[opt]`` only_nan : bool, default : ``True``
-        If ``True``, tiles that contains at least one point are always kept. If ``False``, will remove those that are too eccentric.
+        If ``True``, tiles that contain at least one point are always kept. If ``False``, will remove those that are too eccentric.
     ``[opt]`` heatmap : bool, default : ``False``
         If we compute the heatmap instead of the regular grid.
     ``[opt]`` verif : bool, default : ``False``
@@ -3874,7 +3922,7 @@ def CMD_dat_to_grid(don,ncx,ncy,nb_ecarts,nb_res,radius=0,prec=100,step=None,seu
     # Grille d'interpolation vide
     grid = np.array([[[0 for i in range(prec_X)] for j in range(prec_Y)] for e in range(nb_ecarts)])
     
-    # On associe à chaque case le nombre de points s'y trouvant (avec le critère actuel, seul la présence d'au moinsun point compte)
+    # On associe à chaque case le nombre de points s'y trouvant (avec le critère actuel, seul la présence d'au moins un point compte)
     for ind, row in don.iterrows():
         for e in range(nb_ecarts):
             curr_x = row[ncx[e]]
@@ -3931,27 +3979,26 @@ def CMD_dat_to_grid(don,ncx,ncy,nb_ecarts,nb_res,radius=0,prec=100,step=None,seu
             print("Step(2)")
         # Grille d'interpolation vide
         grid_final = np.array([[[np.nan for i in range(prec_X)] for j in range(prec_Y)] for e in range(nb_ecarts)])
-        if radius > 0:
-            for e in range(nb_ecarts):
-                for j in range(prec_Y):
-                    for i in range(prec_X):
-                        coeff = 0
-                        # Si toute case comprenant au moins un point doit être laissée pleine peut importe son score de densité
-                        if grid[e,j,i] != 0 and only_nan:
+        for e in range(nb_ecarts):
+            for j in range(prec_Y):
+                for i in range(prec_X):
+                    coeff = 0
+                    # Si toute case comprenant au moins un point doit être laissée pleine peut importe son score de densité
+                    if grid[e,j,i] != 0 and only_nan:
+                        grid_final[e,j,i] = 0
+                    else:
+                        # Calcul de densité
+                        for gc in grid_conv:
+                            n_j = j+gc[0]
+                            n_i = i+gc[1]
+                            if n_j >= 0 and n_j < prec_Y and n_i >= 0 and n_i < prec_X:
+                                # Si une case adjacente est non vide, elle compte dans le calcul
+                                if grid[e,n_j,n_i] != 0:
+                                    coeff += gc[2]
+                        # Acceptation de la case (0 = oui, NaN = non)
+                        if coeff > quot:
                             grid_final[e,j,i] = 0
-                        else:
-                            # Calcul de densité
-                            for gc in grid_conv:
-                                n_j = j+gc[0]
-                                n_i = i+gc[1]
-                                if n_j >= 0 and n_j < prec_Y and n_i >= 0 and n_i < prec_X:
-                                    # Si une case adjacente est non vide, elle compte dans le calcul
-                                    if grid[e,n_j,n_i] != 0:
-                                        coeff += gc[2]
-                            # Acceptation de la case (0 = oui, NaN = non)
-                            if coeff > quot:
-                                grid_final[e,j,i] = 0
-    
+
     return grid_final, [min_X,max_X,min_Y,max_Y], [prec_X,prec_Y]
 
 # Calcul de la grille de coefficients
@@ -4280,7 +4327,7 @@ def CMD_kriging(don,ncx,ncy,ext,pxy,nc_data,nb_data,nb_ecarts,nb_res,all_models=
     pas_X = diff_X/prec_X
     pas_Y = diff_Y/prec_Y
 
-    # Le setLocator ne marche pas si le nom de la colonne contient des catactères spéciaux : renommage par indice
+    # Le setLocator ne marche pas si le nom de la colonne contient des caractères spéciaux : renommage par indice
     for n in range(nb_data):
         don.rename(columns={nc_data[n]: "c"+str(n)},inplace=True)
         
@@ -4442,7 +4489,7 @@ def CMD_variog_dir_params(dat,l_d=None,l_e=None):
             # Si on veut deux directions (marche pas) ou non
             if l_d != None:
                 try:
-                    inp = ["y","n"][l_d]
+                    inp = ["n","y"][l_d]
                 except:
                     MESS_err_mess("'l_d' = {} : Réponse non reconnue !".format(l_d))
             elif GUI:
@@ -4487,10 +4534,10 @@ def CMD_variog_dir_params(dat,l_d=None,l_e=None):
         #fig.varmod(variodir, flagLegend=True)
         plt.show(block=False)
         plt.pause(CONFIG.fig_render_time) # À augmenter si la figure ne s'affiche pas, sinon on pourra le baisser pour accélérer la vitesse de l'input
-        print(variodir)
         
         # Si le modèle est correct
         if l_d == None or l_e == None:
+            print(variodir)
             correct = False
             while correct == False:
                 if GUI:
@@ -4545,7 +4592,7 @@ def CMD_variog_dir_params_choice(varioParamMulti,n=1,l_e=None):
     
     See also
     --------
-    ``CMD_variog_dir_params, gstlearn.DirParam``
+    ``CMD_variog_dir_params, gstlearn.DirParam``\n
     https://soft.minesparis.psl.eu/gstlearn/1.7.2/doxygen/classDirParam.html
     """
     angle = []
@@ -4665,7 +4712,7 @@ def CMD_variog_fit(variodir,all_models=False,l_t=None,l_c=None):
     Notes
     -----
     Subfunction of ``CMD_variog``.
-    Constants starts with a ``_`` and their order correspond the the built-in index of each gstlearn component. It should not be modified.
+    Constants starts with a ``_`` and their order correspond to the built-in index of each gstlearn component. It should not be modified.
     
     See also
     --------
@@ -4694,6 +4741,10 @@ def CMD_variog_fit(variodir,all_models=False,l_t=None,l_c=None):
     type_choice=[False for i in range(nb_models)]
     types_list = []
     constr_list = []
+    
+    # Cas de sélection dynamique pour autoriser l'indexation)
+    if l_c == None:
+        l_c = [None]
     
     # Choix du modèle de variogramme
     cpt = -1 # Uniquement pour 'l_t'
@@ -4744,8 +4795,9 @@ def CMD_variog_fit(variodir,all_models=False,l_t=None,l_c=None):
             plt.cla()
             fitmod = gl.Model()
             fitmod.fit(variodir,types=types, constraints=constraints)
+            print(l_t, l_c)
             # Si le modèle est correct
-            if l_t == None and l_c == None:
+            if l_t == None and l_c[0] == None:
                 gp.varmod(variodir, fitmod, flagLegend=True).figure.set_size_inches(CONFIG.fig_width, CONFIG.fig_height)
                 gp.decoration(title="Modèle VS Vario expé")
                 plt.show(block=False)
@@ -4782,9 +4834,7 @@ def CMD_variog_fit(variodir,all_models=False,l_t=None,l_c=None):
             try:
                 inp_id = int(inp)
                 type_choice[inp_id] = not type_choice[inp_id]
-                # Cas de sélection dynamique
-                if l_c == None:
-                    l_c = [None]
+                
                 # Ajout d'un modèle
                 if type_choice[inp_id]:
                     types_list.append(inp_id)
@@ -4800,12 +4850,14 @@ def CMD_variog_fit(variodir,all_models=False,l_t=None,l_c=None):
                             new_l.append(e)
                     constr_list = new_l
                 #print(constr_list)
-            except KeyError:
+            except:
                 if l_t == None:
                     MESS_warn_mess("Réponse non reconnue !")
                 else:
                     MESS_err_mess("'l_t' = {} : Réponse non reconnue !".format(l_t[cpt]))
-    print(fitmod)
+    
+    if l_t == None or l_c[0] == None:
+        print(fitmod)
     return fitmod
     
 # Fait le choix des contraintes sur les modèles
@@ -4832,7 +4884,7 @@ def CMD_variog_constraints(var_id,l_c=None):
     Notes
     -----
     Subfunction of ``CMD_variog_fit``\n
-    Constants starts with a ``_`` and their order correspond the the built-in index of each gstlearn component. It should not be modified.\n
+    Constants starts with a ``_`` and their order correspond to the built-in index of each gstlearn component. It should not be modified.\n
     Some 'advanced' models are apparently not fonctionnal and kill the kernel.
     In particular, if a model is marked as accepting all constraints, it means that it crashes the kernel (in all known cases).
     
@@ -4872,9 +4924,10 @@ def CMD_variog_constraints(var_id,l_c=None):
                 # Valeur de la contrainte
                 inp3 = float(l_c[2])
                 constr_list.append([var_id,inp1-1,inp2,inp3])
+                cpt += 1
             except:
                 MESS_err_mess("'l_c' = {} : Certains champs sont invalides".format(l_c[cpt]))
-    if GUI:
+    elif GUI:
         correct = False
         while correct == False:
             MESS_input_GUI(dispo_list[:2]+["~r~ " +re.split(r" : ",d)[1] for d in dispo_list[3:]]+["","Choix de la contrainte (type)",
@@ -5047,7 +5100,7 @@ def CMD_grid_plot(don,grid_final,ncx,ncy,ext,pxy,nc_data,nb_ecarts,nb_res,output
 
 # Effectue la transformation du signal en données géophysique
 
-def CMD_calibration(uid,col_ph,col_qu,file_list=None,eff_sigma=True,sep='\t',output_file_list=None,in_file=False):
+def CMD_calibration(uid,col_ph,col_qu,file_list=None,eff_sigma=True,show_steps=True,sep='\t',output_file_list=None,in_file=False):
     """ [TA]\n
     Given two arrays ``X`` and ``Y``, compute the coefficients of the chosen regression.\n
     To be used in the context of finding a formula for a physical relation.
@@ -5064,6 +5117,8 @@ def CMD_calibration(uid,col_ph,col_qu,file_list=None,eff_sigma=True,sep='\t',out
         List of files to process.
     ``[opt]`` eff_sigma : str, default : ``True``
         If we remove the computed effect of sigma for inphase signal.
+    ``[opt]`` show_steps : bool, default : ``True``
+        Prints an increment every 250 points, as well as the current coil.
     ``[opt]`` sep : str, default : ``'\\t'``
         Dataframe separator.
     ``[opt]`` output_file_list : ``None`` or list of str, default : ``None``
@@ -5127,7 +5182,8 @@ def CMD_calibration(uid,col_ph,col_qu,file_list=None,eff_sigma=True,sep='\t',out
     cfg_file = fortran_folder+"_config_.cfg"
     fortran_exe = fortran_folder+"terrainhom.exe"
     fortran_linux = fortran_folder+"terrainhom.out"
-
+    
+    res_list = []
     for ic, file in enumerate(file_list):
         os.chdir(CONFIG.data_path)
         if isinstance(file,str):
@@ -5237,14 +5293,16 @@ def CMD_calibration(uid,col_ph,col_qu,file_list=None,eff_sigma=True,sep='\t',out
         os.chdir(CONFIG.data_path)
         # Sortie du dataframe (option)
         if not in_file:
-            return df
+            res_list.append(df)
         
         # Résultat enregistré en .dat (option)
         if output_file_list == None:
             df.to_csv(file[:-4]+"_calibr.dat", index=False, sep=sep)
         else:
             df.to_csv(output_file_list[ic], index=False, sep=sep)
-
+    
+    if not in_file:
+        return res_list
 
 # Estime les coefficients de la relation quasi-linéaire sur la conductivité
 
@@ -5441,7 +5499,7 @@ def CMD_poly_regr(X,Y,choice=False):
     Notes
     -----
     Subfunction of ``CMD_coeffs_relation``.\n
-    sklearn's estimators are glitchy and returns half the value of degree 0 coefficient. Hence it is manually doubled
+    sklearn's estimators are glitchy and returns half the value of degree 0 coefficient. Hence it is manually doubled.
     
     See also
     --------
@@ -5517,7 +5575,7 @@ def CMD_convergence_inv_poly(X,Y,nb_pts,nb_tours=1000,force_fin=25,verif=False):
     nb_pts : int
         Number of points used for the iterative method (length of ``X`` and ``Y``). Taking more points is slower but more precise.
     ``[opt]`` nb_tours : int, default : ``1000``
-        Number of loops for each iterative cycle. At the end, check if mse is lower that the ``fin_mse`` threshold. Otherwise, redo a cycle.
+        Number of loops for each iterative cycle. At the end, check if mse is lower than the ``fin_mse`` threshold. Otherwise, redo a cycle.
     ``[opt]`` force_fin : int, default : ``25``
         Number of maximum cycles. Upon reach, return the final result regardless of its relevance.
     ``[opt]`` verif : bool, default : ``False``
@@ -5694,6 +5752,7 @@ def DAT_change_date(file_list,date_str,sep='\t',replace=False,output_file_list=N
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     
     # Pour chaque fichier/dataframe
+    res_list = []
     for ic, file in enumerate(file_list):
         if isinstance(file,str):
             try:
@@ -5728,7 +5787,7 @@ def DAT_change_date(file_list,date_str,sep='\t',replace=False,output_file_list=N
         
         # Sortie du dataframe (option)
         if not in_file:
-            file_list[ic] = df
+            res_list.append(df)
         # Résultat enregistré en .dat (option)
         else:
             if replace:
@@ -5738,7 +5797,7 @@ def DAT_change_date(file_list,date_str,sep='\t',replace=False,output_file_list=N
             else:
                 df.to_csv(output_file_list[ic], index=False, sep=sep)
     if not in_file:
-        return file_list
+        return res_list
  
 # Retire le nom d'une colonne et décale le reste du jeu de données   
 
@@ -5790,6 +5849,7 @@ def DAT_pop_and_dec(file_list,colsup,sep='\t',replace=False,output_file_list=Non
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     
     # Pour chaque fichier/dataframe
+    res_list = []
     for ic, file in enumerate(file_list):
         if isinstance(file,str):
             try:
@@ -5810,7 +5870,7 @@ def DAT_pop_and_dec(file_list,colsup,sep='\t',replace=False,output_file_list=Non
         
         # Sortie du dataframe (option)
         if not in_file:
-            file_list[ic] = shift_df
+            res_list.append(shift_df)
         # Résultat enregistré en .dat (option)
         else:
             if replace:
@@ -5820,7 +5880,7 @@ def DAT_pop_and_dec(file_list,colsup,sep='\t',replace=False,output_file_list=Non
             else:
                 shift_df.to_csv(output_file_list[ic], index=False, sep=sep)
     if not in_file:
-        return file_list
+        return res_list
 
 # Echange les données de deux colonnes (garde le même ordre) 
 
@@ -5870,6 +5930,7 @@ def DAT_switch_cols(file_list,col_a,col_b,sep='\t',replace=False,output_file_lis
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     
     # Pour chaque fichier/dataframe
+    res_list = []
     for ic, file in enumerate(file_list):
         if isinstance(file,str):
             try:
@@ -5895,7 +5956,7 @@ def DAT_switch_cols(file_list,col_a,col_b,sep='\t',replace=False,output_file_lis
         
         # Sortie du dataframe (option)
         if not in_file:
-            file_list[ic] = df
+            res_list.append(df)
         # Résultat enregistré en .dat (option)
         else:
             if replace:
@@ -5905,7 +5966,7 @@ def DAT_switch_cols(file_list,col_a,col_b,sep='\t',replace=False,output_file_lis
             else:
                 df.to_csv(output_file_list[ic], index=False, sep=sep)
     if not in_file:
-        return file_list
+        return res_list
 
 # Retire les colonnes spécifiées des fichiers. On peut aussi, à l'inverse, préciser les colonnes à garder (en supprimant les autres).
 
@@ -5963,6 +6024,7 @@ def DAT_remove_cols(file_list,colsup_list,keep=False,sep='\t',replace=False,outp
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     
     # Pour chaque fichier/dataframe
+    res_list = []
     for ic, file in enumerate(file_list):
         try:
             # Chargement des données
@@ -5985,7 +6047,7 @@ def DAT_remove_cols(file_list,colsup_list,keep=False,sep='\t',replace=False,outp
         
         # Sortie du dataframe (option)
         if not in_file:
-            file_list[ic] = small_df
+            res_list.append(small_df)
         # Résultat enregistré en .dat (option)
         else:
             if replace:
@@ -5995,7 +6057,7 @@ def DAT_remove_cols(file_list,colsup_list,keep=False,sep='\t',replace=False,outp
             else:
                 small_df.to_csv(output_file_list[ic], index=False, sep=sep)
     if not in_file:
-        return file_list
+        return res_list
 
 # Retire les données des lignes i_min à i_max dans les colonnes colsup. Utile si elles sont défectueuses, pour les détecter dans le traitement 
 
@@ -6068,6 +6130,7 @@ def DAT_remove_data(file_list,colsup_list,i_min,i_max,sep='\t',replace=False,out
         MESS_err_mess("La fonction ne prend pas en compte les indices négatifs")
     
     # Pour chaque fichier/dataframe
+    res_list = []
     for ic, file in enumerate(file_list):
         if isinstance(file,str):
             try:
@@ -6094,7 +6157,7 @@ def DAT_remove_data(file_list,colsup_list,i_min,i_max,sep='\t',replace=False,out
         
         # Sortie du dataframe (option)
         if not in_file:
-            file_list[ic] = df
+            res_list.append(df)
         # Résultat enregistré en .dat (option)
         else:
             if replace:
@@ -6104,7 +6167,7 @@ def DAT_remove_data(file_list,colsup_list,i_min,i_max,sep='\t',replace=False,out
             else:
                 df.to_csv(output_file_list[ic], index=False, sep=sep)
     if not in_file:
-         return file_list
+         return res_list
 
 # Génère des histogrammes sur des colonnnes spécifiées
 # Permet d'afficher les valeurs extrêmes d'une colonne, pour potentiellement détecter des données à retirer
@@ -6241,6 +6304,7 @@ def DAT_light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_e
         restr = []
     
     # Pour chaque fichier/dataframe
+    res_list = []
     for ic, file in enumerate(file_list):
         if isinstance(file,str):
             try:
@@ -6276,7 +6340,7 @@ def DAT_light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_e
         
         # Sortie du dataframe (option)
         if not in_file:
-            file_list[ic] = clean_df
+            res_list.append(clean_df)
         # Résultat enregistré en .dat (option)
         else:
             if replace:
@@ -6286,7 +6350,7 @@ def DAT_light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_e
             else:
                 clean_df.to_csv(output_file_list[ic], index=False, sep=sep)
     if not in_file:
-        return file_list
+        return res_list
 
 # Change le séparateur du fichier
 
@@ -6336,6 +6400,7 @@ def DAT_change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,in_
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     
     # Pour chaque fichier/dataframe
+    res_list = []
     for ic, file in enumerate(file_list):
         try:
             # Chargement des données
@@ -6349,7 +6414,7 @@ def DAT_change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,in_
         
         # Sortie du dataframe (option) (pas très utile hmmm)
         if not in_file:
-            file_list[ic] = df
+            res_list.append(df)
         # Résultat enregistré en .dat
         if replace:
             df.to_csv(file, index=False, sep=new_sep)
@@ -6358,7 +6423,7 @@ def DAT_change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,in_
         else:
             df.to_csv(output_file_list[ic], index=False, sep=new_sep)
     if not in_file:
-        return file_list
+        return res_list
 
 # Met un fichier de prospection en grille (carré sans GPS) dans un format lisible par le traitement
 
@@ -6409,6 +6474,7 @@ def DAT_no_gps_pos(file_list,sep='\t',replace=False,output_file_list=None,i_f=Fa
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     
     # Pour chaque fichier/dataframe
+    res_list = []
     for ic, file in enumerate(file_list):
         if isinstance(file,str):
             try:
@@ -6444,7 +6510,7 @@ def DAT_no_gps_pos(file_list,sep='\t',replace=False,output_file_list=None,i_f=Fa
         
         # Sortie du dataframe (option)
         if not in_file:
-            file_list[ic] = df
+            res_list.append(df)
         # Résultat enregistré en .dat (option)
         else:
             if replace:
@@ -6454,7 +6520,7 @@ def DAT_no_gps_pos(file_list,sep='\t',replace=False,output_file_list=None,i_f=Fa
             else:
                 df.to_csv(output_file_list[ic], index=False, sep=sep)
     if not in_file:
-        return file_list
+        return res_list
 
 # Rassemble plusieurs fichiers .dat en un seul.
 
@@ -7100,8 +7166,8 @@ def FIG_plot_pos(file,sep='\t'):
     
     Parameters
     ----------
-    file : str
-        Dataframe file.
+    file : str or dataframe
+        Dataframe file or loaded dataframe.
     ``[opt]`` sep : str, default : ``'\\t'``
         Dataframe separator.
     
@@ -7364,7 +7430,10 @@ def JSON_find_device(uid):
         app_list = json.load(f)
     
     # Nombre de caractères max du terminal
-    nc = os.get_terminal_size().columns
+    try:
+        nc = os.get_terminal_size().columns
+    except OSError:
+        nc = 50
     # On cherche l'appareil
     for app in app_list["app_list"]:
         # On l'a trouvé (ouf !)
@@ -7514,7 +7583,10 @@ def JSON_print_devices(uid=None):
     
     print("")
     # Nombre de caractères max du terminal
-    nc = os.get_terminal_size().columns
+    try:
+        nc = os.get_terminal_size().columns
+    except OSError:
+        nc = 50
     # On affiche tout
     if uid == None:
         for app in app_list["app_list"]:
@@ -7752,6 +7824,7 @@ def FORTRAN_ball_calibr(ball_file,config,TR,radius,z,x_min,x_max,sep='\t',y=0,st
     config_index = next(i for i,c in enumerate(config_list) if c == config)
     cols_th = don.iloc[:,1+nb_ecarts*config_index:1+nb_ecarts*(config_index+1)]
     # Lecture des données du fichier de boule
+    os.chdir(CONFIG.data_path)
     don = pd.read_csv(ball_file,sep=sep)
     don.drop(don[don[don.columns[0]] < 0].index, inplace=True)
     cols_pr = don[[c for c in don.columns if "Inph" in c]]
@@ -7781,9 +7854,7 @@ def FORTRAN_ball_calibr(ball_file,config,TR,radius,z,x_min,x_max,sep='\t',y=0,st
     # On affiche les coeffs (et on les retournent parce qu'on est sympa)
     print("coeffs = {}".format(coeff))
     return coeff
-    
-    os.chdir(CONFIG.script_path)
-    
+        
 # Construit le fichier d'entrée du Fortran (boule).
 
 def FORTRAN_constboule(cfg_file,output_file,TR,radius,z,x_min,x_max,y=0,step=5,bucking_coil=0):

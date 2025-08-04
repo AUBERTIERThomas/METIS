@@ -23,7 +23,7 @@ data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/CM
 data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/CMD mini explorer 3L GPS/VCP/"
 #data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/CMD explorer GPS/HCP/"
 #data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/Divers/"
-#data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/cmd_aravo/cmd/"
+data_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/cmd_aravo/cmd/"
 json_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/JSONs/"
 script_path = "/home/taubertier/StageMETIS/2024 2025 Aubertier/CMD_code/"
 ### =============== ###
