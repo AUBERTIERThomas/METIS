@@ -12,7 +12,89 @@
 import pandas as pd
 
 import geophpy.core.operation as goper
+from geophpy.core.utils import check_time_date
 import geophpy.__config__ as CONFIG
+
+def fuse_bases(file_B1,file_B2,file_prof,sep='\t',output_file=None,in_file=False):
+    """
+    Given two files containing bases from the same prospection, fuse them and add ``"B+P"`` and ``"Base"`` columns.\n
+    To be used if bases have been taken separately.
+    
+    Notes
+    -----
+    ``file_B1`` is done before ``file_prof``, whereas ``file_B2`` is done after.\n
+    ``file_prof`` is required in order to get the right value of ``"B+P"``.
+    
+    Parameters
+    ----------
+    file_B1 : str
+        Base 1 file.
+    file_B2 : str
+        Base 2 file.
+    file_prof : str
+        Profile file corresponding to given bases.
+    ``[opt]`` sep : str, default : ``'\\t'``
+        Dataframe separator.
+    ``[opt]`` output_file : ``None`` or str, default : ``None``
+        Output file name, otherwise add the suffix ``"_B"`` to ``file_prof``.
+    ``[opt]`` in_file : bool, default : ``False``
+        If ``True``, save result in a file. If ``False``, return the dataframe.
+    
+    Returns
+    -------
+    * ``in_file = True``
+        none, but save output dataframe in a .dat
+    * ``in_file = False``
+        base : dataframe
+            Output base dataframe.
+    
+    Raises
+    ------
+    * File not found.
+    * Wrong separator or columns not found.
+    """
+    # Chargement des données
+    try:
+        B1 = check_time_date(file_B1,sep)
+    except FileNotFoundError:
+        raise FileNotFoundError("File B1 '{}' not found.".format(file_B1))
+    try:
+        B2 = check_time_date(file_B2,sep)
+    except FileNotFoundError:
+        raise FileNotFoundError("File B2 '{}' not found.".format(file_B2))
+    try:
+        prof = check_time_date(file_prof,sep)
+    except FileNotFoundError:
+        raise FileNotFoundError("File of profiles '{}' not found.".format(file_prof))
+    
+    # Test interpolation
+    try:
+        B1["B+P"], B1["Base"], B2["B+P"], B2["Base"] = 0, 1, int(prof['B+P'].iat[-1])+1, 2
+    except KeyError:
+        raise KeyError("File '{}' is not interpolated or does not have '{}' as its separator.".format(file_prof,repr(sep)))
+    
+    # On suppose que les valeurs basses sont en lugne impair (à améliorer)
+    base = pd.concat([B1,B2])
+    base.reset_index(drop=True,inplace=True)
+    
+    base["File_id"] = 1
+    d_nf,d_bp,d_t,d_min = synth_base(base,base.columns[[2,3,5,6,8,9]],True)
+    base = d_min.transpose()
+    base["File_id"] = d_nf
+    base["Seconds"] = d_t
+    base["B+P"] = d_bp
+    base["Base"] = d_t.index+1
+    base["Profil"] = 0
+    
+    # Sortie du dataframe (option)
+    if not in_file:
+        return base
+    # Résultat enregistré en .dat (option)
+    if output_file == None:
+        base.to_csv(file_prof[:-4]+"_B.dat", index=False, sep=sep)
+    else:
+        base.to_csv(output_file, index=False, sep=sep)
+
 
 def synth_base(don,nc_data,CMDmini=True):
     """
@@ -62,7 +144,10 @@ def synth_base(don,nc_data,CMDmini=True):
     if not('Base' in don.columns) :
         raise KeyError("Call 'detect_base_pos' before this procedure.")
     if not('Seconds' in don.columns) :
-        don['Seconds'] = goper.set_time(don)
+        try:
+            don['Seconds'] = goper.set_time(don)
+        except KeyError:
+            don['Seconds'] = -1
     
     # Calcul des quantiles pour diviser la base entre haut et bas
     # On utilise la conductivité pour faire la différence

@@ -4028,11 +4028,11 @@ def variog_constraints(var_id,l_c=None):
         while cpt < len(l_c):
             try:
                 # Paramètre de contrainte
-                inp1 = int(l_c[0])
+                inp1 = int(l_c[cpt][0])
                 # Type de contrainte
-                inp2 = int(l_c[1])
+                inp2 = int(l_c[cpt][1])
                 # Valeur de la contrainte
-                inp3 = float(l_c[2])
+                inp3 = float(l_c[cpt][2])
                 constr_list.append([var_id,inp1-1,inp2,inp3])
                 cpt += 1
             except:

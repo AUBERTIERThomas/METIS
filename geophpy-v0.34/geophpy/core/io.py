@@ -15,6 +15,8 @@ import csv              # for csv files treatment
 import glob             # for managing severals files thanks to "*." extension
 import netCDF4 as nc4
 import numpy as np
+import pandas as pd
+import json
 import os, time, platform
 
 #from geophpy.misc.utils import *
@@ -25,6 +27,8 @@ import geophpy  # used for software version etc. in nc files saving
 
 from geophpy.core.grd import read_grd, write_grd, VALID_GRID_FORMAT, VALID_GRID_LIST 
 from geophpy.core.uxo import read_uxo, write_uxo
+from geophpy.core.json import JSON_Indent_Encoder
+import geophpy.__config__ as CONFIG
 
 ## USER DEFINED PARAMETERS -----------------------------------------------------
 
@@ -1127,3 +1131,282 @@ def sniff_delimiter(filename, skiplines=0):
             delimiter = None
 
     return delimiter
+
+
+def df_to_matrix(file,sep='\t',output_file="dtm.json"):
+    """
+    Create the 'matrix' representation of a grid dataframe.
+    
+    Notes
+    -----
+    Output is in JSON format.
+    
+    Parameters
+    ----------
+    file : str or dataframe 
+        Dataframe file or loaded dataframe.
+    ``[opt]`` sep : str, default : ``'\\t'``
+        Dataframe separator.
+    ``[opt]`` output_file : str, default : ``"dtm.json"``
+        Output file name.
+    
+    Raises
+    ------
+    * File not found.
+    * Wrong separator or columns not found.
+    
+    See also
+    --------
+    ``matrix_to_df``
+    """
+    if isinstance(file,str):
+        try:
+            # Chargement des données
+            df = pd.read_csv(file, sep=sep)
+        except FileNotFoundError:
+            raise FileNotFoundError("File {} not found.".format(file))
+    else:
+        df = file
+        
+    nc_data = df.columns
+    # Un peu en redite du check suivant
+    if len(nc_data) <= 1:
+        raise FileNotFoundError("Unable to read {}, is the separator {} correct ?".format(file,repr(sep)))
+    try:
+        # Sélection des colonnes
+        ncx = nc_data[0]
+        ncy = nc_data[1]
+        nc_data = nc_data[2:]
+        nb_data = len(nc_data)
+    except KeyError:
+        raise FileNotFoundError("Unable to read {}, is the separator {} correct ?".format(file,repr(sep)))
+    
+    grid_mat_row = [[] for n in range(nb_data)]
+    grid_mat = [[] for n in range(nb_data)]
+    # On sépare les lignes à partir de X
+    curr_x = df.loc[0,ncx]
+    for index, row in df.iterrows():
+        if row[ncx] != curr_x:
+            for n in range(nb_data):
+                grid_mat[n].append(grid_mat_row[n])
+            curr_x = row[ncx]
+            grid_mat_row = [[] for n in range(nb_data)]
+        
+        # On remplit le tableau pour chaque donnée
+        for n in range(nb_data):
+            grid_mat_row[n].append(row[nc_data[n]])
+    for n in range(nb_data):
+        grid_mat[n].append(grid_mat_row[n])
+    
+    # Formules magiques pour recalculer les dimensions de la grille (ne me remerciez pas)
+    last = len(df)-1
+    pas_X = df.groupby(ncy)[ncx].apply(lambda x: x.diff().mean()).reset_index()[ncx].mean()
+    pas_Y = df.groupby(ncx)[ncy].apply(lambda x: x.diff().mean()).reset_index()[ncy].mean()
+    ext = [df.loc[0,ncx],df.loc[last,ncx],df.loc[0,ncy],df.loc[last,ncy]]
+    pxy = [len(df[df[ncy] == ext[2]]),len(df[df[ncx] == ext[0]])]
+    
+    grid_mat_t = [[[np.nan for i in range(pxy[0])] for j in range(pxy[1])] for n in range(nb_data)]
+    for n in range(nb_data):
+        # Transposer
+        for i in range(pxy[0]):
+            for j in range(pxy[1]):
+                grid_mat_t[n][j][i] = grid_mat[n][i][j]
+    
+    # Dictionaire à enregistrer
+    grid_save = {"grid" : grid_mat_t, "ext" : ext, "pxy" : pxy, "step" : [pas_X,pas_Y],
+                 "ncx" : ncx.split("|"), "ncy" : ncy.split("|"), "ncz" : nc_data.to_list()}
+    
+    # Enregistrer dans un .json
+    with open(output_file, "w") as f:
+        json.dump(grid_save, f, indent=None, cls=JSON_Indent_Encoder)
+
+# Convertit le format matrice en dataframe
+
+def matrix_to_df(file,sep='\t',output_file="mtd.dat"):
+    """
+    Create the dataframe representation of a 'matrix'.
+    
+    Notes
+    -----
+    ``sep`` is only relevant for the output.
+    Weird coordinates shenanigans serves to comply with the krigind grid structure.
+    
+    Parameters
+    ----------
+    file : str
+        Matrix file.
+    ``[opt]`` sep : str, default : ``'\\t'``
+        Output dataframe separator.
+    ``[opt]`` output_file : str, default : ``"mtd.dat"``
+        Output file name.
+    
+    Raises
+    ------
+    * File not found.
+    * File is not a JSON.
+    
+    See also
+    --------
+    ``df_to_matrix``
+    """
+    try:
+        with open(file, 'r') as f:
+            # Chargement des données
+            grid_dict = json.load(f)
+    except FileNotFoundError:
+        raise FileNotFoundError("File {} not found.".format(file))
+    except json.JSONDecodeError:
+        raise FileNotFoundError("File {} is not a json.".format(file))
+    
+    # Sélection des données
+    nb_data = len(grid_dict["ncz"])
+    nb_ecarts = len(grid_dict["ncx"])
+    grid = np.array(grid_dict["grid"])
+    
+    # On construit une colonne position qui contient les labels de toutes
+    ncx = ""
+    ncy = ""
+    for e in range(nb_ecarts):
+        ncx += grid_dict["ncx"][e]+"|"
+        ncy += grid_dict["ncy"][e]+"|"
+    ncx = ncx[:-1]
+    ncy = ncy[:-1]
+    
+    # Sélection des dimensions
+    min_X = grid_dict["ext"][0]
+    min_Y = grid_dict["ext"][2]
+    pas_X = grid_dict["step"][0]
+    pas_Y = grid_dict["step"][1]
+    nc_data = grid_dict["ncz"]
+    df = pd.DataFrame(columns=[ncx,ncy]+nc_data)
+    
+    # Remplissage du dataframe
+    for i in range(grid_dict["pxy"][0]):
+        for j in range(grid_dict["pxy"][1]):
+            # Reconstitution de la position de la case
+            row_data = {ncx : round(min_X+pas_X*i,CONFIG.prec_coos), ncy : round(min_Y+pas_Y*j,CONFIG.prec_coos)}
+            for n in range(nb_data):
+                row_data[nc_data[n]] = grid[n][j][i]
+            r = i*grid_dict["pxy"][1] + j
+            df.loc[r] = pd.Series(row_data)
+    
+    # Enregistrement en .dat
+    df.to_csv(output_file, index=False, sep=sep)
+
+# Convertit le format matrice en .grd pour surfer
+
+def matrix_to_grd(file,fmt,output_file=None):
+    """
+    Create the .grd representation of a 'matrix'.
+    Current supported format are :
+    * Golden Software Surfer 6 binary
+    * Golden Software Surfer 6 ascii
+    * Golden Software Surfer 7 binary
+    
+    Notes
+    -----
+    .grd is compatible with *Golden Software Surfer*
+    
+    Parameters
+    ----------
+    file : str
+        Matrix file.
+    fmt : str, [``'surfer6bin'``, ``'surfer6ascii'``, ``'surfer7bin'``]
+        Surfer format.
+    ``[opt]`` output_file : ``None`` or str, default : ``None``
+        Output file name. If ``None``, set to ``file + "_grd.grd"``
+    
+    Raises
+    ------
+    * File not found.
+    * File is not a JSON.
+    * TypeError exception in one of ``grd.py`` write functions.
+    """
+    try:
+        with open(file, 'r') as f:
+            # Chargement des données
+            grid_dict = json.load(f)
+    except FileNotFoundError:
+        raise FileNotFoundError("File {} not found.".format(file))
+    except json.JSONDecodeError:
+        raise FileNotFoundError("File {} is not a json.".format(file))
+    
+    # Séparatio de la grille pour chaque donnée
+    if output_file == None:
+        output_file = file[:-5] + "_grd.grd"
+    
+    # Remplissage des champs pour la fonction de grd.py
+    nb_data = len(grid_dict["ncz"])
+    for n in range(nb_data):
+        grid = np.array(grid_dict["grid"][n])
+        zmin = min(grid.flatten())
+        zmax = max(grid.flatten())
+        data = {'ncol' : grid_dict["pxy"][0], 'nrow' : grid_dict["pxy"][1], 'xmin' : grid_dict["ext"][0], 'xmax' : grid_dict["ext"][1], 
+                'ymin' : grid_dict["ext"][2], 'ymax' : grid_dict["ext"][3], 'xsize' : grid_dict["step"][0], 'ysize' : grid_dict["step"][1], 
+                'zmin' : zmin, 'zmax' : zmax, 'values' : grid, 'blankvalue' : np.inf}
+        # Nommage des fichiers
+        if nb_data == 1:
+            filename = output_file
+        else:
+            spl = output_file.split(".")
+            filename = spl[0]+"_"+str(n+1)+"."+spl[1]
+        
+        # Choix du format
+        write_grd(filename, data, fmt)
+
+# Convertit le format matrice en .grd pour surfer
+
+def grd_to_matrix(file_list,fmt,output_file=None):
+    """
+    Create the 'matrix' representation of a .grd.
+    Current supported format are :
+    * Golden Software Surfer 6 binary
+    * Golden Software Surfer 6 ascii
+    * Golden Software Surfer 7 binary
+    
+    Notes
+    -----
+    .grd is compatible with *Golden Software Surfer*
+    
+    Parameters
+    ----------
+    file : str
+        .grd file.
+    fmt : str, [``'surfer6bin'``, ``'surfer6ascii'``, ``'surfer7bin'``]
+        Surfer format.
+    ``[opt]`` output_file : ``None`` or str, default : ``None``
+        Output file name. If ``None``, set to ``file + "_mtx.json"``
+    
+    Raises
+    ------
+    * File not found.
+    * TypeError exception in one of ``grd.py`` write functions.
+    """
+    data = {}
+    grid = []
+    ncx = []
+    ncy = []
+    ncz = []
+    
+    # Pour chaque fichier
+    for ic,file in enumerate(file_list):
+        # On choisit le format adapté
+        data = read_grd(file, fmt)
+        
+        # Restitution de la grille
+        grid.append(data['values'].tolist())
+        # Noms placeholder des colonnes (l'info n'est pas là)
+        ncx.append("x_"+str(ic+1))
+        ncy.append("y_"+str(ic+1))
+        ncz.append("z_"+str(ic+1))
+    
+    # Nouveau format
+    grid_save = {"grid" : grid, "ext" : [data['xmin'],data['xmax'],data['ymin'],data['ymax']], 
+                 "pxy" : [data['ncol'],data['nrow']], "step" : [data['xsize'],data['ysize']], 
+                 "ncx" : ncx, "ncy" : ncy, "ncz" : ncz}
+    
+    # Enregistrement en .json
+    if output_file == None:
+        output_file = file[:-4] + "_mtx.json"
+    with open(output_file, "w") as f:
+        json.dump(grid_save, f, indent=None, cls=JSON_Indent_Encoder)  

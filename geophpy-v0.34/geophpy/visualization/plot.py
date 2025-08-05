@@ -402,8 +402,8 @@ def grid_plot(don,grid_final,ncx,ncy,ext,pxy,nc_data,nb_ecarts,nb_res,output_fil
         col_x = ncx[0]
         col_y = ncy[0]
     # Construction du dataframe représentatif de la grille
-    don_f = pd.DataFrame({col_x: np.array([[j for j in gridy] for i in gridx]).round(CONFIG.prec_coos).flatten(),
-                          col_y: np.array([[i for j in gridy] for i in gridx]).round(CONFIG.prec_coos).flatten()})
+    don_f = pd.DataFrame({col_x: np.array([[i for j in gridy] for i in gridx]).round(CONFIG.prec_coos).flatten(),
+                          col_y: np.array([[j for j in gridy] for i in gridx]).round(CONFIG.prec_coos).flatten()})
     for n in range(nb_data):
         don_temp = pd.DataFrame({nc_data[n]: grid_final[n].flatten().round(CONFIG.prec_data)})
         don_f = pd.concat([don_f, don_temp], axis=1)
@@ -415,8 +415,12 @@ def grid_plot(don,grid_final,ncx,ncy,ext,pxy,nc_data,nb_ecarts,nb_res,output_fil
             grid_not_np = []
             for n in range(nb_data):
                 grid_not_np.append(grid_final[n].T.round(CONFIG.prec_data).tolist())
-            grid_save = {"grid" : grid_not_np, "ext" : ext, "pxy" : pxy, "step" : [pas_X,pas_Y],
-                         "ncx" : ncx.to_list(), "ncy" : ncy.to_list(), "ncz" : nc_data.to_list()}
+            try:
+                grid_save = {"grid" : grid_not_np, "ext" : ext, "pxy" : pxy, "step" : [pas_X,pas_Y],
+                             "ncx" : ncx.to_list(), "ncy" : ncy.to_list(), "ncz" : nc_data.to_list()}
+            except AttributeError:
+                grid_save = {"grid" : grid_not_np, "ext" : ext, "pxy" : pxy, "step" : [pas_X,pas_Y],
+                             "ncx" : ncx, "ncy" : ncy, "ncz" : nc_data}
             with open(output_file, "w") as f:
                 json.dump(grid_save, f, indent=None, cls=JSON_Indent_Encoder)
         # Format dataframe
@@ -451,6 +455,151 @@ def grid_plot(don,grid_final,ncx,ncy,ext,pxy,nc_data,nb_ecarts,nb_res,output_fil
     return don_f
 
 
+def plot_data(file,col_x=None,col_y=None,col_z=None,sep='\t'):
+    """ [TA]\n
+    Plots raw data from dataframe.
+    
+    Parameters
+    ----------
+    file : str or dataframe
+        Dataframe file or loaded dataframe.
+    ``[opt]`` col_x : ``None`` or list of int, default : ``None``
+        Index of every X coordinates columns. If ``None``, is set to ``[0]``.
+    ``[opt]`` col_y : ``None`` or list of int, default : ``None``
+        Index of every Y coordinates columns. If ``None``, is set to ``[1]``.
+    ``[opt]`` col_z : ``None`` or list of int, default : ``None``
+        Index of every Z coordinates columns (actual data). If ``None``, takes every column that is not X nor Y.
+    ``[opt]`` sep : str, default : ``'\\t'``
+        Dataframe separator.
+    
+    Notes
+    -----
+    Also handles column names with multiple substrings splitted by '|', which correspond to the grid dataframe format.
+    
+    Raises
+    ------
+    * File not found.
+    * Wrong separator.
+    * Column is not numeric.
+    """
+    if isinstance(file,str):
+        try:
+            # Chargement des données
+            df = pd.read_csv(file, sep=sep)
+        except FileNotFoundError:
+            raise FileNotFoundError("File {} not found.".format(file))
+    else:
+        df = file
+    
+    if len(df.columns) <= 1:
+        raise FileNotFoundError("Unable to read {}, is the separator {} correct ?".format(file,repr(sep)))
+    
+    # Gestion des colonnes
+    # Si une colonne contient des "/", on suppose qu'elle a été générée par une grille
+    multi_col = False
+    if col_x == None:
+        col_x = [0]
+    ncx = df.columns[col_x]
+    ncx_t = df.columns[col_x]
+    rx = ncx[0].split("|")
+    if len(rx) != 1:
+        ncx = rx
+        multi_col = True
+    if col_y == None:
+        col_y = [1]
+    ncy = df.columns[col_y]
+    ncy_t = df.columns[col_y]
+    ry = ncy[0].split("|")
+    if len(ry) != 1:
+        ncy = ry
+        multi_col = True
+    if col_z == None:
+        col_z = df.columns.drop(ncx_t)
+        nc_data = col_z.drop(ncy_t)
+    else:
+        nc_data = df.columns[col_z]
+    nb_data = len(nc_data)
+    nb_ecarts = len(ncx)
+    nb_res = max(1, nb_data//nb_ecarts)
+    
+    # Affichage pour chaque voie
+    for e in range(nb_ecarts):
+        fig,ax=plt.subplots(nrows=1,ncols=nb_res,figsize=(nb_res*CONFIG.fig_width//2,CONFIG.fig_height),squeeze=False)
+        if multi_col:
+            X = df[ncx_t]
+            Y = df[ncy_t]
+        else:
+            X = df[ncx_t[e]]
+            Y = df[ncy_t[e]]
+        for r in range(nb_res):
+            n = e*nb_res + r
+            Z = df[nc_data[n]]
+            # Le quantile n'a pas de sens si certaines données ne sont pas numériques
+            try:
+                Q5,Q95 = Z.dropna().quantile([0.05,0.95])
+            except TypeError:
+                raise TypeError("Column {} is not numeric or has NaN.".format(nc_data[n]))
+            col = ax[0][r].scatter(X,Y,marker='s',c=Z,cmap='cividis',s=6,vmin=Q5,vmax=Q95)
+            plt.colorbar(col,ax=ax[0][r])
+            ax[0][r].title.set_text(nc_data[n])
+            ax[0][r].set_xlabel(ncx[e])
+            ax[0][r].set_ylabel(ncy[e])
+            ax[0][r].set_aspect('equal')
+        plt.show(block=False)
+        # À augmenter si la figure ne s'affiche pas, sinon on pourra le baisser 
+        # pour accélérer la vitesse de l'input
+        plt.pause(CONFIG.fig_render_time) 
+
+
+def plot_grid(file):
+    """ [TA]\n
+    Plots raw data from 'matrix' format.
+    
+    Parameters
+    ----------
+    file : str
+        Matrix file.
+    
+    Raises
+    ------
+    * File not found.
+    * File is not a JSON.
+    """
+    try:
+        with open(file, 'r') as f:
+            # Chargement des données
+            grid_dict = json.load(f)
+    except FileNotFoundError:
+        raise FileNotFoundError("File {} not found.".format(file))
+    except json.JSONDecodeError:
+        raise FileNotFoundError("File {} is not a json.".format(file))
+    
+    # Sélection des positions et de la grille
+    nb_ecarts = len(grid_dict["ncx"])
+    nb_res = len(grid_dict["ncz"])//nb_ecarts
+    grid = np.array(grid_dict["grid"])
+    
+    # Affichage pour chaque voie
+    plt.style.use('_mpl-gallery-nogrid')
+    for e in range(nb_ecarts):
+        fig,ax = plt.subplots(nrows=1,ncols=nb_res,figsize=(nb_res*CONFIG.fig_width//2,CONFIG.fig_height),squeeze=False)
+        
+        for r in range(nb_res):
+            n = e*nb_res+r
+            Q_l = [z for z in grid[n].flatten() if z == z]
+            Q = np.quantile(Q_l,[0.05,0.95])
+            ims = ax[0][r].imshow(grid[n], origin='lower', cmap='cividis', vmin = Q[0], vmax=Q[1], extent=grid_dict["ext"])
+            ax[0][r].set_title(grid_dict["ncz"][n])
+            ax[0][r].set_xlabel(grid_dict["ncx"][e])
+            ax[0][r].set_ylabel(grid_dict["ncy"][e])
+            ax[0][r].set_aspect('equal')
+            plt.colorbar(ims,ax=ax[0][r])
+        plt.show(block=False)
+        # À augmenter si la figure ne s'affiche pas, sinon on pourra le baisser 
+        # pour accélérer la vitesse de l'input
+        plt.pause(CONFIG.fig_render_time)
+
+
 def plot_pos(file,sep='\t'):
     """
     Plots positions of each coil.
@@ -478,7 +627,7 @@ def plot_pos(file,sep='\t'):
             # Chargement des données
             df = pd.read_csv(file, sep=sep)
         except FileNotFoundError:
-            raise FileNotFoundError('File "{}" not found'.format(file))
+            raise FileNotFoundError('File "{}" not found.'.format(file))
     else:
         df = file
     
@@ -519,4 +668,6 @@ def plot_pos(file,sep='\t'):
     ax.set_aspect('equal')
     plt.legend()
     plt.show(block=False)
-    plt.pause(CONFIG.fig_render_time) # À augmenter si la figure ne s'affiche pas, sinon on pourra le baisser pour accélérer la vitesse de l'input
+    # À augmenter si la figure ne s'affiche pas, sinon on pourra le baisser 
+    # pour accélérer la vitesse de l'input
+    plt.pause(CONFIG.fig_render_time)

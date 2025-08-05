@@ -1924,7 +1924,7 @@ def calc_frontier(don1,don2,ncx,ncy,nc_data,nb_res,nb_paths,choice=False,l_c=Non
             return don2.copy(), False
         
         # On a trouvé une frontière !
-        if l_c == None:
+        if choice and l_c == None:
             print("----------------------------- FRONTIER -----------------------------")
         
         # Calcul de la différence / écart-type
@@ -2192,7 +2192,7 @@ def interp_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_typ
     
     # Krigeage : Calcul
     if m_type == 'k':
-        grid_k = kriging(don,ncx,ncy,ext,pxy,col_T,nb_data,nb_paths,nb_res,
+        grid_k = kriging(don,ncx,ncy,ext,pxy,col_T,nb_paths,nb_res,
                          all_models,l_d,l_e,l_t,l_c,verif=False)
         grid_k_final = np.array([[[np.nan for j in range(pxy[1])] for i in range(pxy[0])]\
                                  for n in range(nb_data)])
@@ -2242,7 +2242,7 @@ def interp_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_typ
                          sep,plot_pts=plot_pts,matrix=matrix)  
 
 
-def kriging(don,ncx,ncy,ext,pxy,nc_data,nb_data,nb_paths,nb_res,all_models=False,
+def kriging(don,ncx,ncy,ext,pxy,nc_data,nb_paths,nb_res,all_models=False,
             l_d=None,l_e=None,l_t=None,l_c=None,verif=False):
     """
     Main loop for kriging.\n
@@ -2262,8 +2262,6 @@ def kriging(don,ncx,ncy,ext,pxy,nc_data,nb_data,nb_paths,nb_res,all_models=False
         Size of the grid for each axis. Contains ``[prec_X, prec_Y]``.
     nc_data : list of str
         Names of every Z columns (actual data).
-    nb_data : int
-        Number of Z columns. The number of data.
     nb_paths : int
         Number of X and Y columns. The number of coils.
     nb_res : int
@@ -2293,7 +2291,7 @@ def kriging(don,ncx,ncy,ext,pxy,nc_data,nb_data,nb_paths,nb_res,all_models=False
     
     Returns
     -------
-    grid : np.ndarray (dim 3) of float
+    grid : array of gstlearn.DbGrid
         For each data column, contains the grid kriging values.
     
     Notes
@@ -2305,6 +2303,8 @@ def kriging(don,ncx,ncy,ext,pxy,nc_data,nb_data,nb_paths,nb_res,all_models=False
     ``interp_grid, variog, gstlearn.DbGrid, gstlearn.kriging, gstlearn.Db.setLocator``
     """
     print("=== Kriging phase ===")
+    nb_data = len(nc_data)
+    
     # Extraction des dimensions de la grille
     min_X = ext[0]
     max_X = ext[1]

@@ -1130,7 +1130,7 @@ def check_time_date(f,sep):
             if ":" not in str(data.at[0,"Time"]):
                 warnings.warn("File '{}' seems to have a unused \"Time\" column label. Will be ignored.".format(f))
                 # On retire le label du dataframe (on touche pas au fichier brut)
-                data = pop_and_dec([f],"Time",sep,False,"")
+                data = pop_and_dec([f],"Time",sep,False,"")[0]
             else:
                 cols_to_drop.append("Time")
         except KeyError:
@@ -1140,7 +1140,7 @@ def check_time_date(f,sep):
             if "/" not in str(data.at[0,"Date"]):
                 warnings.warn("File '{}' seems to have a unused \"Date\" column label. Will be ignored.".format(f))
                 # On retire le label du dataframe (on touche pas au fichier brut)
-                data = pop_and_dec([f],"Date",sep,False,"")
+                data = pop_and_dec([f],"Date",sep,False,"")[0]
             else:
                 cols_to_drop.append("Date")
         except KeyError:
@@ -1346,7 +1346,7 @@ def pop_and_dec(file_list,colsup,sep='\t',replace=False,output_file_list=None,in
         if isinstance(file,str):
             try:
                 # Chargement des données
-                df = pd.read_csv(file, sep=sep, dtype=object)
+                df = pd.read_csv(file, sep=sep)
             except FileNotFoundError:
                 raise FileNotFoundError("File '{}' not found.".format(file))
         else:
@@ -1426,7 +1426,7 @@ def switch_cols(file_list,col_a,col_b,sep='\t',replace=False,output_file_list=No
         if isinstance(file,str):
             try:
                 # Chargement des données
-                df = pd.read_csv(file, sep=sep, dtype=object)
+                df = pd.read_csv(file, sep=sep)
             except FileNotFoundError:
                 raise FileNotFoundError("File '{}' not found.".format(file))
         else:
@@ -1518,7 +1518,7 @@ def remove_cols(file_list,colsup_list,keep=False,sep='\t',replace=False,output_f
     for ic, file in enumerate(file_list):
         try:
             # Chargement des données
-            df = pd.read_csv(file, sep=sep, dtype=object)
+            df = pd.read_csv(file, sep=sep)
         except FileNotFoundError:
             raise FileNotFoundError("File '{}' not found.".format(file))
         
@@ -1531,7 +1531,7 @@ def remove_cols(file_list,colsup_list,keep=False,sep='\t',replace=False,output_f
         # Sélection exclusive
         else:
             try:
-                small_df = df.drop(colsup_list)
+                small_df = df.drop(colsup_list, axis=1)
             except KeyError:
                 raise KeyError("File '{}' misses some of {} columns. Is the separator '{}' correct ?".format(file,colsup_list,repr(sep)))
         
@@ -1562,7 +1562,7 @@ def remove_data(file_list,colsup_list,i_min,i_max,sep='\t',replace=False,output_
     The first line of ``df`` is indexed at ``0``, since its how it is labelled in pandas.
     Consequently, line indexes may not match if opened with a regular text editor.\n
     Please reset the dataframe index before using.\n
-    To ease the detection of problematic lines, the ``stats`` function can be used.
+    To ease the detection of problematic lines, the ``data_stats`` function can be used.
     
     Parameters
     ----------
@@ -1602,7 +1602,7 @@ def remove_data(file_list,colsup_list,i_min,i_max,sep='\t',replace=False,output_
     
     See also
     --------
-    ``stats``
+    ``data_stats``
     """
     # Conversion en liste si 'file_list' ou 'output_file_list' ne l'est pas
     if not isinstance(file_list,list):
@@ -1624,7 +1624,7 @@ def remove_data(file_list,colsup_list,i_min,i_max,sep='\t',replace=False,output_
         if isinstance(file,str):
             try:
                 # Chargement des données
-                df = pd.read_csv(file, sep=sep, dtype=object)
+                df = pd.read_csv(file, sep=sep)
             except FileNotFoundError:
                 raise FileNotFoundError("File '{}' not found.".format(file))
         else:
@@ -1659,7 +1659,7 @@ def remove_data(file_list,colsup_list,i_min,i_max,sep='\t',replace=False,output_
          return res_list
 
 
-def stats(file_list,col_list,sep='\t',bins=25,n=10,**kwargs):
+def data_stats(file_list,col_list,sep='\t',bins=25,n=10,**kwargs):
     """
     Prints the top and bottom ``n`` values of the requested columns.
     To be used to find extreme values that are due to glitches.
@@ -1719,7 +1719,10 @@ def stats(file_list,col_list,sep='\t',bins=25,n=10,**kwargs):
         df.hist(**kwargs)
         
         # Print des valeurs extrêmes
-        print(CONFIG.warning_color+"<<< {} >>>".format(file))
+        if isinstance(file,str):
+            print(CONFIG.warning_color+"<<< {} >>>".format(file))
+        else:
+            print(CONFIG.warning_color+"<<< {} >>>".format(ic))
         for c in cl:
             print(CONFIG.bold_color+"- {} -".format(c))
             print(CONFIG.und_color+"[MIN]"+CONFIG.base_color)
@@ -1795,7 +1798,7 @@ def light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_paths
         if isinstance(file,str):
             try:
                 # Chargement des données
-                df = pd.read_csv(file, sep=sep, dtype=object)
+                df = pd.read_csv(file, sep=sep)
             except FileNotFoundError:
                 raise FileNotFoundError("File '{}' not found.".format(file))
         else:
@@ -1839,7 +1842,7 @@ def light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_paths
         return res_list
 
 
-def change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,in_file=False):
+def change_sep(file_list,sep,new_sep,replace=False,output_file_list=None):
     """
     Change dataframe sepator in file.\n
     To be used if files with different separators are to be used in a single operation.
@@ -1856,16 +1859,10 @@ def change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,in_file
         If the previous file is overwritten.
     ``[opt]`` output_file_list : ``None`` or (list of) str, default : ``None``
         List of output files names, ordered as ``file_list``, otherwise add the suffix ``"_corr"``. Is ignored if ``replace = True``.
-    ``[opt]`` in_file : bool, default : ``False``
-        If ``True``, save result in a file. If ``False``, return the dataframe.
     
     Returns
     -------
-    * ``in_file = True``
-        none, but save output dataframe in a .dat
-    * ``in_file = False``
-        file_list : dataframe
-            Output dataframe list.
+    none, but save output dataframe in a .dat
     
     Warns
     -----
@@ -1885,7 +1882,6 @@ def change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,in_file
         raise ValueError("Lengths of 'file_list' and 'output_file_list' do not match ({} and {}).".format(len(file_list),len(output_file_list)))
     
     # Pour chaque fichier/dataframe
-    res_list = []
     for ic, file in enumerate(file_list):
         try:
             # Chargement des données
@@ -1897,9 +1893,6 @@ def change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,in_file
             warnings.warn("File '{}' does not have '{}' as its separator : case ignored.".format(file,repr(sep)))
             continue
         
-        # Sortie du dataframe (option) (pas très utile hmmm)
-        if not in_file:
-            res_list.append(df)
         # Résultat enregistré en .dat
         if replace:
             df.to_csv(file, index=False, sep=new_sep)
@@ -1907,8 +1900,6 @@ def change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,in_file
             df.to_csv(file[:-4]+"_corr.dat", index=False, sep=new_sep)
         else:
             df.to_csv(output_file_list[ic], index=False, sep=new_sep)
-    if not in_file:
-        return res_list
 
 
 def no_gps_pos(file_list,sep='\t',replace=False,output_file_list=None,in_file=False):
@@ -2055,7 +2046,7 @@ def fuse_data(file_list,sep='\t',output_file="fused.dat",in_file=True):
     # Pour chaque fichier/dataframe
     for ic, file in enumerate(file_list):
         try:
-            df = pd.read_csv(file, sep=sep, dtype=object)
+            df = pd.read_csv(file, sep=sep)
             if len(df.columns) < 2:
                 raise OSError("File '{}' does not have '{}' as its separator.".format(file,repr(sep)))
             df_list.append(df)
@@ -2076,75 +2067,3 @@ def fuse_data(file_list,sep='\t',output_file="fused.dat",in_file=True):
     
     # Résultat enregistré en .dat (option)
     big_df.to_csv(output_file, index=False, sep=sep)
-
-
-def fuse_bases(file_B1,file_B2,file_prof,sep='\t',output_file=None,in_file=False):
-    """
-    Given two files containing bases from the same prospection, fuse them and add ``"B+P"`` and ``"Base"`` columns.\n
-    To be used if bases have been taken separately.
-    
-    Notes
-    -----
-    ``file_B1`` is done before ``file_prof``, whereas ``file_B2`` is done after.\n
-    ``file_prof`` is required in order to get the right value of ``"B+P"``.
-    
-    Parameters
-    ----------
-    file_B1 : str
-        Base 1 file.
-    file_B2 : str
-        Base 2 file.
-    file_prof : str
-        Profile file corresponding to given bases.
-    ``[opt]`` sep : str, default : ``'\\t'``
-        Dataframe separator.
-    ``[opt]`` output_file : ``None`` or str, default : ``None``
-        Output file name, otherwise add the suffix ``"_B"`` to ``file_prof``.
-    ``[opt]`` in_file : bool, default : ``False``
-        If ``True``, save result in a file. If ``False``, return the dataframe.
-    
-    Returns
-    -------
-    * ``in_file = True``
-        none, but save output dataframe in a .dat
-    * ``in_file = False``
-        base : dataframe
-            Output base dataframe.
-    
-    Raises
-    ------
-    * File not found.
-    * Wrong separator or columns not found.
-    """
-    # Chargement des données
-    try:
-        B1 = check_time_date(file_B1,sep)
-    except FileNotFoundError:
-        raise FileNotFoundError("File B1 '{}' not found.".format(file_B1))
-    try:
-        B2 = check_time_date(file_B2,sep)
-    except FileNotFoundError:
-        raise FileNotFoundError("File B2 '{}' not found.".format(file_B2))
-    try:
-        prof = check_time_date(file_prof,sep)
-    except FileNotFoundError:
-        raise FileNotFoundError("File of profiles '{}' not found.".format(file_prof))
-    
-    # Test interpolation
-    try:
-        B1["B+P"], B1["Base"], B2["B+P"], B2["Base"] = 0, 1, int(prof['B+P'].iat[-1])+1, 
-    except KeyError:
-        raise KeyError("File '{}' is not interpolated of does not have '{}' as its separator.".format(file_prof,repr(sep)))
-    
-    # On suppose que les valeurs basses sont en lugne impair (à améliorer)
-    base = pd.concat([B1[1::2],B2[1::2]])
-    base.reset_index(drop=True,inplace=True)
-    
-    # Sortie du dataframe (option)
-    if not in_file:
-        return base
-    # Résultat enregistré en .dat (option)
-    if output_file == None:
-        base.to_csv(file_prof[:-4]+"_B.dat", index=False, sep=sep)
-    else:
-        base.to_csv(output_file, index=False, sep=sep)

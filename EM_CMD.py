@@ -695,7 +695,7 @@ def TOOL_check_time_date(f,sep):
             if ":" not in str(data.at[0,"Time"]):
                 MESS_warn_mess('Le fichier "{}" semble posséder une colonne "Time" surnuméraire. Elle sera supprimée le temps du traitement.'.format(f))
                 # On retire le label du dataframe (on touche pas au fichier brut)
-                data = DAT_pop_and_dec([f],"Time",sep,False,"")
+                data = DAT_pop_and_dec([f],"Time",sep,False,"")[0]
             else:
                 cols_to_drop.append("Time")
         except KeyError:
@@ -705,7 +705,7 @@ def TOOL_check_time_date(f,sep):
             if "/" not in str(data.at[0,"Date"]):
                 MESS_warn_mess('Le fichier "{}" semble posséder une colonne "Date" surnuméraire. Elle sera supprimée le temps du traitement.'.format(f))
                 # On retire le label du dataframe (on touche pas au fichier brut)
-                data = DAT_pop_and_dec([f],"Date",sep,False,"")
+                data = DAT_pop_and_dec([f],"Date",sep,False,"")[0]
             else:
                 cols_to_drop.append("Date")
         except KeyError:
@@ -1693,7 +1693,10 @@ def CMD_synthBase(don,nc_data,CMDmini=True):
     if not('Base' in don.columns) :
         MESS_err_mess("[DEV] Veuillez créer une colonne des numéro de base avec CMD_detect_base")
     if not('temps (s)' in don.columns) :
-        don['temps (s)']=CMD_set_time(don)
+        try:
+            don['Seconds'] = CMD_set_time(don)
+        except KeyError:
+            don['Seconds'] = -1
     
     # Calcul des quantiles pour diviser la base entre haut et bas
     # On utilise la conductivité pour faire la différence
@@ -2847,7 +2850,7 @@ def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,choice=False,l
             return don2.copy(), False
         
         # On a trouvé une frontière !
-        if l_c == None:
+        if choice and l_c == None:
             print("----------------------------- FRONTIER -----------------------------")
         
         # Calcul de la différence / écart-type
@@ -3762,7 +3765,7 @@ def CMD_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_type=N
     
     # Krigeage : Calcul
     if m_type == 'k':
-        grid_k = CMD_kriging(don,ncx,ncy,ext,pxy,col_T,nb_data,nb_ecarts,nb_res,all_models,l_d,l_e,l_t,l_c,verif=True)
+        grid_k = CMD_kriging(don,ncx,ncy,ext,pxy,col_T,nb_ecarts,nb_res,all_models,l_d,l_e,l_t,l_c,verif=True)
         grid_k_final = np.array([[[np.nan for j in range(pxy[1])] for i in range(pxy[0])] for n in range(nb_data)])
         for e in range(nb_ecarts):
             for j in range(pxy[1]):
@@ -4261,7 +4264,7 @@ def CMD_scipy_interp(don,ncx,ncy,ext,pxy,nc_data,nb_ecarts,nb_res,i_method):
 
 # Effectue le kriging
 
-def CMD_kriging(don,ncx,ncy,ext,pxy,nc_data,nb_data,nb_ecarts,nb_res,all_models=False,l_d=None,l_e=None,l_t=None,l_c=None,verif=False):
+def CMD_kriging(don,ncx,ncy,ext,pxy,nc_data,nb_ecarts,nb_res,all_models=False,l_d=None,l_e=None,l_t=None,l_c=None,verif=False):
     """ [TA]\n
     Main loop for kriging.\n
     Set the right columns for X, Y and Z, asks for both experimental and theoretical variograms
@@ -4280,8 +4283,6 @@ def CMD_kriging(don,ncx,ncy,ext,pxy,nc_data,nb_data,nb_ecarts,nb_res,all_models=
         Size of the grid for each axis. Contains ``[prec_X, prec_Y]``.
     nc_data : list of str
         Names of every Z columns (actual data).
-    nb_data : int
-        Number of Z columns. The number of data.
     nb_ecarts : int
         Number of X and Y columns. The number of coils.
     nb_res : int
@@ -4303,7 +4304,7 @@ def CMD_kriging(don,ncx,ncy,ext,pxy,nc_data,nb_data,nb_ecarts,nb_res,all_models=
     
     Returns
     -------
-    grid : np.ndarray (dim 3) of float
+    grid : array of gstlearn.DbGrid
         For each data column, contains the grid kriging values.
     
     Notes
@@ -4315,6 +4316,8 @@ def CMD_kriging(don,ncx,ncy,ext,pxy,nc_data,nb_data,nb_ecarts,nb_res,all_models=
     ``CMD_grid, CMD_variog, gstlearn.DbGrid, gstlearn.kriging, gstlearn.Db.setLocator``
     """
     print("=== Phase de kriging ===")
+    nb_data = len(nc_data)
+    
     # Extraction des dimensions de la grille
     min_X = ext[0]
     max_X = ext[1]
@@ -4918,11 +4921,11 @@ def CMD_variog_constraints(var_id,l_c=None):
         while cpt < len(l_c):
             try:
                 # Paramètre de contrainte
-                inp1 = int(l_c[0])
+                inp1 = int(l_c[cpt][0])
                 # Type de contrainte
-                inp2 = int(l_c[1])
+                inp2 = int(l_c[cpt][1])
                 # Valeur de la contrainte
-                inp3 = float(l_c[2])
+                inp3 = float(l_c[cpt][2])
                 constr_list.append([var_id,inp1-1,inp2,inp3])
                 cpt += 1
             except:
@@ -5051,8 +5054,8 @@ def CMD_grid_plot(don,grid_final,ncx,ncy,ext,pxy,nc_data,nb_ecarts,nb_res,output
         col_x = ncx[0]
         col_y = ncy[0]
     # Construction du dataframe représentatif de la grille
-    don_f = pd.DataFrame({col_x: np.array([[j for j in gridy] for i in gridx]).round(CONFIG.prec_coos).flatten(),
-                          col_y: np.array([[i for j in gridy] for i in gridx]).round(CONFIG.prec_coos).flatten()})
+    don_f = pd.DataFrame({col_x: np.array([[i for j in gridy] for i in gridx]).round(CONFIG.prec_coos).flatten(),
+                          col_y: np.array([[j for j in gridy] for i in gridx]).round(CONFIG.prec_coos).flatten()})
     for n in range(nb_data):
         don_temp = pd.DataFrame({nc_data[n]: grid_final[n].flatten().round(CONFIG.prec_data)})
         don_f = pd.concat([don_f, don_temp], axis=1)
@@ -5064,8 +5067,12 @@ def CMD_grid_plot(don,grid_final,ncx,ncy,ext,pxy,nc_data,nb_ecarts,nb_res,output
             grid_not_np = []
             for n in range(nb_data):
                 grid_not_np.append(grid_final[n].T.round(CONFIG.prec_data).tolist())
-            grid_save = {"grid" : grid_not_np, "ext" : ext, "pxy" : pxy, "step" : [pas_X,pas_Y],
-                         "ncx" : ncx.to_list(), "ncy" : ncy.to_list(), "ncz" : nc_data.to_list()}
+            try:
+                grid_save = {"grid" : grid_not_np, "ext" : ext, "pxy" : pxy, "step" : [pas_X,pas_Y],
+                             "ncx" : ncx.to_list(), "ncy" : ncy.to_list(), "ncz" : nc_data.to_list()}
+            except AttributeError:
+                grid_save = {"grid" : grid_not_np, "ext" : ext, "pxy" : pxy, "step" : [pas_X,pas_Y],
+                             "ncx" : ncx, "ncy" : ncy, "ncz" : nc_data}
             with open(output_file, "w") as f:
                 json.dump(grid_save, f, indent=None, cls=JSON_Indent_Encoder)
         # Format dataframe
@@ -5294,9 +5301,8 @@ def CMD_calibration(uid,col_ph,col_qu,file_list=None,eff_sigma=True,show_steps=T
         # Sortie du dataframe (option)
         if not in_file:
             res_list.append(df)
-        
         # Résultat enregistré en .dat (option)
-        if output_file_list == None:
+        elif output_file_list == None:
             df.to_csv(file[:-4]+"_calibr.dat", index=False, sep=sep)
         else:
             df.to_csv(output_file_list[ic], index=False, sep=sep)
@@ -5854,7 +5860,7 @@ def DAT_pop_and_dec(file_list,colsup,sep='\t',replace=False,output_file_list=Non
         if isinstance(file,str):
             try:
                 # Chargement des données
-                df = pd.read_csv(file, sep=sep, dtype=object)
+                df = pd.read_csv(file, sep=sep)
             except FileNotFoundError:
                 MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
         else:
@@ -5935,7 +5941,7 @@ def DAT_switch_cols(file_list,col_a,col_b,sep='\t',replace=False,output_file_lis
         if isinstance(file,str):
             try:
                 # Chargement des données
-                df = pd.read_csv(file, sep=sep, dtype=object)
+                df = pd.read_csv(file, sep=sep)
             except FileNotFoundError:
                 MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
         else:
@@ -6028,7 +6034,7 @@ def DAT_remove_cols(file_list,colsup_list,keep=False,sep='\t',replace=False,outp
     for ic, file in enumerate(file_list):
         try:
             # Chargement des données
-            df = pd.read_csv(file, sep=sep, dtype=object)
+            df = pd.read_csv(file, sep=sep)
         except FileNotFoundError:
             MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
         
@@ -6041,7 +6047,7 @@ def DAT_remove_cols(file_list,colsup_list,keep=False,sep='\t',replace=False,outp
         # Sélection exclusive
         else:
             try:
-                small_df = df.drop(colsup_list)
+                small_df = df.drop(colsup_list, axis=1)
             except KeyError:
                 MESS_err_mess("Le fichier '{}' ne contient pas les colonnes {}, le séparateur {} est-il correct ?".format(file,colsup_list,repr(sep)))
         
@@ -6135,7 +6141,7 @@ def DAT_remove_data(file_list,colsup_list,i_min,i_max,sep='\t',replace=False,out
         if isinstance(file,str):
             try:
                 # Chargement des données
-                df = pd.read_csv(file, sep=sep, dtype=object)
+                df = pd.read_csv(file, sep=sep)
             except FileNotFoundError:
                 MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
         else:
@@ -6232,7 +6238,10 @@ def DAT_stats(file_list,col_list,sep='\t',bins=25,n=10,**kwargs):
         df.hist(**kwargs)
         
         # Print des valeurs extrêmes
-        print(warning_color+"<<< {} >>>".format(file))
+        if isinstance(file,str):
+            print(warning_color+"<<< {} >>>".format(file))
+        else:
+            print(warning_color+"<<< {} >>>".format(ic))
         for c in cl:
             print(bold_color+"- {} -".format(c))
             print(und_color+"[MIN]"+base_color)
@@ -6309,7 +6318,7 @@ def DAT_light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_e
         if isinstance(file,str):
             try:
                 # Chargement des données
-                df = pd.read_csv(file, sep=sep, dtype=object)
+                df = pd.read_csv(file, sep=sep)
             except FileNotFoundError:
                 MESS_err_mess('Le fichier "{}" est introuvable'.format(file))
         else:
@@ -6354,7 +6363,7 @@ def DAT_light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_e
 
 # Change le séparateur du fichier
 
-def DAT_change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,in_file=False):
+def DAT_change_sep(file_list,sep,new_sep,replace=False,output_file_list=None):
     """ [TA]\n
     Change dataframe sepator in file.\n
     To be used if files with different separators are to be used in a single operation.
@@ -6371,16 +6380,10 @@ def DAT_change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,in_
         If the previous file is overwritten.
     ``[opt]`` output_file_list : ``None`` or (list of) str, default : ``None``
         List of output files names, ordered as ``file_list``, otherwise add the suffix ``"_corr"``. Is ignored if ``replace = True``.
-    ``[opt]`` in_file : bool, default : ``False``
-        If ``True``, save result in a file. If ``False``, return the dataframe.
     
     Returns
     -------
-    * ``in_file = True``
-        none, but save output dataframe in a .dat
-    * ``in_file = False``
-        file_list : dataframe
-            Output dataframe list.
+    none, but save output dataframe in a .dat
     
     Warns
     -----
@@ -6400,7 +6403,6 @@ def DAT_change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,in_
         MESS_err_mess("Le nombre de fichiers entrée ({}) et sortie ({}) ne correspondent pas".format(len(file_list),len(output_file_list)))
     
     # Pour chaque fichier/dataframe
-    res_list = []
     for ic, file in enumerate(file_list):
         try:
             # Chargement des données
@@ -6412,9 +6414,6 @@ def DAT_change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,in_
             MESS_warn_mess('Le fichier "{}" ne possède pas le séparateur {} : cas ignoré'.format(file,repr(sep)))
             continue
         
-        # Sortie du dataframe (option) (pas très utile hmmm)
-        if not in_file:
-            res_list.append(df)
         # Résultat enregistré en .dat
         if replace:
             df.to_csv(file, index=False, sep=new_sep)
@@ -6422,8 +6421,6 @@ def DAT_change_sep(file_list,sep,new_sep,replace=False,output_file_list=None,in_
             df.to_csv(file[:-4]+"_corr.dat", index=False, sep=new_sep)
         else:
             df.to_csv(output_file_list[ic], index=False, sep=new_sep)
-    if not in_file:
-        return res_list
 
 # Met un fichier de prospection en grille (carré sans GPS) dans un format lisible par le traitement
 
@@ -6573,7 +6570,7 @@ def DAT_fuse_data(file_list,sep='\t',output_file="fused.dat",in_file=True):
     # Pour chaque fichier/dataframe
     for ic, file in enumerate(file_list):
         try:
-            df = pd.read_csv(file, sep=sep, dtype=object)
+            df = pd.read_csv(file, sep=sep)
             if len(df.columns) < 2:
                 MESS_err_mess("Le fichier '{}' ne possède pas le séparateur {}".format(file,repr(sep)))
             df_list.append(df)
@@ -6651,13 +6648,22 @@ def DAT_fuse_bases(file_B1,file_B2,file_prof,sep='\t',output_file=None,in_file=F
     
     # Test interpolation
     try:
-        B1["b et p"], B1["Base"], B2["b et p"], B2["Base"] = 0, 1, int(prof['b et p'].iat[-1])+1, 
+        B1["b et p"], B1["Base"], B2["b et p"], B2["Base"] = 0, 1, int(prof['b et p'].iat[-1])+1, 2
     except KeyError:
         MESS_err_mess("Le fichier '{}' (profils) n'est pas interpolé, ou le séparateur '{}' est incorrect".format(file_prof,repr(sep)))
     
     # On suppose que les valeurs basses sont en lugne impair (à améliorer)
     base = pd.concat([B1[1::2],B2[1::2]])
     base.reset_index(drop=True,inplace=True)
+    
+    base["File_id"] = 1
+    d_nf,d_bp,d_t,d_min = CMD_synthBase(base,base.columns[[2,3,5,6,8,9]],True)
+    base = d_min.transpose()
+    base["File_id"] = d_nf
+    base["Seconds"] = d_t
+    base["B+P"] = d_bp
+    base["Base"] = d_t.index+1
+    base["Profil"] = 0
     
     # Sortie du dataframe (option)
     if not in_file:
@@ -6741,15 +6747,14 @@ def TRANS_df_to_matrix(file,sep='\t',output_file="dtm.json"):
     pas_X = df.groupby(ncy)[ncx].apply(lambda x: x.diff().mean()).reset_index()[ncx].mean()
     pas_Y = df.groupby(ncx)[ncy].apply(lambda x: x.diff().mean()).reset_index()[ncy].mean()
     ext = [df.loc[0,ncx],df.loc[last,ncx],df.loc[0,ncy],df.loc[last,ncy]]
-    pxy = [len(df[df[ncx] == ext[0]]),len(df[df[ncy] == ext[2]])]
+    pxy = [len(df[df[ncy] == ext[2]]),len(df[df[ncx] == ext[0]])]
     
-    
-    grid_mat_t = [[[np.nan for j in range(pxy[1])] for i in range(pxy[0])] for n in range(nb_data)]
+    grid_mat_t = [[[np.nan for i in range(pxy[0])] for j in range(pxy[1])] for n in range(nb_data)]
     for n in range(nb_data):
         # Transposer
         for i in range(pxy[0]):
             for j in range(pxy[1]):
-                grid_mat_t[n][i][j] = grid_mat[n][j][i]
+                grid_mat_t[n][j][i] = grid_mat[n][i][j]
     
     # Dictionaire à enregistrer
     grid_save = {"grid" : grid_mat_t, "ext" : ext, "pxy" : pxy, "step" : [pas_X,pas_Y],
@@ -6823,9 +6828,9 @@ def TRANS_matrix_to_df(file,sep='\t',output_file="mtd.dat"):
     for i in range(grid_dict["pxy"][0]):
         for j in range(grid_dict["pxy"][1]):
             # Reconstitution de la position de la case
-            row_data = {ncx : round(min_Y+pas_Y*j,CONFIG.prec_coos), ncy : round(min_X+pas_X*i,CONFIG.prec_coos)}
+            row_data = {ncx : round(min_X+pas_X*i,CONFIG.prec_coos), ncy : round(min_Y+pas_Y*j,CONFIG.prec_coos)}
             for n in range(nb_data):
-                row_data[nc_data[n]] = grid[n][i][j]
+                row_data[nc_data[n]] = grid[n][j][i]
             r = i*grid_dict["pxy"][1] + j
             df.loc[r] = pd.Series(row_data)
     

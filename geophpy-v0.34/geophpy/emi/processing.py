@@ -1075,9 +1075,8 @@ def calibration(uid,col_ph,col_qu,file_list=None,eff_sigma=True,show_steps=True,
         # Sortie du dataframe (option)
         if not in_file:
             res_list.append(df)
-        
         # Résultat enregistré en .dat (option)
-        if output_file_list == None:
+        elif output_file_list == None:
             df.to_csv(file[:-4]+"_calibr.dat", index=False, sep=sep)
         else:
             df.to_csv(output_file_list[ic], index=False, sep=sep)
