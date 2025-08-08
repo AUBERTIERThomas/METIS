@@ -1825,6 +1825,8 @@ def CMD_detect_profil_carre(don):
         don.loc[index, "b et p"] = base_nb + prof_nb
     return don.copy()
 
+# Estime des pseudo-profils dans le cas où les autres méthodes ne marchent pas
+
 def CMD_detect_pseudoprof(don,x_col,y_col,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=False):
     """ [TA]\n
     Given a database with continuous timestamps, estimate profiles by finding one point (called `center`) per profile, possibly at the center.\n
@@ -2014,7 +2016,7 @@ def CMD_detect_pseudoprof(don,x_col,y_col,l_p=None,tn=10,tn_c=20,min_conseq=8,ve
         don.loc[index,"Profil"] = ind   
     don["b et p"] = don["Profil"]
     
-    # plot du résultat
+    # Plot du résultat
     if verif:
         print(min_list)
         index_list = range(nb_pts)
@@ -2514,11 +2516,11 @@ def CMD_dec_voies(don,ncx,ncy,nb_ecarts,TR_l,TR_t,gps_dec):
     nb_ecarts : int
         Number of X and Y columns. The number of coils.
     TR_l : list of float
-        Distance between each coil and the transmitter coil, on lateral axis.
+        Distance between each coil and the transmitter coil, on lateral axis (m).
     TR_t : list of float
-        Distance between each coil and the transmitter coil, on transversal axis.
+        Distance between each coil and the transmitter coil, on transversal axis (m).
     gps_dec : [float, float]
-        Shift between the GPS antenna and the device center, on both axis. Should be ``[0,0]`` if none.
+        Shift between the GPS antenna and the device center, on both axis (m). Should be ``[0,0]`` if none.
     
     Returns
     -------
@@ -7265,13 +7267,13 @@ def JSON_add_device(app_name,config,nb_ecarts,freq_list,gps=True,gps_dec=[0.0,0.
     ``[opt]`` gps : bool, default : ``True``
         If got GPS data.
     ``[opt]`` gps_dec : [float, float], default : ``[0.0,0.0]``
-        Shift between the GPS antenna and the device center, on both axis. Should be ``[0,0]`` if none.
+        Shift between the GPS antenna and the device center, on both axis (m). Should be ``[0,0]`` if none.
     ``[opt]`` TR_l : ``None`` or list of float, default : ``None``
-        Distance between each coil and the transmitter coil, on lateral axis.
+        Distance between each coil and the transmitter coil, on lateral axis (m).
     ``[opt]`` TR_t : ``None`` or list of float, default : ``None``
-        Distance between each coil and the transmitter coil, on transversal axis.
+        Distance between each coil and the transmitter coil, on transversal axis (m).
     ``[opt]`` height : float, default : ``0.1``
-        Height of the device during the prospection.
+        Height of the device during the prospection (m).
     ``[opt]`` bucking_coil, default : ``0``
         Index of the bucking coil between coils (from ``1`` to ``nb_ecarts``). If none, set to 0.
     ``[opt]`` coeff_c_ph : ``None`` or list of float, default : ``None``

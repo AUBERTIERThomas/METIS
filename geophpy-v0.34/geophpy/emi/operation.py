@@ -128,13 +128,13 @@ def synth_base(don,nc_data,CMDmini=True):
     
     Notes
     -----
-    Subfunction of ``init``.\n
+    Subfunction of ``init_process``.\n
     If ``CMDmini = False``, the result will not give enough information to remove
     the device's 0, although the variations between bases will stand.
     
     See also
     --------
-    ``init, evol_profiles``
+    ``init_process, evol_profiles``
     """
     # Division des colonnes entre conductivité et inphase
     cond_data = nc_data[::2]

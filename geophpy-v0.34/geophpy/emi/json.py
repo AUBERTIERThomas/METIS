@@ -48,14 +48,14 @@ def add_device(app_name,config,nb_paths,freq_list,gps=True,gps_dec=[0.0,0.0],
     ``[opt]`` gps : bool, default : ``True``
         If got GPS data.
     ``[opt]`` gps_dec : [float, float], default : ``[0.0,0.0]``
-        Shift between the GPS antenna and the device center, on both axis.
+        Shift between the GPS antenna and the device center, on both axis (m).
         Should be ``[0,0]`` if none.
     ``[opt]`` TR_l : ``None`` or list of float, default : ``None``
-        Distance between each coil and the transmitter coil, on lateral axis.
+        Distance between each coil and the transmitter coil, on lateral axis (m).
     ``[opt]`` TR_t : ``None`` or list of float, default : ``None``
-        Distance between each coil and the transmitter coil, on transversal axis.
+        Distance between each coil and the transmitter coil, on transversal axis (m).
     ``[opt]`` height : float, default : ``0.1``
-        Height of the device during the prospection.
+        Height of the device during the prospection (m).
     ``[opt]`` bucking_coil, default : ``0``
         Index of the bucking coil between coils (from ``1`` to ``nb_paths``).
         If none, set to 0.

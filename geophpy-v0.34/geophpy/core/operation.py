@@ -2479,7 +2479,7 @@ def detect_pseudoprof(don,x_col,y_col,l_p=None,tn=10,tn_c=20,min_conseq=8,plot=F
         don.loc[index,"Profil"] = ind   
     don["B+P"] = don["Profil"]
     
-    # plot du résultat
+    # Plot du résultat
     if plot:
         #print(min_list)
         index_list = range(nb_pts)

@@ -1,1 +1,2 @@
-0
+CMD_help
+CMD_exec_known_device
