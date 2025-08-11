@@ -652,7 +652,7 @@ def plot_pos(file,sep='\t'):
             break
         cpt += 1
     if cpt == 0:
-        raise KeyError("Paths positions should be named as \"X_int_1\" [...]")
+        raise KeyError("channels positions should be named as \"X_int_1\" [...]")
     
     # Affichage des positions
     fig,ax=plt.subplots(nrows=1,ncols=1,figsize=(CONFIG.fig_width,CONFIG.fig_height))

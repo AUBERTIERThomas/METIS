@@ -182,8 +182,8 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=F
         index_list = range(nb_pts)
         fig,ax = plt.subplots(nrows=1,ncols=3,figsize=(CONFIG.fig_width,CONFIG.fig_height),squeeze=False)
         ax[0][0].plot(index_list,dist_list,'-')
-        ax[0][0].plot([index_list[i] for i in min_list],[dist_list[i] for i in min_list],'xr')
-        ax[0][0].set_xlabel("Index")
+        ax[0][0].plot([index_list[i] for i in min_list],[dist_list[i] for i in min_list],'xr',label="Minimums locaux")
+        ax[0][0].set_xlabel("Indice")
         ax[0][0].set_ylabel("Distance")
         ax[0][0].set_title("Évolution de la distance à la droite")
         ax[0][1].plot(don[X_n],don[Y_n],'x')
@@ -210,8 +210,8 @@ def CMD_detec_pseudoprof(don,X_n,Y_n,l_p=None,tn=10,tn_c=20,min_conseq=8,verif=F
 
 nf = "cmd_GPS_survey.dat"
 l_p = None
-nf = "cmd_GPS_survey_missing_coordinates.dat"
-l_p=[[4913755,597380],[4913780,597332],[4913840,597311]]
+#nf = "cmd_GPS_survey_missing_coordinates.dat"
+#l_p=[[4913755,597380],[4913780,597332],[4913840,597311]]
 #nf = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/CMD mini explorer 3L GPS/hcpmini-Tr.dat"
 #nf = "/home/taubertier/StageMETIS/2024 2025 Aubertier/fichiers donnees/donnees SG/2018_CMDm/2018_CMDm_zone1/Pas18_CMDm_sq1.dat"
 #l_p = None

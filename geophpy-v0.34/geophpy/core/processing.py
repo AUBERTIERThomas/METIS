@@ -1661,12 +1661,12 @@ def frontier(col_x,col_y,col_z,file_list=None,choice=False,l_c=None,sep='\t',\
         df_list = file_list
     
     # On obtient les informations relatives aux colonnes
-    ncx, ncy, nc_data, nb_data, nb_paths, nb_res = gutils.manage_cols(df_list[0],col_x,col_y,col_z)
+    ncx, ncy, nc_data, nb_data, nb_channels, nb_res = gutils.manage_cols(df_list[0],col_x,col_y,col_z)
     # La procédure se fait dans une autre fonction
-    return frontier_loop(df_list,ncx,ncy,nc_data,nb_data,nb_paths,nb_res,choice,l_c,sep,output_file,plot,in_file,**kwargs)
+    return frontier_loop(df_list,ncx,ncy,nc_data,nb_data,nb_channels,nb_res,choice,l_c,sep,output_file,plot,in_file,**kwargs)
 
 
-def frontier_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_paths,nb_res,choice=False,
+def frontier_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_channels,nb_res,choice=False,
               l_c=None,sep='\t',output_file=None,plot=False,in_file=False,**kwargs):
     """
     Given a list of dataframe, try the two-by-two correction by juncture if 
@@ -1690,7 +1690,7 @@ def frontier_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_paths,nb_res,choice=False,
         Names of every Z columns (actual data).
     nb_data : int
         Number of Z columns. The number of data.
-    nb_paths : int
+    nb_channels : int
         Number of X and Y columns. The number of coils.
     nb_res : int
         The number of data per coil.
@@ -1752,7 +1752,7 @@ def frontier_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_paths,nb_res,choice=False,
             don_to_corr_copy = don_to_corr.copy()
             for j in don_to_corr_copy:
                 ls_mes[j], done = calc_frontier(ls_mes[i], ls_mes[j], ncx, ncy,\
-                                                 nc_data, nb_res, nb_paths, choice,\
+                                                 nc_data, nb_res, nb_channels, choice,\
                                                  l_c[cpt], **kwargs)
                 # Une frontière a bien été trouvé si done = True
                 if done:
@@ -1771,7 +1771,7 @@ def frontier_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_paths,nb_res,choice=False,
     # Plot du résultat, en séparant chaque voie
     final_df = pd.concat(ls_mes)
     if plot:
-        for e in range(nb_paths):
+        for e in range(nb_channels):
             fig,ax=plt.subplots(nrows=1,ncols=nb_res,figsize=(CONFIG.fig_width,CONFIG.fig_height))
             X = final_df[ncx[e]]
             Y = final_df[ncy[e]]
@@ -1801,7 +1801,7 @@ def frontier_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_paths,nb_res,choice=False,
         final_df.to_csv(output_file, index=False, sep=sep)
 
 
-def calc_frontier(don1,don2,ncx,ncy,nc_data,nb_res,nb_paths,choice=False,l_c=None,
+def calc_frontier(don1,don2,ncx,ncy,nc_data,nb_res,nb_channels,choice=False,l_c=None,
                    nb=30,tol_inter=0.1,tol_intra=0.2,m_size=40,verif=False,verif_pts=False,
                    dat_to_test=0):
     """
@@ -1825,7 +1825,7 @@ def calc_frontier(don1,don2,ncx,ncy,nc_data,nb_res,nb_paths,choice=False,l_c=Non
         Names of every Y columns.
     nc_data : list of str
         Names of every Z columns (actual data).
-    nb_paths : int
+    nb_channels : int
         Number of X and Y columns. The number of coils.
     nb_res : int
         The number of data per coil.
@@ -1868,7 +1868,7 @@ def calc_frontier(don1,don2,ncx,ncy,nc_data,nb_res,nb_paths,choice=False,l_c=Non
     j_max = len(don2.index)-1
     # Nombre de points sur la frontière
     nb += int(np.sqrt(min(i_max,j_max))*0.2)
-    for e in range(nb_paths):
+    for e in range(nb_channels):
         curr_e = e*nb_res
         x1=list(don1[ncx[e]])
         x2=list(don2[ncx[e]])
@@ -2184,19 +2184,19 @@ def interp_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_typ
     don.reset_index(drop=True,inplace=True)
     
     # On obtient les informations relatives aux colonnes
-    ncx, ncy, col_T, nb_data, nb_paths, nb_res = gutils.manage_cols(don,col_x,col_y,col_z)
+    ncx, ncy, col_T, nb_data, nb_channels, nb_res = gutils.manage_cols(don,col_x,col_y,col_z)
     
     # Calcule de la grille d'interpolation
-    grid, ext, pxy = goper.dat_to_grid(don,ncx,ncy,nb_paths,nb_res,radius,prec,\
+    grid, ext, pxy = goper.dat_to_grid(don,ncx,ncy,nb_channels,nb_res,radius,prec,\
                                        step,w_exp,only_nan,heatmap=(m_type=='h'))
     
     # Krigeage : Calcul
     if m_type == 'k':
-        grid_k = kriging(don,ncx,ncy,ext,pxy,col_T,nb_paths,nb_res,
+        grid_k = kriging(don,ncx,ncy,ext,pxy,col_T,nb_channels,nb_res,
                          all_models,l_d,l_e,l_t,l_c,verif=False)
         grid_k_final = np.array([[[np.nan for j in range(pxy[1])] for i in range(pxy[0])]\
                                  for n in range(nb_data)])
-        for e in range(nb_paths):
+        for e in range(nb_channels):
             for j in range(pxy[1]):
                 for i in range(pxy[0]):
                     g = grid[e,j,i]
@@ -2205,7 +2205,7 @@ def interp_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_typ
                             n = e*nb_res + r
                             grid_k_final[n,i,j] = grid_k[n*2+3][j*pxy[0]+i]
         # Affichage du résultat et construction du dataframe de sortie
-        return grid_plot(don,grid_k_final,ncx,ncy,ext,pxy,col_T,nb_paths,nb_res,
+        return grid_plot(don,grid_k_final,ncx,ncy,ext,pxy,col_T,nb_channels,nb_res,
                          output_file,sep,plot_pts=plot_pts,matrix=matrix)
     # Interpolation scipy : Calcul
     elif m_type == 'i':
@@ -2228,8 +2228,8 @@ def interp_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_typ
         elif i_method not in i_method_list:
             raise ValueError("Unknown method {} ({})".format(i_method,i_method_list))
         # Fonction de calcul
-        grid_i = goper.scipy_interp(don,ncx,ncy,ext,pxy,col_T,nb_paths,nb_res,i_method)
-        for e in range(nb_paths):
+        grid_i = goper.scipy_interp(don,ncx,ncy,ext,pxy,col_T,nb_channels,nb_res,i_method)
+        for e in range(nb_channels):
             for j in range(pxy[1]):
                 for i in range(pxy[0]):
                     g = grid[e,j,i]
@@ -2238,11 +2238,11 @@ def interp_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_typ
                             n = e*nb_res + r
                             grid_i[n][i][j] = np.nan
         # Affichage du résultat et construction du dataframe de sortie
-        return grid_plot(don,grid_i,ncx,ncy,ext,pxy,col_T,nb_paths,nb_res,output_file,
+        return grid_plot(don,grid_i,ncx,ncy,ext,pxy,col_T,nb_channels,nb_res,output_file,
                          sep,plot_pts=plot_pts,matrix=matrix)  
 
 
-def kriging(don,ncx,ncy,ext,pxy,nc_data,nb_paths,nb_res,all_models=False,
+def kriging(don,ncx,ncy,ext,pxy,nc_data,nb_channels,nb_res,all_models=False,
             l_d=None,l_e=None,l_t=None,l_c=None,verif=False):
     """
     Main loop for kriging.\n
@@ -2262,7 +2262,7 @@ def kriging(don,ncx,ncy,ext,pxy,nc_data,nb_paths,nb_res,all_models=False,
         Size of the grid for each axis. Contains ``[prec_X, prec_Y]``.
     nc_data : list of str
         Names of every Z columns (actual data).
-    nb_paths : int
+    nb_channels : int
         Number of X and Y columns. The number of coils.
     nb_res : int
         The number of data per coil.
@@ -2329,7 +2329,7 @@ def kriging(don,ncx,ncy,ext,pxy,nc_data,nb_paths,nb_res,all_models=False,
         grid.display()
         dat.display()
     
-    for e in range(nb_paths):
+    for e in range(nb_channels):
         # On retire les anciennes colonnes position de la sélection
         if e != 0:
             dat.setLocator(ncx[e-1],gl.ELoc.UNKNOWN)

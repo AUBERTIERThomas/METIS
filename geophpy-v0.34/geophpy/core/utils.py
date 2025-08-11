@@ -1178,7 +1178,7 @@ def manage_cols(don,col_x,col_y,col_z):
         Names of every Z columns (actual data).
     nb_data : int
         Number of Z columns. The number of data.
-    nb_paths : int
+    nb_channels : int
         Number of X and Y columns. The number of coils.
     nb_res : int
         The number of data per coil.
@@ -1191,14 +1191,14 @@ def manage_cols(don,col_x,col_y,col_z):
     if len(col_x) != len(col_y):
         raise ValueError("Lengths of 'col_x' and 'col_y' are not equal ({} and {}).".format(len(col_x),len(col_y)))
     if len(col_z)%len(col_x) != 0:
-        raise ValueError("Length of 'col_z' is not multiple of length of 'col_x' ({} and {}). Please put the same number of data per path.".format(len(col_x),len(col_y)))
+        raise ValueError("Length of 'col_z' is not multiple of length of 'col_x' ({} and {}). Please put the same number of data per channel.".format(len(col_x),len(col_y)))
     ncx = don.columns[col_x]
     ncy = don.columns[col_y]
     col_T = don.columns[col_z]
     nb_data = len(col_z)
-    nb_paths = len(col_x)
-    nb_res = max(1, nb_data//nb_paths)
-    return ncx, ncy, col_T, nb_data, nb_paths, nb_res
+    nb_channels = len(col_x)
+    nb_res = max(1, nb_data//nb_channels)
+    return ncx, ncy, col_T, nb_data, nb_channels, nb_res
 
 
 def change_date(file_list,date_str,sep='\t',replace=False,output_file_list=None,in_file=False):
@@ -1731,7 +1731,7 @@ def data_stats(file_list,col_list,sep='\t',bins=25,n=10,**kwargs):
             print(df.nlargest(n, c)[c])
 
 
-def light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_paths=3,restr=None,in_file=False):
+def light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_channels=3,restr=None,in_file=False):
     """
     Sort columns to match the following structure :\n
     ``X_int_1|Y_int_1|data1_1|data1_2|...|X_int_2|...|File_id|B+P|Base|Profil``\n
@@ -1755,7 +1755,7 @@ def light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_paths
         If the previous file is overwritten.
     ``[opt]`` output_file_list : ``None`` or list of str, default : ``None``
         List of output files names, ordered as ``file_list``, otherwise add the suffix ``"_clean"``. Is ignored if ``replace = True``.
-    ``[opt]`` nb_paths : int, default : ``3``
+    ``[opt]`` nb_channels : int, default : ``3``
         Number of X and Y columns. The number of coils.
     ``[opt]`` restr : ``None`` or list of str, default : ``None``
         Exclusion strings: any data including one of the specified strings will be ignored. If ``None``, is an empty list.
@@ -1807,7 +1807,7 @@ def light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_paths
         # On construit un dataframe de zéro
         clean_df = pd.DataFrame()
         # On prend les colonnes position + données interpolées
-        for e in range(nb_paths):
+        for e in range(nb_channels):
             try:
                 ncx = "X_int_"+str(e+1)
                 ncy = "Y_int_"+str(e+1)

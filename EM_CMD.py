@@ -2024,7 +2024,7 @@ def CMD_detect_pseudoprof(don,x_col,y_col,l_p=None,tn=10,tn_c=20,min_conseq=8,ve
         # Axe 1 : Évolution de la distance en fonction de l'index et affichage des centres trouvés
         ax[0][0].plot(index_list,dist_list,'-')
         ax[0][0].plot([index_list[i] for i in min_list],[dist_list[i] for i in min_list],'xr')
-        ax[0][0].set_xlabel("Index")
+        ax[0][0].set_xlabel("Indice")
         ax[0][0].set_ylabel("Distance")
         ax[0][0].set_title("Évolution de la distance à la droite")
         # Axe 2 : Affichage du nuage de point des données, droite/segments et des centres trouvés
@@ -7555,7 +7555,7 @@ def JSON_modify_device(uid,new_values_dict):
     with open(CONFIG.json_path+"Appareils.json", 'r') as f:
         app_list = json.load(f)
     
-    # Enregistrement de l'appareil à la place de l'encien
+    # Enregistrement de l'appareil à la place de l'ancien
     for ic,app in enumerate(app_list["app_list"]):
         if app["app_id"] == uid:
             app_list["app_list"][ic] = app_data

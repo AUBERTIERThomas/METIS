@@ -110,7 +110,7 @@ def init_process(uid,file_list=None,sep='\t',sup_na=True,regr=False,l_r=None,cor
     See Also
     --------
     ``check_time_date, time, detect_chgt, intrp_prof, detect_base_pos, detect_profile_square,
-    XY_Nan_completion, sep_BP, detect_pseudoprof, synth_base, pts_rectif, evol_profiles, dec_paths``
+    XY_Nan_completion, sep_BP, detect_pseudoprof, synth_base, pts_rectif, evol_profiles, dec_channels``
     """
     # Conversion en liste si 'file_list' ne l'est pas
     try:
@@ -176,9 +176,9 @@ def init_process(uid,file_list=None,sep='\t',sup_na=True,regr=False,l_r=None,cor
     # Initialisation des colonnes position et données
     ls_base = []
     ls_mes = []
-    col_z=[const_GPS+i for i in range(app_data["nb_paths"]*nb_res)]
-    ncx = ["X_int_"+str(e+1) for e in range(app_data["nb_paths"])]
-    ncy = ["Y_int_"+str(e+1) for e in range(app_data["nb_paths"])]
+    col_z=[const_GPS+i for i in range(app_data["nb_channels"]*nb_res)]
+    ncx = ["X_int_"+str(e+1) for e in range(app_data["nb_channels"])]
+    ncy = ["Y_int_"+str(e+1) for e in range(app_data["nb_channels"])]
     
     # Affichage des nom des fichiers traîtés, si on les a en entrée
     if not is_loaded:
@@ -348,12 +348,12 @@ def init_process(uid,file_list=None,sep='\t',sup_na=True,regr=False,l_r=None,cor
             if corr_base:
                 if not i_fich_base.empty:
                     i_fich_mes = evol_profiles_solo(i_fich_mes,i_fich_base,file_list[i],
-                                                   col_z,app_data["nb_paths"],verif=False)
+                                                   col_z,app_data["nb_channels"],verif=False)
                 else:
                     warnings.warn("No base in file '{}', thus no correction.".format(file_list[i]))
             
             # Décalage des positions par voies
-            i_fich_mes = goper.dec_paths(i_fich_mes,ncx,ncy,app_data["nb_paths"],
+            i_fich_mes = goper.dec_channels(i_fich_mes,ncx,ncy,app_data["nb_channels"],
                                          app_data["TR_l"],app_data["TR_t"],app_data["GPS_dec"])
             
             ls_mes.append(i_fich_mes)
@@ -371,7 +371,7 @@ def init_process(uid,file_list=None,sep='\t',sup_na=True,regr=False,l_r=None,cor
     # Plot du résultat, en séparant chaque voie
     if plot:
         final_df = pd.concat(ls_mes)
-        for e in range(app_data["nb_paths"]):
+        for e in range(app_data["nb_channels"]):
             fig,ax=plt.subplots(nrows=1,ncols=nb_res,figsize=(CONFIG.fig_width,CONFIG.fig_height))
             X = final_df[ncx[e]]
             Y = final_df[ncy[e]]
@@ -401,7 +401,7 @@ def init_process(uid,file_list=None,sep='\t',sup_na=True,regr=False,l_r=None,cor
 
 
 def evol_profiles(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
-                 output_file_list=None,nb_paths=1,diff=True,base_adjust=True,
+                 output_file_list=None,nb_channels=1,diff=True,base_adjust=True,
                  man_adjust=False,l_m=None,line=False,plot=False,in_file=False):
     """
     Main function for profile calibration from bases.\n
@@ -427,7 +427,7 @@ def evol_profiles(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
     ``[opt]`` output_file_list : ``None`` or list of str, default : ``None``
         List of output files names, ordered as ``file_prof_list``,
         otherwise add the suffix ``"_ep"``.
-    ``[opt]`` nb_paths : int, default : ``1``
+    ``[opt]`` nb_channels : int, default : ``1``
         Number of X and Y columns. The number of coils.
     ``[opt]`` diff : bool, default : ``True``
         Define which adjustment method (difference or ratio) is used.
@@ -508,7 +508,7 @@ def evol_profiles(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
             l_m_ = None
         
         # Procédure
-        res = evol_profiles_solo(data_prof,data_base,label,col_z,nb_paths,diff,
+        res = evol_profiles_solo(data_prof,data_base,label,col_z,nb_channels,diff,
                                 base_adjust,man_adjust,l_m_,plot,line)
         
         if not in_file:
@@ -526,7 +526,7 @@ def evol_profiles(file_prof_list,file_base_list,col_z,sep='\t',replace=False,
         return res_list
 
 
-def evol_profiles_solo(prof,bas,nom_fich,col_z,nb_paths,diff=True,base_adjust=True,
+def evol_profiles_solo(prof,bas,nom_fich,col_z,nb_channels,diff=True,base_adjust=True,
                       man_adjust=False,l_m=None,plot=False,line=False):
     """
     Given a profile database and an associated base database, perform profile calibration
@@ -554,7 +554,7 @@ def evol_profiles_solo(prof,bas,nom_fich,col_z,nb_paths,diff=True,base_adjust=Tr
         Profile file name. Used in plots.
     col_z : list of int
         Index of every Z coordinates columns (actual data).
-    nb_paths : int
+    nb_channels : int
         Number of X and Y columns. The number of coils.
     ``[opt]`` diff : bool, default : ``True``
         Define which adjustment method (difference or ratio) is used.
@@ -607,7 +607,7 @@ def evol_profiles_solo(prof,bas,nom_fich,col_z,nb_paths,diff=True,base_adjust=Tr
     
     col_names = don.columns[col_z]
     nb_data = len(col_z)
-    nb_res = max(1, nb_data//nb_paths)
+    nb_res = max(1, nb_data//nb_channels)
     
     prof_med = np.array([[0.0]*prof_l]*nb_data)
     prof_bp = []
@@ -953,10 +953,10 @@ def calibration(uid,col_ph,col_qu,file_list=None,eff_sigma=True,show_steps=True,
     sigma_a_qu = const_dict["sigma_a_qu"]
     # Inversion de signe des constantes, fonction de la configuration
     if app_data["config"] in ["HCP"]:
-        for e in range(app_data["nb_paths"]):
+        for e in range(app_data["nb_channels"]):
             sigma_a_ph[e] = [-c for c in sigma_a_ph[e]]
     if True:
-        for e in range(app_data["nb_paths"]):
+        for e in range(app_data["nb_channels"]):
             sigma_a_qu[e] = [-c for c in sigma_a_qu[e]]
     
     # Nom de fichiers
@@ -980,7 +980,7 @@ def calibration(uid,col_ph,col_qu,file_list=None,eff_sigma=True,show_steps=True,
         
         # On traîte chaque voie séparément
         os.chdir(CONFIG.emi_fortran_path)
-        for e in range(app_data["nb_paths"]):
+        for e in range(app_data["nb_channels"]):
             ncph = df.columns[col_ph[e]]
             ncqu = df.columns[col_qu[e]]
             

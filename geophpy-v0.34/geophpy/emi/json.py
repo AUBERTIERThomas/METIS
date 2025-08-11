@@ -23,7 +23,7 @@ import geophpy.__config__ as CONFIG
 from geophpy.core.operation import coeffs_relation
 from geophpy.core.json import JSON_Indent_Encoder
 
-def add_device(app_name,config,nb_paths,freq_list,gps=True,gps_dec=[0.0,0.0],
+def add_device(app_name,config,nb_channels,freq_list,gps=True,gps_dec=[0.0,0.0],
                TR_l=None,TR_t=None,height=0.1,bucking_coil=0,coeff_c_ph=None,
                coeff_c_qu=None,config_angles=None,save=True,error_code=False):
     """ 
@@ -38,10 +38,10 @@ def add_device(app_name,config,nb_paths,freq_list,gps=True,gps_dec=[0.0,0.0],
     ----------
     app_name : str
         Device name. Can be anything.
-    config : str, {``"HCP"``, ``"VCP"``, ``VVCP``,``"PRP_CS"``, ``"PRP_DEM"``, 
+    config : str, {``"HCP"``, ``"VCP"``, ``VVCP``, ``"PRP_CS"``, ``"PRP_DEM"``, \
     ``"PAR"``, ``"COAX_H"``, ``"COAX_P"``, ``"CUS"``}
         Coil configuration.
-    nb_paths : int
+    nb_channels : int
         Number of X and Y columns. The number of coils.
     freq_list : list of int
         Frequences of each coil. If all are the same, can be of length 1.
@@ -57,7 +57,7 @@ def add_device(app_name,config,nb_paths,freq_list,gps=True,gps_dec=[0.0,0.0],
     ``[opt]`` height : float, default : ``0.1``
         Height of the device during the prospection (m).
     ``[opt]`` bucking_coil, default : ``0``
-        Index of the bucking coil between coils (from ``1`` to ``nb_paths``).
+        Index of the bucking coil between coils (from ``1`` to ``nb_channels``).
         If none, set to 0.
     ``[opt]`` coeff_c_ph : ``None`` or list of float, default : ``None``
         Device constant given by the maker (in phase). 
@@ -84,10 +84,10 @@ def add_device(app_name,config,nb_paths,freq_list,gps=True,gps_dec=[0.0,0.0],
     Raises
     ------
     * Unknown ``config``.
-    * Lengths of ``TR_l``, ``TR_t``, ``coeff_c_ph`` and ``coeff_c_qu`` do not match ``nb_paths``.
+    * Lengths of ``TR_l``, ``TR_t``, ``coeff_c_ph`` and ``coeff_c_qu`` do not match ``nb_channels``.
     * None of ``TR_l`` and ``TR_t`` is specified.
     * ``config_angles = None`` even though``config = "CUS"``
-    * Length of ``config_angles`` does not match ``nb_paths``.
+    * Length of ``config_angles`` does not match ``nb_channels``.
     * Lenght of ``gps_dec`` is not equal to 2.
     """
     app_list = {}
@@ -108,25 +108,25 @@ def add_device(app_name,config,nb_paths,freq_list,gps=True,gps_dec=[0.0,0.0],
     if TR_t == None and TR_l == None:
         raise ValueError("One of 'TR_L' or 'TR_t' must be defined.")
     if TR_l == None:
-        TR_l = [0.0 for i in range(nb_paths)]
+        TR_l = [0.0 for i in range(nb_channels)]
     if TR_t == None:
-        TR_t = [0.0 for i in range(nb_paths)]
-    if len(TR_l) != nb_paths:
-        raise ValueError("Length of 'TR_l' does not match 'nb_paths' \
-                         ({} and {}).".format(len(TR_l),nb_paths))
-    if len(TR_t) != nb_paths:
-        raise ValueError("Length of 'TR_t' does not match 'nb_paths' \
-                         ({} and {}).".format(len(TR_t),nb_paths))
+        TR_t = [0.0 for i in range(nb_channels)]
+    if len(TR_l) != nb_channels:
+        raise ValueError("Length of 'TR_l' does not match 'nb_channels' \
+                         ({} and {}).".format(len(TR_l),nb_channels))
+    if len(TR_t) != nb_channels:
+        raise ValueError("Length of 'TR_t' does not match 'nb_channels' \
+                         ({} and {}).".format(len(TR_t),nb_channels))
     if coeff_c_ph == None:
-        coeff_c_ph = [1.0 for i in range(nb_paths)]
+        coeff_c_ph = [1.0 for i in range(nb_channels)]
     if coeff_c_qu == None:
-        coeff_c_qu = [1.0 for i in range(nb_paths)]
-    if len(coeff_c_ph) != nb_paths:
-        raise ValueError("Length of 'coeff_c_ph' does not match 'nb_paths' \
-                         ({} and {}).".format(len(coeff_c_ph),nb_paths))
-    if len(coeff_c_qu) != nb_paths:
-        raise ValueError("Length of 'coeff_c_qu' does not match 'nb_paths' \
-                         ({} and {}).".format(len(coeff_c_qu),nb_paths))
+        coeff_c_qu = [1.0 for i in range(nb_channels)]
+    if len(coeff_c_ph) != nb_channels:
+        raise ValueError("Length of 'coeff_c_ph' does not match 'nb_channels' \
+                         ({} and {}).".format(len(coeff_c_ph),nb_channels))
+    if len(coeff_c_qu) != nb_channels:
+        raise ValueError("Length of 'coeff_c_qu' does not match 'nb_channels' \
+                         ({} and {}).".format(len(coeff_c_qu),nb_channels))
     
     # Création de l'appareil
     new_app = {}
@@ -136,19 +136,19 @@ def add_device(app_name,config,nb_paths,freq_list,gps=True,gps_dec=[0.0,0.0],
     if config == "CUS":
         if config_angles == None:
             raise ValueError("'config_angles' must be defined for 'CUS' configuration.")
-        if len(config_angles) != 2*nb_paths:
-            raise ValueError("Length of 'config_angles' does not match 2*'nb_paths' \
-                             ({} and {}).".format(len(config_angles),2*nb_paths))
+        if len(config_angles) != 2*nb_channels:
+            raise ValueError("Length of 'config_angles' does not match 2*'nb_channels' \
+                             ({} and {}).".format(len(config_angles),2*nb_channels))
         new_app["config_angles"] = config_angles
     new_app["GPS"] = gps
     if gps_dec != None:
         if len(gps_dec) != 2:
             raise ValueError("Length of 'gps_dec' must be 2 ({}).".format(len(gps_dec)))
         new_app["GPS_dec"] = gps_dec
-    new_app["nb_paths"] = nb_paths
+    new_app["nb_channels"] = nb_channels
     new_app["TR_l"] = TR_l
     new_app["TR_t"] = TR_t
-    new_app["TR"] = [np.sqrt(TR_l[i]**2 + TR_t[i]**2) for i in range(nb_paths)]
+    new_app["TR"] = [np.sqrt(TR_l[i]**2 + TR_t[i]**2) for i in range(nb_channels)]
     new_app["height"] = height
     new_app["freq_list"] = freq_list
     new_app["bucking_coil"] = bucking_coil
@@ -277,9 +277,9 @@ def modify_device(uid,new_values_dict):
     Raises
     ------
     * Unknown ``uid``.
-    * Lengths of ``TR_l``, ``TR_t``, ``coeff_c_ph`` and ``coeff_c_qu`` do not match ``nb_paths``.
+    * Lengths of ``TR_l``, ``TR_t``, ``coeff_c_ph`` and ``coeff_c_qu`` do not match ``nb_channels``.
     * No ``config_angles`` even though``config = "CUS"``
-    * Length of ``config_angles`` does not match ``nb_paths``.
+    * Length of ``config_angles`` does not match ``nb_channels``.
     * Lenght of ``gps_dec`` is not equal to 2.
     """
     if isinstance(uid, int):
@@ -298,36 +298,36 @@ def modify_device(uid,new_values_dict):
         raise ValueError("Unknown configuration, must be in {}.".format(config_list))
     if app_data["TR_t"] == None and app_data["TR_l"] == None:
         raise ValueError("One of 'TR_L' or 'TR_t' must be defined.")
-    if len(app_data["TR_l"]) != app_data["nb_paths"]:
-        raise ValueError("Length of 'TR_l' does not match 'nb_paths' \
-                         ({} and {}).".format(len(app_data["TR_l"]),app_data["nb_paths"]))
-    if len(app_data["TR_t"]) != app_data["nb_paths"]:
-        raise ValueError("Length of 'TR_t' does not match 'nb_paths' \
-                         ({} and {}).".format(len(app_data["TR_t"]),app_data["nb_paths"]))
-    if len(app_data["coeff_c_ph"]) != app_data["nb_paths"]:
-        raise ValueError("Length of 'coeff_c_ph' does not match 'nb_paths' \
-                         ({} and {}).".format(len(app_data["coeff_c_ph"]),app_data["nb_paths"]))
-    if len(app_data["coeff_c_qu"]) != app_data["nb_paths"]:
-        raise ValueError("Length of 'coeff_c_qu' does not match 'nb_paths' \
-                         ({} and {}).".format(len(app_data["coeff_c_qu"]),app_data["nb_paths"]))
+    if len(app_data["TR_l"]) != app_data["nb_channels"]:
+        raise ValueError("Length of 'TR_l' does not match 'nb_channels' \
+                         ({} and {}).".format(len(app_data["TR_l"]),app_data["nb_channels"]))
+    if len(app_data["TR_t"]) != app_data["nb_channels"]:
+        raise ValueError("Length of 'TR_t' does not match 'nb_channels' \
+                         ({} and {}).".format(len(app_data["TR_t"]),app_data["nb_channels"]))
+    if len(app_data["coeff_c_ph"]) != app_data["nb_channels"]:
+        raise ValueError("Length of 'coeff_c_ph' does not match 'nb_channels' \
+                         ({} and {}).".format(len(app_data["coeff_c_ph"]),app_data["nb_channels"]))
+    if len(app_data["coeff_c_qu"]) != app_data["nb_channels"]:
+        raise ValueError("Length of 'coeff_c_qu' does not match 'nb_channels' \
+                         ({} and {}).".format(len(app_data["coeff_c_qu"]),app_data["nb_channels"]))
     if app_data["config"] == "CUS":
         try:
-            if len(app_data["config_angles"]) != 2*app_data["nb_paths"]:
-                raise ValueError("Length of 'config_angles' does not match 2*'nb_paths' \
-                                 ({} and {}).".format(len(app_data["config_angles"]),2*app_data["nb_paths"]))
+            if len(app_data["config_angles"]) != 2*app_data["nb_channels"]:
+                raise ValueError("Length of 'config_angles' does not match 2*'nb_channels' \
+                                 ({} and {}).".format(len(app_data["config_angles"]),2*app_data["nb_channels"]))
         except:
             raise ValueError("'config_angles' must be defined for 'CUS' configuration.")
     if len(app_data["GPS_dec"]) != 2:
         raise ValueError("Length of 'gps_dec' must be 2 ({}).".format(len(app_data["GPS_dec"])))
     app_data["TR"] = [np.sqrt(app_data["TR_l"][i]**2 + \
                               app_data["TR_t"][i]**2) \
-                      for i in range(app_data["nb_paths"])]
+                      for i in range(app_data["nb_channels"])]
     
     # Chargement de la base des appareils
     with open(CONFIG.emi_json_path+"Appareils.json", 'r') as f:
         app_list = json.load(f)
     
-    # Enregistrement de l'appareil à la place de l'encien
+    # Enregistrement de l'appareil à la place de l'ancien
     for ic,app in enumerate(app_list["app_list"]):
         if app["app_id"] == uid:
             app_list["app_list"][ic] = app_data
@@ -391,7 +391,7 @@ def print_device_selected(app,nc):
     print(CONFIG.type_color+"{} : ".format(app["app_id"])+CONFIG.title_color+\
           "{} ({})".format(app["app_name"],app["config"]))
     print(CONFIG.success_low_color+"\tGPS : "+CONFIG.base_color+"{}".format(app["GPS"]))
-    print(CONFIG.success_low_color+"\tNb T/R : "+CONFIG.base_color+"{}, ".format(app["nb_paths"]))
+    print(CONFIG.success_low_color+"\tNb T/R : "+CONFIG.base_color+"{}, ".format(app["nb_channels"]))
     print(CONFIG.success_low_color+"\tPos l : "+CONFIG.base_color+"{}, ".format(app["TR_l"])+\
           CONFIG.success_low_color+"Pos t : "+CONFIG.base_color+"{}".format(app["TR_t"]))
     print(CONFIG.success_low_color+"\tz : "+CONFIG.base_color+"{}, ".format(app["height"])+\
@@ -576,7 +576,7 @@ def ball_calibr(ball_file,config,TR,radius,z,x_min,x_max,sep='\t',y=0,step=5,buc
     --------
     ``_file_constboule``
     """
-    nb_paths = len(TR)
+    nb_channels = len(TR)
     # Listes des configurations proposées
     config_list = ["PRP_CS","PRP_DEM","HCP","VCP"]
     # Déso les gens mais ayez des vraies configurations aussi !
@@ -592,7 +592,7 @@ def ball_calibr(ball_file,config,TR,radius,z,x_min,x_max,sep='\t',y=0,step=5,buc
     output_file = "_boule_.dat"
     fortran_exe = "boule.exe"
     fortran_linux = "boule.out"
-    os.chdir(CONFIG.emi_fortran_path)
+    os.chdir(CONFIG.emi_fortran_channel)
     
     # Création du fichier appelé par le Fortran
     _file_constboule(cfg_file,output_file,TR,radius,z,x_min,x_max,y,step,bucking_coil)
@@ -618,7 +618,7 @@ def ball_calibr(ball_file,config,TR,radius,z,x_min,x_max,sep='\t',y=0,step=5,buc
     # Lecture des données du tableau
     don = pd.read_csv(output_file,sep='\s+',skiprows=1)
     config_index = next(i for i,c in enumerate(config_list) if c == config)
-    cols_th = don.iloc[:,1+nb_paths*config_index:1+nb_paths*(config_index+1)]
+    cols_th = don.iloc[:,1+nb_channels*config_index:1+nb_channels*(config_index+1)]
     # Lecture des données du fichier de boule
     os.chdir(user_cwd)
     don = pd.read_csv(ball_file,sep=sep)
@@ -628,7 +628,7 @@ def ball_calibr(ball_file,config,TR,radius,z,x_min,x_max,sep='\t',y=0,step=5,buc
     # Affichage et calcul des constantes
     coeff = []
     try:
-        for e in range(nb_paths):
+        for e in range(nb_channels):
             # Unité en ppm
             c_pr = cols_pr.iloc[:,e]*1000
             c_th = cols_th.iloc[:,e]
@@ -746,7 +746,7 @@ def compute_new_const(app_data,plot=False):
     # Nombre de variation pour deux paramètres
     v = 100
     # Pour chaque voie
-    for e in range(app_data["nb_paths"]):
+    for e in range(app_data["nb_channels"]):
         
         # Création du fichier appelé par le Fortran
         _file_constab(app_data,cfg_file,e,variation=v,

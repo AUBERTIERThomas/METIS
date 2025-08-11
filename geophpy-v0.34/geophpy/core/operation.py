@@ -2868,7 +2868,7 @@ def decal_posLT(X,Y,profs,decL=0.,decT=0.):
     
     See Also
     --------
-    ``dec_paths``
+    ``dec_channels``
     """
     ls_Xc=[]
     ls_Yc=[]
@@ -2912,7 +2912,7 @@ def decal_posLT(X,Y,profs,decL=0.,decT=0.):
     return(Xc,Yc)
 
 
-def dec_paths(don,ncx,ncy,nb_paths,TR_l,TR_t,gps_dec):
+def dec_channels(don,ncx,ncy,nb_channels,TR_l,TR_t,gps_dec):
     """
     Shifts X and Y according to the GPS and coil position from the center, for each coil.
     
@@ -2928,7 +2928,7 @@ def dec_paths(don,ncx,ncy,nb_paths,TR_l,TR_t,gps_dec):
         Names of every X columns.
     ncy : list of str
         Names of every Y columns.
-    nb_paths : int
+    nb_channels : int
         Number of X and Y columns. The number of coils.
     TR_l : list of float
         Distance between each coil and the transmitter coil, on lateral axis (m).
@@ -2947,7 +2947,7 @@ def dec_paths(don,ncx,ncy,nb_paths,TR_l,TR_t,gps_dec):
     ``decal_posLT``
     """
     # Pour chaque voie, on décale la position
-    for e in range(nb_paths):
+    for e in range(nb_channels):
         decx = gps_dec[0]-(TR_l[e]-TR_l[-1])/2
         decy = gps_dec[1]-(TR_t[e]-TR_t[-1])/2
         X, Y = decal_posLT(don["X_int"],don["Y_int"],don["Profil"],decL=decx,decT=decy)
@@ -3106,7 +3106,7 @@ def compute_coeff(col1,col2,excl1,excl2):
     return diff/t, ec
 
 
-def dat_to_grid(don,ncx,ncy,nb_paths,nb_res,radius=0,prec=100,step=None,w_exp=0.0,
+def dat_to_grid(don,ncx,ncy,nb_channels,nb_res,radius=0,prec=100,step=None,w_exp=0.0,
                 only_nan=True,heatmap=False,verif=False):
     """
     Put raw data on a grid, then determine which tile should be removed (with ``NaN`` value).\n
@@ -3129,7 +3129,7 @@ def dat_to_grid(don,ncx,ncy,nb_paths,nb_res,radius=0,prec=100,step=None,w_exp=0.
         Names of every X columns.
     ncy : list of str
         Names of every Y columns.
-    nb_paths : int
+    nb_channels : int
         Number of X and Y columns. The number of coils.
     nb_res : int
         The number of data per coil.
@@ -3217,12 +3217,12 @@ def dat_to_grid(don,ncx,ncy,nb_paths,nb_res,radius=0,prec=100,step=None,w_exp=0.
     grid_conv, w_exp, w_exp_, quot = calc_coeff(w_exp,radius)
     
     # Grille d'interpolation vide
-    grid = np.array([[[0 for i in range(prec_X)] for j in range(prec_Y)] for e in range(nb_paths)])
+    grid = np.array([[[0 for i in range(prec_X)] for j in range(prec_Y)] for e in range(nb_channels)])
     
     # On associe à chaque case le nombre de points s'y trouvant
     # (avec le critère actuel, seul la présence d'au moins un point compte)
     for ind, row in don.iterrows():
-        for e in range(nb_paths):
+        for e in range(nb_channels):
             curr_x = row[ncx[e]]
             curr_y = row[ncy[e]]
             i_x = 1
@@ -3268,9 +3268,9 @@ def dat_to_grid(don,ncx,ncy,nb_paths,nb_res,radius=0,prec=100,step=None,w_exp=0.
     else:
         # Grille d'interpolation vide
         grid_final = np.array([[[np.nan for i in range(prec_X)] for j in range(prec_Y)]\
-                               for e in range(nb_paths)])
+                               for e in range(nb_channels)])
         if radius > 0:
-            for e in range(nb_paths):
+            for e in range(nb_channels):
                 for j in range(prec_Y):
                     for i in range(prec_X):
                         coeff = 0
@@ -3406,7 +3406,7 @@ def heatmap_grid_calc(grid,grid_conv,prec_X,prec_Y,quot):
     return grid_final
 
 
-def scipy_interp(don,ncx,ncy,ext,pxy,nc_data,nb_paths,nb_res,i_method):
+def scipy_interp(don,ncx,ncy,ext,pxy,nc_data,nb_channels,nb_res,i_method):
     """
     Interpolate data following one given method (``i_method``).\n
     If ``i_method`` starts with ``"RBF_"``, it is part of the radial basis function.
@@ -3425,7 +3425,7 @@ def scipy_interp(don,ncx,ncy,ext,pxy,nc_data,nb_paths,nb_res,i_method):
         Size of the grid for each axis. Contains ``[prec_X, prec_Y]``.
     nc_data : list of str
         Names of every Z columns (actual data).
-    nb_paths : int
+    nb_channels : int
         Number of X and Y columns. The number of coils.
     nb_res : int
         The number of data per coil.
@@ -3465,7 +3465,7 @@ def scipy_interp(don,ncx,ncy,ext,pxy,nc_data,nb_paths,nb_res,i_method):
     else:
         gridxy = np.mgrid[ext[0]:ext[1]:pxy[0]*1j, ext[2]:ext[3]:pxy[1]*1j]
     
-    for e in range(nb_paths):
+    for e in range(nb_channels):
         pos_data = don[[ncx[e],ncy[e]]].to_numpy()
         for r in range(nb_res):
             n = e*nb_res + r
