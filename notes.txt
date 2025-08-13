@@ -1,2 +1,0 @@
-"hcpmini-Tr.dat","hcpmini-Tr2.dat","hcpmini-Tr3.dat"
-35675

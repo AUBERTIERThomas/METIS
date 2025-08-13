@@ -1,2 +1,10 @@
-CMD_help
-CMD_exec_known_device
+CMDEX_grid
+0
+1
+2
+file_list=all.dat
+radius=4
+prec=300
+only_nan=False
+plot_pts=True
+alt_algo=True

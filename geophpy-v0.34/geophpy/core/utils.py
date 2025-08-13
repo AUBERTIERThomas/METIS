@@ -1237,6 +1237,7 @@ def change_date(file_list,date_str,sep='\t',replace=False,output_file_list=None,
     * File not found.
     * Wrong separator or ``"Date"`` column not found.
     * ``file_list`` and ``output_file_list`` are different sizes.
+    * ``output_file_list = None`` and ``in_file = True`` with loaded data.
     * Invalid date.
     """
     # Conversion en liste si 'file_list' ou 'output_file_list' ne l'est pas
@@ -1258,6 +1259,8 @@ def change_date(file_list,date_str,sep='\t',replace=False,output_file_list=None,
                 raise FileNotFoundError("File '{}' not found.".format(file))
         else:
             df = file
+            if output_file_list == None and in_file:
+                raise ValueError('With loaded dataframes, please add output file names.')
         
         # Séparation de la date en mm/jj/yyyy
         oc = re.split(r"/",date_str)
@@ -1331,6 +1334,7 @@ def pop_and_dec(file_list,colsup,sep='\t',replace=False,output_file_list=None,in
     * File not found.
     * Wrong separator or column not found.
     * ``file_list`` and ``output_file_list`` are different sizes.
+    * ``output_file_list = None`` and ``in_file = True`` with loaded data.
     """
     # Conversion en liste si 'file_list' ou 'output_file_list' ne l'est pas
     if not isinstance(file_list,list):
@@ -1351,6 +1355,8 @@ def pop_and_dec(file_list,colsup,sep='\t',replace=False,output_file_list=None,in
                 raise FileNotFoundError("File '{}' not found.".format(file))
         else:
             df = file
+            if output_file_list == None and in_file:
+                raise ValueError('With loaded dataframes, please add output file names.')
         
         # On prend la colonne voulue
         try:
@@ -1411,6 +1417,7 @@ def switch_cols(file_list,col_a,col_b,sep='\t',replace=False,output_file_list=No
     * File not found.
     * Wrong separator or column not found.
     * ``file_list`` and ``output_file_list`` are different sizes.
+    * ``output_file_list = None`` and ``in_file = True`` with loaded data.
     """
     # Conversion en liste si 'file_list' ou 'output_file_list' ne l'est pas
     if not isinstance(file_list,list):
@@ -1431,6 +1438,8 @@ def switch_cols(file_list,col_a,col_b,sep='\t',replace=False,output_file_list=No
                 raise FileNotFoundError("File '{}' not found.".format(file))
         else:
             df = file
+            if output_file_list == None and in_file:
+                raise ValueError('With loaded dataframes, please add output file names.')
         
         # Vérifier que les colonnes existent
         try:
@@ -1596,6 +1605,7 @@ def remove_data(file_list,colsup_list,i_min,i_max,sep='\t',replace=False,output_
     * File not found.
     * Wrong separator or columns not found.
     * ``file_list`` and ``output_file_list`` are different sizes.
+    * ``output_file_list = None`` and ``in_file = True`` with loaded data.
     * Indexes are not ordered correctly.
     * Index is negative.
     * Index goes beyond dataframe.
@@ -1629,6 +1639,8 @@ def remove_data(file_list,colsup_list,i_min,i_max,sep='\t',replace=False,output_
                 raise FileNotFoundError("File '{}' not found.".format(file))
         else:
             df = file
+            if output_file_list == None and in_file:
+                raise ValueError('With loaded dataframes, please add output file names.')
         
         # Sélection des colonnes
         try:
@@ -1707,7 +1719,8 @@ def data_stats(file_list,col_list,sep='\t',bins=25,n=10,**kwargs):
         try:
             cl = df[col_list]
         except KeyError:
-            raise KeyError("File '{}' misses some of {} columns. Is the separator '{}' correct ?".format(file,col_list,repr(sep)))
+            raise KeyError("File '{}' misses some of {} columns. Is the separator \
+                           '{}' correct ?".format(file,col_list,repr(sep)))
         
         # Ajout de certains paramètres aux kwargs (pour pas de conflits)
         kwargs["column"] = col_list
@@ -1731,7 +1744,8 @@ def data_stats(file_list,col_list,sep='\t',bins=25,n=10,**kwargs):
             print(df.nlargest(n, c)[c])
 
 
-def light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_channels=3,restr=None,in_file=False):
+def light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_channels=3,
+                 restr=None,meta=True,split=False,in_file=False):
     """
     Sort columns to match the following structure :\n
     ``X_int_1|Y_int_1|data1_1|data1_2|...|X_int_2|...|File_id|B+P|Base|Profil``\n
@@ -1754,11 +1768,17 @@ def light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_chann
     ``[opt]`` replace : bool, default : ``False``
         If the previous file is overwritten.
     ``[opt]`` output_file_list : ``None`` or list of str, default : ``None``
-        List of output files names, ordered as ``file_list``, otherwise add the suffix ``"_clean"``. Is ignored if ``replace = True``.
+        List of output files names, ordered as ``file_list``, 
+        otherwise add the suffix ``"_clean"``. Is ignored if ``replace = True``.
     ``[opt]`` nb_channels : int, default : ``3``
         Number of X and Y columns. The number of coils.
     ``[opt]`` restr : ``None`` or list of str, default : ``None``
-        Exclusion strings: any data including one of the specified strings will be ignored. If ``None``, is an empty list.
+        Exclusion strings: any data including one of the specified strings will be ignored. 
+        If ``None``, is an empty list.
+    ``[opt]`` meta : bool, default : ``True``
+        If ``True``, keep metadata columns (recommended).
+    ``[opt]`` split : bool, default : ``False``
+        If ``True``, splits each file by channel.
     ``[opt]`` in_file : bool, default : ``False``
         If ``True``, save result in a file. If ``False``, return the dataframe.
     
@@ -1775,6 +1795,7 @@ def light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_chann
     * File not found.
     * Wrong separator or columns not found.
     * ``file_list`` and ``output_file_list`` are different sizes.
+    * ``output_file_list = None`` and ``in_file = True`` with loaded data
     
     See also
     --------
@@ -1803,6 +1824,8 @@ def light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_chann
                 raise FileNotFoundError("File '{}' not found.".format(file))
         else:
             df = file
+            if output_file_list == None and in_file:
+                raise ValueError('With loaded dataframes, please add output file names.')
         
         # On construit un dataframe de zéro
         clean_df = pd.DataFrame()
@@ -1820,24 +1843,58 @@ def light_format(file_list,sep='\t',replace=False,output_file_list=None,nb_chann
                 raise KeyError("File '{}' misses some of interpolated position columns. Is the separator '{}' correct ?".format(file,repr(sep)))
             
         # On prend 4 colonnes enplus
-        end_cols = ["File_id","B+P","Base","Profil"]
-        for c in end_cols:
-            try:
-                clean_df[c] = df[c]
-            except KeyError:
-                raise KeyError("File '{}' have no \"{}\" column.".format(file,c))
+        if meta:
+            end_cols = ["File_id","B+P","Base","Profil"]
+            for c in end_cols:
+                try:
+                    clean_df[c] = df[c]
+                except KeyError:
+                    raise KeyError("File '{}' have no \"{}\" column.".format(file,c))
         
-        # Sortie du dataframe (option)
-        if not in_file:
-            res_list.append(clean_df)
-        # Résultat enregistré en .dat (option)
-        else:
-            if replace:
-                clean_df.to_csv(file, index=False, sep=sep)
-            elif output_file_list == None:
-                clean_df.to_csv(file[:-4]+"_clean.dat", index=False, sep=sep)
+        # Séparation par voie
+        if split:
+            clean_df_list = []
+            start_list = [0]
+            for e in range(1,nb_channels):
+                start_list.append(list(clean_df.columns).index("X_int_"+str(e+1)))
+            if meta:
+                start_list.append(list(clean_df.columns).index(end_cols[0]))
             else:
-                clean_df.to_csv(output_file_list[ic], index=False, sep=sep)
+                start_list.append(len(clean_df.columns))
+                
+            for e in range(nb_channels):
+                df_temp = clean_df.filter(clean_df.columns[start_list[e]:start_list[e+1]], axis=1)
+                if meta:
+                    for c in end_cols:
+                        df_temp[c] = clean_df[c]
+                clean_df_list.append(df_temp)
+            
+            # Sortie du dataframe (option)
+            if not in_file:
+                for cdf in clean_df_list:
+                    res_list.append(cdf)
+            # Résultat enregistré en .dat (option)
+            else:
+                for e,cdf in enumerate(clean_df_list):
+                    if replace:
+                        cdf.to_csv(file[:-4]+"_"+str(e+1)+".dat", index=False, sep=sep)
+                    elif output_file_list == None:
+                        cdf.to_csv(file[:-4]+"_clean_"+str(e+1)+".dat", index=False, sep=sep)
+                    else:
+                        cdf.to_csv(output_file_list[ic][:-4]+"_"+str(e+1)+".dat", index=False, sep=sep)
+        # Pas de séparation
+        else:
+            # Sortie du dataframe (option)
+            if not in_file:
+                res_list.append(clean_df)
+            # Résultat enregistré en .dat (option)
+            else:
+                if replace:
+                    clean_df.to_csv(file, index=False, sep=sep)
+                elif output_file_list == None:
+                    clean_df.to_csv(file[:-4]+"_clean.dat", index=False, sep=sep)
+                else:
+                    clean_df.to_csv(output_file_list[ic], index=False, sep=sep)
     if not in_file:
         return res_list
 
@@ -1938,6 +1995,7 @@ def no_gps_pos(file_list,sep='\t',replace=False,output_file_list=None,in_file=Fa
     * File not found.
     * Wrong separator or columns not found.
     * ``file_list`` and ``output_file_list`` are different sizes.
+    * ``output_file_list = None`` and ``in_file = True`` with loaded data.
     * ``y[m]`` column not found.
     """
     # Conversion en liste si 'file_list' ou 'output_file_list' ne l'est pas
@@ -1961,6 +2019,8 @@ def no_gps_pos(file_list,sep='\t',replace=False,output_file_list=None,in_file=Fa
                 raise FileNotFoundError("File '{}' not found.".format(file))
         else:
             df = file
+            if output_file_list == None and in_file:
+                raise ValueError('With loaded dataframes, please add output file names.')
         
         # Vérification sur la colonne
         try:

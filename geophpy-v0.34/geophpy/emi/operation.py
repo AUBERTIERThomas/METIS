@@ -191,6 +191,7 @@ def synth_base(don,nc_data,CMDmini=True):
     pd_inf=pd.concat(ls_inf,axis=1).round(CONFIG.prec_data)
     pd_sup.index=nc_data
     pd_inf.index=nc_data 
+    pd_med = pd_sup.add(pd_inf, fill_value=0)/2
     pd_num_fich=pd.Series(ls_num_fich)  
     pd_bp=pd.Series(ls_bp)     
     pd_tps=pd.Series(ls_tps).round(CONFIG.prec_data)
@@ -199,4 +200,4 @@ def synth_base(don,nc_data,CMDmini=True):
     if CMDmini :
         return(pd_num_fich,pd_bp,pd_tps,pd_inf)
     else :
-        return(pd_num_fich,pd_bp,pd_tps,pd_valmd)
+        return(pd_num_fich,pd_bp,pd_tps,pd_med)

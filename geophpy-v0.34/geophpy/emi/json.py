@@ -592,7 +592,7 @@ def ball_calibr(ball_file,config,TR,radius,z,x_min,x_max,sep='\t',y=0,step=5,buc
     output_file = "_boule_.dat"
     fortran_exe = "boule.exe"
     fortran_linux = "boule.out"
-    os.chdir(CONFIG.emi_fortran_channel)
+    os.chdir(CONFIG.emi_fortran_path)
     
     # Création du fichier appelé par le Fortran
     _file_constboule(cfg_file,output_file,TR,radius,z,x_min,x_max,y,step,bucking_coil)

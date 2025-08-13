@@ -543,9 +543,9 @@ def GUI_CMDEX_grid(from_EXEC=None):
 
     root, canvas, bg_im, button_im, settings_im = LOAD_root("CMDEX_grid")
 
-    label_list = ["col_x","col_y","col_z","file_list","sep","output_file","m_type","radius","prec","seuil","i_method","only_nan","no_crop","all_models","plot_pts","matrix"]
-    type_list = ["int[]","int[]","int[]","str[]","str","str","str","int","int","float","str","bool","bool","bool","bool","bool"]
-    default_list = ["*","*","*","None",'\\t',"None","None","0","100","0.0","None","True","False","False","False","False"]
+    label_list = ["col_x","col_y","col_z","file_list","sep","output_file","m_type","radius","prec","seuil","i_method","only_nan","alt_algo","no_crop","all_models","plot_pts","matrix"]
+    type_list = ["int[]","int[]","int[]","str[]","str","str","str","int","int","float","str","bool","bool","bool","bool","bool","bool"]
+    default_list = ["*","*","*","None",'\\t',"None","None","0","100","0.0","None","True","False","False","False","False","False"]
     
     EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "CMDEX_grid", "CMDEX_g_", "Mise en grille des données", GUI_main_CMDEX, from_EXEC)
     
@@ -687,9 +687,9 @@ def GUI_DAT_light_format(from_EXEC=None):
 
     root, canvas, bg_im, button_im, settings_im = LOAD_root("DAT_light_format")
 
-    label_list = ["file_list","sep","replace","output_file_list","nb_ecarts","restr"]
-    type_list = ["str[]","str","bool","str[]","bool","str[]"]
-    default_list = ["*","\\t","False","None","3","[]"]
+    label_list = ["file_list","sep","replace","output_file_list","nb_ecarts","restr","meta","split"]
+    type_list = ["str[]","str","bool","str[]","bool","str[]","bool","bool"]
+    default_list = ["*","\\t","False","None","3","[]","True","False"]
     
     EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, "DAT_light_format", "", "Mise en format standard d'un fichier .dat", GUI_main_DAT, from_EXEC)
     

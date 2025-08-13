@@ -2935,7 +2935,7 @@ def dec_channels(don,ncx,ncy,nb_channels,TR_l,TR_t,gps_dec):
     TR_t : list of float
         Distance between each coil and the transmitter coil, on transversal axis (m).
     gps_dec : [float, float]
-        Shift between the GPS antenna and the device center, on both axis (m). Should be ``[0,0]`` if none.
+        Shift vector between the GPS antenna and the device center, on both axis (m). Should be ``[0,0]`` if none.
     
     Returns
     -------
@@ -3227,9 +3227,9 @@ def dat_to_grid(don,ncx,ncy,nb_channels,nb_res,radius=0,prec=100,step=None,w_exp
             curr_y = row[ncy[e]]
             i_x = 1
             i_y = 1
-            while i_x < prec_X and gridx[i_x] < curr_x:
+            while i_x < prec_X and (gridx[i_x]+0.5*pas_X) < curr_x:
                 i_x += 1
-            while i_y < prec_Y and gridy[i_y] < curr_y:
+            while i_y < prec_Y and (gridy[i_y]+0.5*pas_Y) < curr_y:
                 i_y += 1
             grid[e,i_y-1,i_x-1] += 1
     
@@ -3404,6 +3404,183 @@ def heatmap_grid_calc(grid,grid_conv,prec_X,prec_Y,quot):
             grid_final[j,i] = coeff/quot
     
     return grid_final
+
+
+def dat_to_grid_2(don,ncx,ncy,nb_channels,nb_res,radius=0,prec=100,step=None,only_nan=True,verif=False):
+    """
+    Put raw data on a grid, then determine which tile should be removed (with ``NaN`` value).\n
+    This algorithm uses two criteras, the mean distance vector and the biggest empty cone of points.\n
+    If the mean vector length is more than the half of radius, or there is 
+    no point in a cone of more than 180 degrees, the tile is empty.\n
+    Is better to crop borders but can create unwanted results if ``radius`` is smaller than 
+    some holes' width.
+    
+    Notes
+    -----
+    Complexity :
+        .. math:: O(d + p^2r^2) 
+        where d is the number of points, p is ``prec`` and r is ``radius``.
+        
+    
+    Parameters
+    ----------
+    don : dataframe
+        Active dataframe.
+    ncx : list of str
+        Names of every X columns.
+    ncy : list of str
+        Names of every Y columns.
+    nb_channels : int
+        Number of X and Y columns. The number of coils.
+    nb_res : int
+        The number of data per coil.
+    ``[opt]`` radius : int, default : ``0``
+        Detection radius around each tile for ``NaN`` completion.
+    ``[opt]`` prec : int, default : ``100``
+        Grid size of the biggest axis. The other one is deducted by proportionality.
+    ``[opt]`` step : ``None`` or float, default : ``None``
+        Step between each tile, according to the unit used by the position columns.
+        If not ``None``, ignore ``prec`` value.
+    ``[opt]`` only_nan : bool, default : ``True``
+        If ``True``, tiles that contain at least one point are always kept.
+        If ``False``, will remove those that are too eccentric.
+    ``[opt]`` verif : bool, default : ``False``
+        Print some useful informations for testing.
+    
+    
+    Returns
+    -------
+    grid_final : np.ndarray (dim 3) of float
+        For each data column, contains the grid values (``0`` if tile is taken, ``NaN`` if not)
+    ext : [float, float, float, float]
+        Extend of the grid. Contains ``[min_X, max_X, min_Y, max_Y]``.
+    pxy : [float, float]
+        Size of the grid for each axis. Contains ``[prec_X, prec_Y]``.
+    
+    Raises
+    ------
+    * Some columns does not exist.
+    * Some columns are not numeric.
+    
+    See also
+    --------
+    ``CMD_grid``
+    """
+    print("=== Grid construction phase ===")
+    
+    # Calcul des dimensions de la grille
+    try:
+        X = np.array(don[ncx])
+        Y = np.array(don[ncy])
+    except KeyError:
+        raise KeyError('Columns "{}" and "{}" do not exist.'.format(ncx,ncy))
+
+    
+    try:
+        max_X = max(X.flatten())
+        min_X = min(X.flatten())
+        max_Y = max(Y.flatten())
+        min_Y = min(Y.flatten())
+    except TypeError:
+        raise TypeError('Columns "{}" and "{}" are not numeric.'.format(ncx,ncy))
+    if verif:
+        print("max_X = ",max_X)
+        print("min_X = ",min_X)
+        print("max_Y = ",max_Y)
+        print("min_Y = ",min_Y)
+    diff_X = max_X-min_X
+    diff_Y = max_Y-min_Y
+    if step == None:
+        if diff_X > diff_Y:
+            prec_X = prec
+            prec_Y = int(prec*(diff_Y/diff_X))
+        else:
+            prec_Y = prec
+            prec_X = int(prec*(diff_X/diff_Y))
+        pas_X = diff_X/prec_X
+        pas_Y = diff_Y/prec_Y
+    else:
+        pas_X = step
+        pas_Y = step
+        prec_X = int(diff_X/pas_X)+1
+        prec_Y = int(diff_Y/pas_Y)+1
+    
+    # Coordonnées de la grille
+    gridx = [min_X + pas_X*i for i in range(prec_X)]
+    gridy = [min_Y + pas_Y*j for j in range(prec_Y)]
+    
+    # Calcul de la fenêtre pour la grille d'interpolation
+    grid_conv = calc_coeff(0,radius)[0]
+    
+    # Grille d'interpolation vide
+    grid = [[[[] for i in range(prec_X)] for j in range(prec_Y)] for e in range(nb_channels)]
+    
+    # On associe à chaque case la liste des points s'y trouvant
+    for ind, row in don.iterrows():
+        for e in range(nb_channels):
+            curr_x = row[ncx[e]]
+            curr_y = row[ncy[e]]
+            i_x = 1
+            i_y = 1
+            while i_x < prec_X and (gridx[i_x]+0.5*pas_X) < curr_x:
+                i_x += 1
+            while i_y < prec_Y and (gridy[i_y]+0.5*pas_Y) < curr_y:
+                i_y += 1
+            grid[e][i_y-1][i_x-1].append([curr_x,curr_y])
+            
+    # Grille d'interpolation vide
+    grid_p = [[[[] for i in range(prec_X)] for j in range(prec_Y)] for e in range(nb_channels)]
+    
+    # On associe à chaque case la liste des points dans son voisinage (selon la fenêtre)
+    for e in range(nb_channels):
+        for j in range(prec_Y):
+            for i in range(prec_X):
+                for gc in grid_conv:
+                    n_j = j+gc[0]
+                    n_i = i+gc[1]
+                    if n_j >= 0 and n_j < prec_Y and n_i >= 0 and n_i < prec_X:
+                        grid_p[e][j][i] += grid[e][n_j][n_i]
+
+    if verif:
+        print("Step(2)")
+    
+    limit = (radius+1)*0.5 * ((pas_X+pas_Y)*0.5)
+    # Grille d'interpolation vide
+    grid_final = np.array([[[np.nan for i in range(prec_X)] for j in range(prec_Y)] for e in range(nb_channels)])
+    for e in range(nb_channels):
+        for j in range(prec_Y):
+            for i in range(prec_X):
+                g = grid_p[e][j][i]
+                # Si toute case comprenant au moins un point doit être laissée pleine peut importe son score de densité
+                if only_nan and len(grid[e][j][i]) > 0:
+                    grid_final[e,j,i] = 0
+                else:
+                    t = len(g)
+                    curr_x = gridx[i]
+                    curr_y = gridy[j]
+                    if t >= 2:
+                        # Somme des vecteurs
+                        vect = [0,0]
+                        # Liste des angles orientés avec les points, en degrés (-180 à 180)
+                        angle = []
+                        for gg in g:
+                            diff_x = gg[0] - curr_x
+                            diff_y = gg[1] - curr_y
+                            vect[0] += diff_x
+                            vect[1] += diff_y
+                            angle.append(np.angle(diff_x + 1j*diff_y, deg=True))
+                        # On trie les valeurs pour comparer les angles proches
+                        angle = sorted(angle,reverse=False)
+                        # Calcul du plus gros "cône" sans points
+                        max_angle = 0
+                        for a in range(len(angle)-1):
+                            max_angle = max(max_angle,angle[a+1]-angle[a])
+                        max_angle = max(max_angle,angle[0]-angle[-1]+360)
+                        # Acceptation de la case (0 = oui, NaN = non)
+                        if np.sqrt(vect[0]**2 + vect[1]**2)/t < limit and max_angle < 180:
+                            grid_final[e,j,i] = 0
+
+    return grid_final, [min_X,max_X,min_Y,max_Y], [prec_X,prec_Y]
 
 
 def scipy_interp(don,ncx,ncy,ext,pxy,nc_data,nb_channels,nb_res,i_method):

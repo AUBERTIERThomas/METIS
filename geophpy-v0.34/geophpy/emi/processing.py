@@ -288,21 +288,21 @@ def init_process(uid,file_list=None,sep='\t',sup_na=True,regr=False,l_r=None,cor
             
             # Régression des profils pas droits (toujours dynamique)
             if regr:
-                fig,ax=plt.subplots(nrows=1,ncols=1,figsize=(CONFIG.fig_height,CONFIG.fig_height))
-                ax.plot(i_fich_mes["X_int"],i_fich_mes["Y_int"],'+r')
-                ax.plot(i_fich_mes[i_fich_mes["Profil"] == i_fich_mes.iloc[0]["Profil"]]["X_int"],
-                        i_fich_mes["Y_int"][i_fich_mes["Profil"] == i_fich_mes.iloc[0]["Profil"]],'+b')
-                ax.set_xlabel(n_col_X)
-                ax.set_ylabel(n_col_Y)
-                ax.set_aspect('equal')
-                ax.set_title(file_list[i])
-                plt.show(block=False)
-                # À augmenter si la figure ne s'affiche pas, sinon on pourra le baisser 
-                # pour accélérer la vitesse de l'input
-                plt.pause(CONFIG.fig_render_time)
-                
                 # Cas général
                 if l_r == None:
+                    fig,ax=plt.subplots(nrows=1,ncols=1,figsize=(CONFIG.fig_height,CONFIG.fig_height))
+                    ax.plot(i_fich_mes["X_int"],i_fich_mes["Y_int"],'+r')
+                    ax.plot(i_fich_mes[i_fich_mes["Profil"] == i_fich_mes.iloc[0]["Profil"]]["X_int"],
+                            i_fich_mes["Y_int"][i_fich_mes["Profil"] == i_fich_mes.iloc[0]["Profil"]],'+b')
+                    ax.set_xlabel(n_col_X)
+                    ax.set_ylabel(n_col_Y)
+                    ax.set_aspect('equal')
+                    ax.set_title(file_list[i])
+                    plt.show(block=False)
+                    # À augmenter si la figure ne s'affiche pas, sinon on pourra le baisser 
+                    # pour accélérer la vitesse de l'input
+                    plt.pause(CONFIG.fig_render_time)
+                    
                     correct = False
                     while correct == False:
                         gutils.input_mess(["File {} : regression ?".format(file_list[i]),
@@ -324,6 +324,9 @@ def init_process(uid,file_list=None,sep='\t',sup_na=True,regr=False,l_r=None,cor
                             warnings.warn("Invalid answer.")
                         except IndexError:
                             warnings.warn("Profile {} does not exist.".format(inp))
+                    
+                    plt.close(fig)
+                    
                 # Si on a listé les réponses au préalable
                 else:
                     if len(l_r) != nb_file:
@@ -332,7 +335,7 @@ def init_process(uid,file_list=None,sep='\t',sup_na=True,regr=False,l_r=None,cor
                     try:
                         if l_r[i] == "n":
                             pass
-                        elif inp == "y":
+                        elif l_r[i] == "y":
                             i_fich_mes = goper.pts_rectif(i_fich_mes)
                         elif int(l_r[i]) >= 0:
                             i_fich_mes = goper.pts_rectif(i_fich_mes,ind_deb=int(l_r[i]))
@@ -342,7 +345,6 @@ def init_process(uid,file_list=None,sep='\t',sup_na=True,regr=False,l_r=None,cor
                         raise ValueError("'l_r' = {} : Invalid answer.".format(l_r[i]))
                     except IndexError:
                         raise ValueError("'l_r' = {} : Profile does not exist.".format(l_r[i]))
-                plt.close(fig)
             
             # Étalonnage par base (pas de manuel depuis cette fonction)
             if corr_base:
@@ -875,8 +877,8 @@ def evol_profiles_solo(prof,bas,nom_fich,col_z,nb_channels,diff=True,base_adjust
     return don.copy()
 
 
-def calibration(uid,col_ph,col_qu,file_list=None,eff_sigma=True,show_steps=True,sep='\t',
-                output_file_list=None,in_file=False):
+def calibration(uid,col_ph,col_qu,file_list=None,eff_sigma=True,show_steps=True,light=True,
+                sep='\t',output_file_list=None,in_file=False):
     """
     Given two arrays ``X`` and ``Y``, compute the coefficients of the chosen regression.\n
     To be used in the context of finding a formula for a physical relation.
@@ -895,11 +897,15 @@ def calibration(uid,col_ph,col_qu,file_list=None,eff_sigma=True,show_steps=True,
         If we remove the computed effect of sigma for inphase signal.
     ``[opt]`` show_steps : bool, default : ``True``
         Prints an increment every 250 points, as well as the current coil.
+    ``[opt]`` light : bool, default : ``False``
+        Only keep final columns (sigma and kappa).
     ``[opt]`` sep : str, default : ``'\\t'``
         Dataframe separator.
     ``[opt]`` output_file_list : ``None`` or list of str, default : ``None``
         List of output files names, ordered as ``file_list``, 
         otherwise add the suffix ``"_calibr"``.
+    ``[opt]`` in_file : bool, default : ``False``
+        If ``True``, save result in a file. If ``False``, return the dataframe.
     
     Returns
     -------

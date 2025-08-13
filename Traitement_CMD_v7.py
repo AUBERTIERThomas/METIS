@@ -119,7 +119,7 @@ def main(app_data,file_list,file_list_rev,sep,output_file,output_file_base,light
     if split:
         for ic,p in enumerate(ls_mes):
             if light_restr != None:
-                p = EM_CMD.DAT_light_format(p,nb_ecarts=app_data["nb_ecarts"],restr=light_restr)
+                p = EM_CMD.DAT_light_format(p,nb_ecarts=app_data["nb_ecarts"],restr=light_restr)[0]
             p.to_csv(CONFIG.data_path+ls_nomfich[ic][:-4]+"_P.dat", header=True, index=False, sep=sep, mode='w')
         for ic,b in enumerate(ls_base):
             if not b.empty:
@@ -127,7 +127,7 @@ def main(app_data,file_list,file_list_rev,sep,output_file,output_file_base,light
     
     don_mes = pd.concat(ls_mes)
     if light_restr != None: # Mise en format uniforme
-        don_mes = EM_CMD.DAT_light_format(don_mes,nb_ecarts=app_data["nb_ecarts"],restr=light_restr)
+        don_mes = EM_CMD.DAT_light_format(don_mes,nb_ecarts=app_data["nb_ecarts"],restr=light_restr)[0]
     don_mes.to_csv(CONFIG.data_path+output_file, header=True, index=False, sep=sep, mode='w')
     if ls_base:
         don_base = pd.concat(ls_base)
@@ -532,8 +532,8 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
               EM_CMD.success_low_color+"[file_list"+EM_CMD.code_color+","+EM_CMD.success_low_color+"sep"+EM_CMD.code_color+","+EM_CMD.success_low_color+"output_file"+EM_CMD.code_color+","+
               EM_CMD.success_low_color+"m_type"+EM_CMD.code_color+","+EM_CMD.success_low_color+"radius"+EM_CMD.code_color+","+EM_CMD.success_low_color+"prec"+EM_CMD.code_color+","+
               EM_CMD.success_low_color+"step"+EM_CMD.code_color+","+EM_CMD.success_low_color+"seuil"+EM_CMD.code_color+","+EM_CMD.success_low_color+"i_method"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"only_nan"+EM_CMD.code_color+","+EM_CMD.success_low_color+"no_crop"+EM_CMD.code_color+","+EM_CMD.success_low_color+"all_models"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"plot_pts"+EM_CMD.code_color+","+EM_CMD.success_low_color+"matrix]"+EM_CMD.code_color+")")
+              EM_CMD.success_low_color+"only_nan"+EM_CMD.code_color+","+EM_CMD.success_low_color+"alt_algo"+EM_CMD.code_color+","+EM_CMD.success_low_color+"no_crop"+EM_CMD.code_color+","+
+              EM_CMD.success_low_color+"all_models"+EM_CMD.code_color+","+EM_CMD.success_low_color+"plot_pts"+EM_CMD.code_color+","+EM_CMD.success_low_color+"matrix]"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"col_x"+EM_CMD.type_color+" : int[] "+EM_CMD.base_color+"= position des colonnes des coordonnées x (une par voie), la première est 0")
         print("       "+EM_CMD.success_color+"col_y"+EM_CMD.type_color+" : int[] "+EM_CMD.base_color+"= position des colonnes des coordonnées y (une par voie), la première est 0")
@@ -548,7 +548,8 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("       "+EM_CMD.success_low_color+"seuil = 0.0"+EM_CMD.type_color+" : float "+EM_CMD.base_color+"= seuil d'acceptation d'un point en périphérie, varie souvent de -1 à 2 (plus il est grand, plus on retire de cases des la grille)")
         print("       "+EM_CMD.success_low_color+"i_method = None"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= 'nearest', 'linear', 'cubic', 'RBF_linear', 'RBF_thin_plate_spline', 'RBF_cubic', 'RBF_quintic', 'RBF_multiquadric',\
               'RBF_inverse_multiquadric', 'RBF_inverse_quadratic', 'RBF_gaussian' (sinon, le choix se fera pendant l'exécution, inutile si m_type!='i')")
-        print("       "+EM_CMD.success_low_color+"only_nan = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= si True, garde toujours les cases contenant au moins un point de mesure. Sinon on effectue le même test d'eccentricité que pour les cases vides.")
+        print("       "+EM_CMD.success_low_color+"only_nan = True"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= si True, garde toujours les cases contenant au moins un point de mesure. Sinon on effectue le même test d'eccentricité que pour les cases vides.")
+        print("       "+EM_CMD.success_low_color+"alt_algo = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= utilise un algorithme alternatif pour calculer la grille, plus restrictif sur les bords")
         print("       "+EM_CMD.success_low_color+"no_crop = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= si False, ne sélectionne qu'au maximum 1000 points de l'ensemble (activer cette option augmente grandement le temps de calcul, inutile si m_type!='k')")
         print("       "+EM_CMD.success_low_color+"all_models = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= propose les modèles de variogramme avancés (inutile si m_type!='k')")
         print("       "+EM_CMD.success_low_color+"plot_pts = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= afficher ou non les points initiaux, avec une couleur par fichier (inutile si m_type='h')")
@@ -802,7 +803,8 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("Pour une procédure de suppression plus libre, voir la fonction 'DAT_remove_cols'.")
         print(EM_CMD.code_color)
         print(">>> DAT_light_format("+EM_CMD.success_color+"file_list"+EM_CMD.code_color+","+EM_CMD.success_low_color+"[sep"+EM_CMD.code_color+","+EM_CMD.success_low_color+"replace"+EM_CMD.code_color+","+
-              EM_CMD.success_low_color+"output_file_list"+EM_CMD.code_color+","+EM_CMD.success_low_color+"nb_ecarts"+EM_CMD.code_color+","+EM_CMD.success_low_color+"restr]"+EM_CMD.code_color+")")
+              EM_CMD.success_low_color+"output_file_list"+EM_CMD.code_color+","+EM_CMD.success_low_color+"nb_ecarts"+EM_CMD.code_color+","+EM_CMD.success_low_color+"restr"+EM_CMD.code_color+","+
+              EM_CMD.success_low_color+"meta"+EM_CMD.code_color+","+EM_CMD.success_low_color+"split]"+EM_CMD.code_color+")")
         print(EM_CMD.base_color)
         print("avec : "+EM_CMD.success_color+"file_list"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= liste des fichiers à traiter")
         print("       "+EM_CMD.success_low_color+"sep = '\\t'"+EM_CMD.type_color+" : str "+EM_CMD.base_color+"= caractère de séparation du .dat (par défaut '\\t')")
@@ -810,6 +812,8 @@ toutes sortes de biais ou d'erreurs (données divergentes, colonnes inversées, 
         print("       "+EM_CMD.success_low_color+"output_file_list = None"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= nom des fichier de sortie, n'est pas pris en compte si replace=True")
         print("       "+EM_CMD.success_low_color+"nb_ecarts = 3"+EM_CMD.type_color+" : int "+EM_CMD.base_color+"= nombres de voies/bobines")
         print("       "+EM_CMD.success_low_color+"restr = []"+EM_CMD.type_color+" : str[] "+EM_CMD.base_color+"= strings d'exclusions : toute donnée comprenant l'une des chaînes spécifiées sera ignorée")
+        print("       "+EM_CMD.success_low_color+"meta = True"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= garde les métadonnées liées aux profils, fichiers (conseillé)")
+        print("       "+EM_CMD.success_low_color+"split = False"+EM_CMD.type_color+" : bool "+EM_CMD.base_color+"= sépare les résultats par voies")
         print("")
         print("exemples : "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py DAT_light_format "path/to/file/very_nice_data.dat" nb_ecarts=3')
         print("           "+EM_CMD.code_color+'python3 Traitement_CMD_v7.py DAT_light_format "[order_and_discipline.dat,uniform_like_the_law.dat]" restr=["Inv,Error"] replace=True')
@@ -1135,14 +1139,14 @@ def CMDEX_frontiere(col_x,col_y,col_z,file_list=None,sep='\t',output_file="frt.d
     EM_CMD.keep_plt_for_cmd()
 
 def CMDEX_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_type=None,radius=0,prec=100,step=None,\
-               seuil=0.0,i_method=None,only_nan=True,no_crop=False,all_models=False,plot_pts=False,matrix=False):
+               seuil=0.0,i_method=None,only_nan=True,alt_algo=False,no_crop=False,all_models=False,plot_pts=False,matrix=False):
     """
     See also
     --------
     ``EM_CMD.CMD_grid``
     """
-    EM_CMD.CMD_grid(col_x,col_y,col_z,file_list,sep,output_file,m_type,radius,prec,step,seuil,i_method,only_nan,\
-                    no_crop,all_models,plot_pts=plot_pts,matrix=matrix)
+    EM_CMD.CMD_grid(col_x,col_y,col_z,file_list,sep,output_file,m_type,radius,prec,step,seuil,i_method,only_nan,
+                    alt_algo,no_crop,all_models,plot_pts=plot_pts,matrix=matrix)
     EM_CMD.MESS_succ_mess("Fin de l'exécution !")
     EM_CMD.keep_plt_for_cmd()
 
@@ -1656,14 +1660,15 @@ def function_call():
             seuil = 0
             i_method = None
             only_nan = True
+            alt_algo = False
             no_crop = False
             all_models = False
             plot_pts = False
             matrix = False
             if len(sys.argv) > 5:
                 opt_params = EM_CMD.TOOL_optargs_list(sys.argv[5:], ["file_list","sep","output_file","m_type","radius","prec","step","seuil","i_method",\
-                                                                     "only_nan","no_crop","all_models","plot_pts","matrix"],\
-                                                                    [[str],str,str,str,int,int,float,float,str,bool,bool,bool,bool,bool])
+                                                                     "only_nan","alt_algo","no_crop","all_models","plot_pts","matrix"],\
+                                                                    [[str],str,str,str,int,int,float,float,str,bool,bool,bool,bool,bool,bool])
                 file_list = opt_params.get("file_list", None)
                 sep = opt_params.get("sep", '\t')
                 output_file = opt_params.get("output_file", None)
@@ -1674,11 +1679,12 @@ def function_call():
                 seuil = opt_params.get("seuil", 0)
                 i_method = opt_params.get("i_method", None)
                 only_nan = opt_params.get("only_nan", True)
+                alt_algo = opt_params.get("alt_algo", False)
                 no_crop = opt_params.get("no_crop", False)
                 all_models = opt_params.get("all_models", False)
                 plot_pts = opt_params.get("plot_pts", False)
                 matrix = opt_params.get("matrix", False)
-            CMDEX_grid(col_x,col_y,col_z,file_list,sep,output_file,m_type,radius,prec,step,seuil,i_method,only_nan,no_crop,all_models,plot_pts,matrix)
+            CMDEX_grid(col_x,col_y,col_z,file_list,sep,output_file,m_type,radius,prec,step,seuil,i_method,only_nan,alt_algo,no_crop,all_models,plot_pts,matrix)
         elif globals()[sys.argv[1]] == CMDEX_calibration:
             uid = int(sys.argv[2])
             col_ph = EM_CMD.TOOL_split_str_list(sys.argv[3], int)

@@ -1772,19 +1772,19 @@ def frontier_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_channels,nb_res,choice=False
     final_df = pd.concat(ls_mes)
     if plot:
         for e in range(nb_channels):
-            fig,ax=plt.subplots(nrows=1,ncols=nb_res,figsize=(CONFIG.fig_width,CONFIG.fig_height))
+            fig,ax=plt.subplots(nrows=1,ncols=nb_res,figsize=(CONFIG.fig_width,CONFIG.fig_height),squeeze=False)
             X = final_df[ncx[e]]
             Y = final_df[ncy[e]]
             for r in range(nb_res):
                 n = e*nb_res + r
                 Z = final_df[nc_data[n]]
                 Q5,Q95 = Z.quantile([0.05,0.95])
-                col = ax[r].scatter(X,Y,marker='s',c=Z,cmap='cividis',s=6,vmin=Q5,vmax=Q95)
-                plt.colorbar(col,ax=ax[r],shrink=0.7)
-                ax[r].title.set_text(nc_data[e*nb_res+r])
-                ax[r].set_xlabel(ncx[e])
-                ax[r].set_ylabel(ncy[e])
-                ax[r].set_aspect('equal')
+                col = ax[0][r].scatter(X,Y,marker='s',c=Z,cmap='cividis',s=6,vmin=Q5,vmax=Q95)
+                plt.colorbar(col,ax=ax[0][r],shrink=0.7)
+                ax[0][r].title.set_text(nc_data[e*nb_res+r])
+                ax[0][r].set_xlabel(ncx[e])
+                ax[0][r].set_ylabel(ncy[e])
+                ax[0][r].set_aspect('equal')
             plt.show(block=False)
             # À augmenter si la figure ne s'affiche pas,sinon on pourra le baisser
             # pour accélérer la vitesse de l'input
@@ -2053,7 +2053,8 @@ def calc_frontier(don1,don2,ncx,ncy,nc_data,nb_res,nb_channels,choice=False,l_c=
 
 def interp_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_type=None,
                 radius=0,prec=100,step=None,w_exp=0.0,i_method=None,only_nan=True,
-                all_models=False,l_d=None,l_e=None,l_t=None,l_c=None,plot_pts=False,matrix=False):
+                alt_algo=False,all_models=False,l_d=None,l_e=None,l_t=None,l_c=None,
+                plot_pts=False,matrix=False):
     """
     From a data file, proposes gridding according to the method used.\n
     If ``m_type='h'``, then a heatmap of the point density is created.
@@ -2105,6 +2106,9 @@ def interp_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_typ
     ``[opt]`` only_nan : bool, default : ``True``
         If ``True``, tiles that contain at least one point are always kept.
         If ``False``, will remove those that are too eccentric.
+    ``[opt]`` alt_algo : bool, default : ``False``
+        If ``True``, uses an alternative algorithm for exclusion grid. 
+        Is less adjustable but sharper on borders. Do not use ``seuil``.
     ``[opt]`` all_models : bool, default : ``False``
         Enables all the variogram models. Some of them can *crash the kernel*.
     ``[opt]`` l_d : ``None`` or bool, default : ``None``
@@ -2187,8 +2191,12 @@ def interp_grid(col_x,col_y,col_z,file_list=None,sep='\t',output_file=None,m_typ
     ncx, ncy, col_T, nb_data, nb_channels, nb_res = gutils.manage_cols(don,col_x,col_y,col_z)
     
     # Calcule de la grille d'interpolation
-    grid, ext, pxy = goper.dat_to_grid(don,ncx,ncy,nb_channels,nb_res,radius,prec,\
-                                       step,w_exp,only_nan,heatmap=(m_type=='h'))
+    if not alt_algo:
+        grid, ext, pxy = goper.dat_to_grid(don,ncx,ncy,nb_channels,nb_res,radius,prec,
+                                           step,w_exp,only_nan,heatmap=(m_type=='h'))
+    else:
+        grid, ext, pxy = goper.dat_to_grid_2(don,ncx,ncy,nb_channels,nb_res,radius,prec,
+                                             step,only_nan)
     
     # Krigeage : Calcul
     if m_type == 'k':
