@@ -247,7 +247,7 @@
         \end{center}
     \end{figure}
 
-    Par exemple, ici (figure \ref{2_avant_apres}), j'ai volontairement bruité le second ensemble par une constante pour renforcer le décalage. On remarque que suite à la rectification, les deux ensembles de départ ne sont plus discernables, ce qui souligne une meilleur cohérence des données.
+    Par exemple, ici (figure \ref{2_avant_apres}), j'ai volontairement bruité le second ensemble par une constante pour renforcer le décalage. On remarque que suite à la rectification, les deux ensembles de points ne sont plus discernables, ce qui souligne une meilleur cohérence des données.
     
     \label{2_detec_front_ex_out} Un autre exemple est disponible en annexe (\ref{2_detec_front_ex_in}).\\
 
@@ -526,7 +526,7 @@
 
     \noindent\textbf{\underline{Solution envisagée}} :
     \begin{enumerate}
-        \item[$\bullet$] \textbf{Points à intervalles réguliers} : Au lieu de chercher à se reporter à des pseudo-profils, on pourrait choisir de prendre un point par intervalle régulier (1 point tous les 50 par exemple) ou à proportion régulière (50 points répartis proportionnellement). Déterminer de tels points ne nécessite aucun calculs particulier, et on pourra alors choisir la médiane sur le voisionnage des points pour être représentatif de la zone choisie. Malheureusement, cette solution est inexploitable à cause de la déformation du terrain. Il n'est pas possible de faire la différence entre le terrain et le biais de l'appareil. par exemple sur le jeu \ref{fig:2_pp_1}, la partie gauche va fausser la mesure.
+        \item[$\bullet$] \textbf{Points à intervalles réguliers} : Au lieu de chercher à se reporter à des pseudo-profils, on pourrait choisir de prendre un point par intervalle régulier (1 point tous les 50 par exemple) ou à proportion régulière (50 points répartis proportionnellement). Déterminer de tels points ne nécessite aucun calculs particulier, et on pourra alors choisir la médiane sur le voisionnage des points pour être représentatif de la zone choisie. Malheureusement, cette solution est inexploitable à cause de la déformation du terrain. Il n'est pas possible de faire la différence entre le terrain et le biais de l'appareil. Par exemple sur le jeu \ref{fig:2_pp_1}, la partie gauche va fausser la mesure.
     \end{enumerate}
     \textbf{\underline{Solution choisie}} : \textbf{Centres de profils} : \label{2_pseudoprof_out} On cherche à déduire le centre des profils sans aucune information de départ. Si on y arrive, alors on pourra associer chaque point à un centre en fonction de l'ordre de prospection et donc recréer un découpage se rapprochant d'un profil. (\ref{2_pseudoprof_in})
 
@@ -626,7 +626,7 @@
         \caption{Extrait de l'évolution de la distance à la droite par rapport à l'indice, jeu 2.}
     \end{figure}
 
-    Si deux points sont espacés de moins de \texttt{min\_conseq = 8} en indice, le plus éloigné sera retiré. On considère qu'un profil devrait mesurer au moins 8 points et que si deux points sont plus espacés, alors au moins l'un d'entre eux sera suffisament excentré pour être éliminé suite au premier filtre. Si un profil revient sur ses pas après plus de 8 points, la procédure va le considérer comme deux profils distincts.
+    Si deux points sont espacés de moins de \texttt{min\_conseq = 8} en indice, le plus éloigné sera retiré. On considère qu'un profil devrait mesurer au moins 8 points et que si deux points du même profil sont plus espacés, alors au moins l'un d'entre eux sera suffisament excentré pour être éliminé suite au premier filtre. Si un profil revient sur ses pas après plus de 8 points, la procédure va le considérer comme deux profils distincts.
 
     En second lieu, si certains profils sont trop éloignés de la droite des centres, il est possible qu'il ne se touchent pas. Dans ce cas, on mesurera des profils bien trop grand qui en sont en réalité plusieurs. Par conséquent, si deux centres sont plus éloignés que le double de la médiane des écarts, on coupera la zone entre les deux en insérant des centre arbitraires.
 
@@ -697,7 +697,9 @@
         \caption{Stabilité de la procédure.}
     \end{figure}
 
-    Lors de la construction de la droite ou des segments, il faut éviter de couper parallèlement à une partie d'un profil, au risque de créer pleins de centres . Dans ce cas, il est préférable de simplement changer la position des points des segments.
+    Lors de la construction de la droite ou des segments, il faut éviter de couper parallèlement à une partie d'un profil, au risque de créer pleins de centres. Dans ce cas, il est préférable de simplement changer la position des points des segments.
+
+    Si la prospection superpose plusieurs profils dans des directions différentes, on aura du mal à les distinguer avec cette méthode. On pourra tout de même tenter de couper chaque profile une fois, mais si la trajectoire du segment ne coupe pas les profils de manière perpendiculaire, la sécurité présentée dans la figure précédente n'est plus vraie. Dans ce cas les côtés des profils ne seront pas toujours correctement associés à leur profil.
     
 \newpage  
 \subsection{Étalonnage des profils}\label{2-etal}
@@ -1144,29 +1146,28 @@
 \newpage
 \section{Interface shell/terminal}
 
+    En complément des fonctions, j'ai développé un interface sur terminal (ou shell Python). Il sert à éviter de créer des scripts séparés en appelant directement les procédures. Les manipulations enregistrent donc automatiquement les résultats dans des fichiers de sortie. Cet interface pourra par la suite être utilisé par un interface graphique.
+    
     L'utilisation du programme doit respecter les critères suivant :
     \begin{enumerate}
-        \item[$\bullet$] \textbf{Modulable} : L'utilisateur doit pouvoir rentrer les paramètres des fonctions sans modifier le code.
-        \item[$\bullet$] \textbf{Documenté} : Les fonctionnalités doivent être facilement accessibles, et leur utilisation claire. En particulier, on peut au minimum avoir accès au rôle de chaque fonction et à leurs paramètres requis.
         \item[$\bullet$] \textbf{Accessible} : Le programme doit pouvoir être utilisé sans connaissances particulières en programmation. On s'attend cependant à ce l'utilisateur soit géophysicien ou au minimum conscient des notions scientifiques  s'y rattachant.
         \item[$\bullet$] \textbf{Rapide} : Rentrer les données nécessaires au traitement doivent prendre le moins de temps possible.
+        \item[$\bullet$] \textbf{Modulable} : L'utilisateur doit pouvoir rentrer les paramètres des fonctions sans modifier le code.
+        \item[$\bullet$] \textbf{Documenté} : Les fonctionnalités doivent être facilement accessibles, et leur utilisation claire. En particulier, on peut au minimum avoir accès au rôle de chaque fonction et à leurs paramètres requis.
+        \item[$\bullet$] \textbf{Concis} : Il doit pouvoir fournir le maximum d'information utile à l'utilisateur, et le moins d'information superflues propres au code.
     \end{enumerate}
 
-    La première étape est de créer un interface sur terminal, qui pourra par la suite être utilisé par un interface graphique.
-
-    Il doit pouvoir fournir le maximum d'information utile à l'utilisateur, et le moins d'information superflues propres au code.
-
-    Via le terminal, il est possible d'exécuter un script python avec des paramètres. Il suffit de compléter la commande \texttt{python3 script.py} par une série chaine de caratères séparés par des espaces, comme par exemple \texttt{python3 script.py 9 argument "[0,1]"}. L'ordre de ces arguments est important. Les paramètres optionnels doivent être déclarés en dernier ; leur ordre peut être quelconque mais il faut préciser leur nom : \texttt{arg1=0}. La nomenclature tente de s'approcher le plus possible d'une fonction python.
+    Via le terminal, il est possible d'exécuter un script Python avec des paramètres. Il suffit de compléter la commande \texttt{Python3 script.py} par une série chaine de caratères séparés par des espaces, comme par exemple \texttt{Python3 script.py 9 argument "[0,1]"}. L'ordre de ces arguments est important. Les paramètres optionnels doivent être déclarés en dernier ; leur ordre peut être quelconque mais il faut préciser leur nom : \texttt{arg1=0}. La nomenclature tente de s'approcher le plus possible d'une fonction Python.
 
     En général, la format d'un appel se construit comme suit :
     
-    \texttt{python3 Traitement\_CMD\_vX.py [nom\_fonction] [args\_principaux] [args\_optionnels]}.
+    \texttt{Python3 Traitement\_CMD\_vX.py [nom\_fonction] [args\_principaux] [args\_optionnels]}.
 
     Si on souhaite simuler un appel de script depuis un shell IPython, on peut utiliser la commande \texttt{runfile} :
     
-    \texttt{runfile('Traitement\_CMD\_vX.py',args='[nom\_fonction] [args\_principaux] [args\_opts]')}
+    \texttt{runfile('Traitement\_CMD\_vX.py',args='[nom\_fonction] [args\_ppaux] [args\_opts]')}
 
-    De plus, il est toujours possible d'appeler les fonctions python depuis le shell, ou alors d'utiliser les fonctions dans un script séparé. Dans ce cas, il vaut mieux se référer à la documentation interne au code (\textit{docstring}) pour avoir tous les bons arguments.
+    De plus, il est toujours possible d'appeler les fonctions Python depuis le shell, ou alors d'utiliser les fonctions dans un script séparé. Dans ce cas, il vaut mieux se référer à la documentation interne au code (\textit{docstring}) pour avoir tous les bons arguments.
 
 \subsection{Aide et documentation}
 
@@ -1334,18 +1335,19 @@
 
 \newpage
 \subsection{Rédaction de notebooks}
+
     Afin de contextualiser et de mettre en évidence le fonctionnement des fonctions, plusieurs notebooks mettent en application des exemples. L'avantage de ce format est que les résultats sont sauvegardés, ce qui signifie qu'un utilisateur n'a pas besoin de l'exécuter pour observer les figures. De plus, cela permet d'insérer des cellules de texte autour du code.
 
     \begin{enumerate}
-        \item[$\bullet$] Un notebook construit le déroulé entier du traitement en suivant un exemple simple. Cela permet d'exposer la manière la plus rapide de procéder, qui pourra être reprise telle quelle.
+        \item[$\bullet$] Le premier notebook (\texttt{ex_emi_vcp}) construit le déroulé entier du traitement en suivant un exemple simple. Cela permet d'exposer la manière la plus rapide de procéder, qui pourra être reprise telle quelle.
 
-        \item[$\bullet$] Un notebook détaille certains ajustements dans des cas compliqués. En particulier, il explique certaines structures de code qui réduisent le nombre d'erreurs sur les procédures d'ajustement (frontières, manuelles) ainsi que certains algorithmes alternatifs (pseudo-profils par exemple).
+        \item[$\bullet$] Le second (\texttt{ex_emi_hard}) détaille certains ajustements dans des cas compliqués. En particulier, il explique certaines structures de code qui réduisent le nombre d'erreurs sur les procédures d'ajustement (frontières, manuelles) ainsi que certains algorithmes alternatifs (pseudo-profils par exemple).
 
-        \item[$\bullet$] Un notebook présente plusieurs fonctionnalités plus petites appelées par les procédures principales. Il s'agit de fractionner le traitement afin d'avoir un plus grand contrôle sur le déroulé.
+        \item[$\bullet$] Le troisième (\texttt{ex_emi_sub}) présente plusieurs fonctionnalités plus petites appelées par les procédures principales. Il s'agit de fractionner le traitement afin d'avoir un plus grand contrôle sur le déroulé.
         
-        \item[$\bullet$] Un notebook propose d'utiliser certaines opérations sur fichiers de données bruts, dans le cas où des erreurs forcent à modifier certains champs en amont du traitement.
+        \item[$\bullet$] Le quatrième (\texttt{ex_emi_datamanip}) propose d'utiliser certaines opérations sur fichiers de données bruts, dans le cas où des erreurs forcent à modifier certains champs en amont du traitement.
 
-        \item[$\bullet$] Un notebook expose les méthodes autour de la création et la gestion d'un dictionnaire d'appareil. Cet objet contient tous les champs pouvant être importants (écartements des bobines, configuration, antenne GPS...) et est requis par certaines procédures.
+        \item[$\bullet$] Le cinquième (\texttt{ex_emi_device}) expose les méthodes autour de la création et la gestion d'un dictionnaire d'appareil. Cet objet contient tous les champs pouvant être importants (écartements des bobines, configuration, antenne GPS...) et est requis par certaines procédures.
     \end{enumerate}
 
 \newpage
@@ -1365,7 +1367,9 @@
             \item[$\star$] \texttt{scipy} v 1.15.2
             \item[$\star$] \texttt{pickle (pickleshare)} v 0.7.5
             \item[$\star$] \texttt{conda} v 25.5.1
-            \item[$\star$] \texttt{ipython} v 8.35.0
+            \item[$\star$] \texttt{ipython} v 8.30.0
+            \item[$\star$] \texttt{jupyter_client} v 8.6.3
+            \item[$\star$] \texttt{jupyter_core} v 5.7.2
         \end{enumerate}
     
         \item[$\bullet$] Les fonctions sont accessibles via quatre voies possibles : l'interface graphique, l'invite de commande, le shell d'un logiciel ou un script. Toutes ces voies n'ont pas exactement les mêmes restrictions.

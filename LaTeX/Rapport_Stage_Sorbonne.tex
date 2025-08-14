@@ -132,7 +132,7 @@
 
 \newpage
 \begin{abstract}
-    My four-month internship consisted of developing procedures for geophysical data processing. These data are collected through fieldwork using electromagnetic devices. This operations produces prospecting that are subject to numerous biases creating noises on signals. Consequently, the data must be processed to minimize the influence of these biases and isolate the actual terrain variations. Each processing is divided in profiles, which are straight segments. Some of them only serve as references (bases).
+    My four-month internship consisted of developing procedures for geophysical data processing. These data are collected through fieldwork using electromagnetic devices. This operations produces prospecting files that are subject to numerous biases creating noises on signals. Consequently, the data must be processed to minimize the influence of these biases and isolate the actual terrain variations. Each processing is divided in profiles, which are straight segments. Some of them only serve as references (bases).
 
     Among the many different major processing steps, we find NaN completion, profile and base identification, base adjusting, border adjusting (between two datasets) and grid interpolation.
 
@@ -203,10 +203,10 @@
     Les missions de ce stage comprennent :
 
     \begin{enumerate}
-        \item[$\bullet$] L'ajustement des données selon différents critères Reprise et analyse du code source existant pour le traitement EM : identification des fonctionnalités clés, des dépendances, des éventuels problèmes de performance ou de maintenabilité.
+        \item[$\bullet$] Reprise et analyse du code source existant pour le traitement EM : identification des fonctionnalités clés, des dépendances, des éventuels problèmes de performance ou de maintenabilité.
         \item[$\bullet$] Mise à jour du package \href{https://pypi.org/project/GeophPy/}{\texttt{geophpy}} en intégrant les dernières avancées de la bibliothèque et en corrigeant les bugs identifiés.
         \item[$\bullet$] Intégration et tests du package sur des données issues de projets de recherche en cours.
-        \item[$\bullet$] Rédaction de tutoriels e quick-starts d’utilisation sous "\href{https://jupyter.org/}{Jupyter Notebook}".
+        \item[$\bullet$] Rédaction de tutoriels d’utilisation sous "\href{https://jupyter.org/}{Jupyter Notebook}".
         \item[$\bullet$] Rédaction d’un modus operandi sur le traitement de la données réalisé (du fichier brut à la représentation sous Système d'Information Géographique).
         \item[$\bullet$] Présentation des résultats aux partenaires du projet.
         \item[$\bullet$] La rédaction de documentations pour les fonctions.
@@ -231,7 +231,7 @@
     
     Pour cela, il faut s'assurer que les variations au sein d'un fichier sont issues du terrain et non d'un biais externe. On peut s'intéresser à la présence de sauts de valeurs, ou d'une évolution parallèle aux profils (biais en ligne dû aux profils). Cependant, il n'est pas vraiment possible de faire la différence automatiquement. Le géophysicien doit souvent faire la part des choses en se basant sur sa connaissance du terrain et l'analyse des cartes.
     
-    De plus, Les variations entre les fichiers d'un même prospection ne doivent pas créer de saut visibles. En l'occurence, on veut que la frontière entre deux jeux ne ressorte pas. Le plus difficile (et ce qui n'est pas vraiment abordé dans le cadre du stage) est d'uniformiser le type de déformation (petites oscillations, alternance de valeurs sur les profils), voire de les effacer complètement.
+    De plus, les variations entre les fichiers d'un même prospection ne doivent pas créer de saut visibles. En l'occurence, on veut que la frontière entre deux jeux ne ressorte pas. Le plus difficile (et ce qui n'est pas vraiment abordé dans le cadre du stage) est d'uniformiser le type de déformation (petites oscillations, alternance de valeurs sur les profils), voire de les effacer complètement.
 
     %Un appareil électromagnétique réagit particulièrement à la présence d'objets métalliques. Dans ce cas, le signal mesuré explose (positivement ou négativement). Pour cette raison, toute carte doit limiter l'évolution de la coloration aux quantiles à 5\% et 95\%.
 
@@ -246,7 +246,7 @@
 \newpage
 \section{Traitement EM}
 
-    Cette partie ne présente qu'une partie des procédures implémentées. Il s'agit des plus visuelles et des plus centrales au traîtement. Voici la liste des n'étant pas décrites dans le rapport :
+    Cette partie ne présente qu'une partie des procédures implémentées. Il s'agit des plus visuelles et des plus centrales au traîtement. Voici la liste de celles n'étant pas décrites dans le rapport :
     \begin{enumerate}
         \item[$\bullet$] Gestion des données manquantes et redressement des positions.
         \item[$\bullet$] Division des positions par bobine.
@@ -353,7 +353,7 @@
         \caption{\label{2_avant_apres}Jeu de données avant et après ajustement.}
     \end{figure}
 
-    Par exemple, ici (figure \ref{2_avant_apres}), j'ai volontairement bruité le second ensemble par une constante pour renforcer le décalage. On remarque que suite à la rectification, les deux ensembles de départ ne sont plus discernables, ce qui souligne une meilleur cohérence des données.
+    Par exemple, ici (figure \ref{2_avant_apres}), j'ai volontairement bruité le second ensemble par une constante pour renforcer le décalage. On remarque que suite à la rectification, les deux ensembles de points ne sont plus discernables, ce qui souligne une meilleur cohérence des données.
 
     Cependant, il peut arriver que l'ajustement proposé dégrade la continuité. En effet, le choix aléatoire et non exhaustif des points couplé à l'erreur intrinsèque du modèle linéaire peut créer un "faux positif" et mal évaluer l'écart entre deux ensemble. Cela peut aussi arriver si un existe un biais fort sur la récolte, comme par exemple si l'appareil est encore en train de démarrer. Si ce cas ne fait pas majorité, on pourrait chercher à le supprimer.
     
@@ -395,7 +395,7 @@
 
     \noindent\textbf{\underline{Solution envisagée}} :
     \begin{enumerate}
-        \item[$\bullet$] \textbf{Points à intervalles réguliers} : Au lieu de chercher à se reporter à des pseudo-profils, on pourrait choisir de prendre un point par intervalle régulier (1 point tous les 50 par exemple) ou à proportion régulière (50 points répartis proportionnellement). Déterminer de tels points ne nécessite aucun calculs particulier, et on pourra alors choisir la médiane sur le voisionnage des points pour être représentatif de la zone choisie. Malheureusement, cette solution est inexploitable à cause de la déformation du terrain. Il n'est pas possible de faire la différence entre le terrain et le biais de l'appareil. par exemple sur le jeu \ref{fig:2_pp_1}, la partie gauche va fausser la mesure.
+        \item[$\bullet$] \textbf{Points à intervalles réguliers} : Au lieu de chercher à se reporter à des pseudo-profils, on pourrait choisir de prendre un point par intervalle régulier (1 point tous les 50 par exemple) ou à proportion régulière (50 points répartis proportionnellement). Déterminer de tels points ne nécessite aucun calculs particulier, et on pourra alors choisir la médiane sur le voisionnage des points pour être représentatif de la zone choisie. Malheureusement, cette solution est inexploitable à cause de la déformation du terrain. Il n'est pas possible de faire la différence entre le terrain et le biais de l'appareil. Par exemple sur le jeu \ref{fig:2_pp_1}, la partie gauche va fausser la mesure.
     \end{enumerate}
     \textbf{\underline{Solution choisie}} : \textbf{Centres de profils} : On cherche à déduire le centre des profils sans aucune information de départ. Si on y arrive, alors on pourra associer chaque point à un centre en fonction de l'ordre de prospection et donc recréer un découpage se rapprochant d'un profil.
 
@@ -487,11 +487,11 @@
 
     On doit donc éliminer ensuite ces points. On prend comme valeur de seuil \texttt{tn\_c = 20} fois la moyenne des \texttt{tn = 10} points à distance minimale, en supposant qu'une prospection devrait comprendre au moins 10 profils (et donc au moins 10 points très proches de la droite).
 
+    \vskip 15pt
+    
     Malgré cela, il existe deux derniers cas gênant. En premier lieu, celui de détecter deux fois le même profil (croix rouges, figure \ref{pp_2}).
 
-    \vskip 15pt
-
-    Si deux points sont espacés de moins de \texttt{min\_conseq = 8} en indice, le plus éloigné sera retiré. On considère qu'un profil devrait mesurer au moins 8 points et que si deux points sont plus espacés, alors au moins l'un d'entre eux sera suffisament excentré pour être éliminé suite au premier filtre. Si un profil revient sur ses pas après plus de 8 points, la procédure va le considérer comme deux profils distincts.
+    Si deux points sont espacés de moins de \texttt{min\_conseq = 8} en indice, le plus éloigné sera retiré. On considère qu'un profil devrait mesurer au moins 8 points et que si deux points du même profil sont plus espacés, alors au moins l'un d'entre eux sera suffisament excentré pour être éliminé suite au premier filtre. Si un profil revient sur ses pas après plus de 8 points, la procédure va le considérer comme deux profils distincts.
 
     En second lieu, si certains profils sont trop éloignés de la droite des centres, il est possible qu'il ne se touchent pas. Dans ce cas, on mesurera des profils bien trop grand qui en sont en réalité plusieurs. Par conséquent, si deux centres sont plus éloignés que le double de la médiane des écarts, on coupera la zone entre les deux en insérant des centre arbitraires.
 
@@ -567,7 +567,9 @@
         \caption{Stabilité de la procédure.}
     \end{figure}
 
-    Lors de la construction de la droite ou des segments, il faut éviter de couper parallèlement à une partie d'un profil, au risque de créer pleins de centres . Dans ce cas, il est préférable de simplement changer la position des points des segments.
+    Lors de la construction de la droite ou des segments, il faut éviter de couper parallèlement à une partie d'un profil, au risque de créer pleins de centres. Dans ce cas, il est préférable de simplement changer la position des points des segments.
+
+    Si la prospection superpose plusieurs profils dans des directions différentes, on aura du mal à les distinguer avec cette méthode. On pourra tout de même tenter de couper chaque profile une fois, mais si la trajectoire du segment ne coupe pas les profils de manière perpendiculaire, la sécurité présentée dans la figure précédente n'est plus vraie. Dans ce cas les côtés des profils ne seront pas toujours correctement associés à leur profil.
     
 \newpage  
 \subsection{Étalonnage des profils}\label{2-etal}
@@ -618,7 +620,7 @@
         \label{fig:2_evol_base_im}
     \end{figure}
 
-    Suite à cette opération (figure \ref{fig:2_evol_base_im}), on remarque que la tendance en \texttt{Cond.} est conservée, bien qu'atténuée. Il est donc fort probable que cela viennent du terrain et soit représentatif du secteur. En revanche, \texttt{Inph.} suit désormais une évolution en N inversé, et reste plutôt stable aux extrémités. En s'en fiant aux bases, la tendance croissante était une déformation des mesures.
+    Suite à cette opération (figure \ref{fig:2_evol_base_im}), on remarque que la tendance en \texttt{Cond.} est conservée, quoiqu'atténuée. Il est donc fort probable que cela viennent du terrain et soit représentatif du secteur. En revanche, \texttt{Inph.} suit désormais une évolution en N inversé, et reste plutôt stable aux extrémités. En s'en fiant aux bases, la tendance croissante était une déformation des mesures.
 
     En suivant la même méthode, on peut extrapoler cet ajustement avec des jeux possédant des bases au milieu de la prospection.
 
@@ -670,7 +672,7 @@
 
 \subsubsection{Heatmap}
 
-    Afin de faciliter le choix du \texttt{seuil}, on propose de passer par une heatmap de densité de case. On affiche deux représentations :
+    Afin de faciliter le choix du \texttt{seuil}, on propose de passer par une heatmap de densité de case. On affiche deux représentations (figure \ref{fig:2_heatmap}):
 
     \begin{enumerate}
         \item[$\bullet$] À gauche, la heatmap attribuant un score de densité à chaque case.
@@ -680,7 +682,7 @@
     \begin{figure}[ht!]
         \centering
         \includegraphics[width=0.8\textwidth]{Images/Grid_Heatmap_p300.png}
-        \caption{Heatmap et découpage, [\texttt{prec} = 300].}
+        \caption{\label{fig:2_heatmap}Heatmap et découpage, [\texttt{prec} = 300].}
     \end{figure}
     
     En faisant varier le \texttt{seuil}, on peut expérimenter plusieurs découpages, jusqu'à trouver celui qui correspond le mieux au jeu.
@@ -725,7 +727,7 @@
 \newpage
 \section{Interface shell/terminal}
 
-    En complément des fonctions, j'ai développé un interface sur terminal (ou shell Python). Il sert à éviter de créer des scipts séparés en appelant directement les procédures. Cet interface pourra par la suite être utilisé par un interface graphique.
+    En complément des fonctions, j'ai développé un interface sur terminal (ou shell Python). Il sert à éviter de créer des scripts séparés en appelant directement les procédures. Les manipulations enregistrent donc automatiquement les résultats dans des fichiers de sortie. Cet interface pourra par la suite être utilisé par un interface graphique.
     
     L'utilisation du programme doit respecter les critères suivant :
     \begin{enumerate}
@@ -733,11 +735,8 @@
         \item[$\bullet$] \textbf{Rapide} : Rentrer les données nécessaires au traitement doivent prendre le moins de temps possible.
         \item[$\bullet$] \textbf{Modulable} : L'utilisateur doit pouvoir rentrer les paramètres des fonctions sans modifier le code.
         \item[$\bullet$] \textbf{Documenté} : Les fonctionnalités doivent être facilement accessibles, et leur utilisation claire. En particulier, on peut au minimum avoir accès au rôle de chaque fonction et à leurs paramètres requis.
+        \item[$\bullet$] \textbf{Concis} : Il doit pouvoir fournir le maximum d'information utile à l'utilisateur, et le moins d'information superflues propres au code.
     \end{enumerate}
-
-    La première étape est de créer 
-
-    Il doit pouvoir fournir le maximum d'information utile à l'utilisateur, et le moins d'information superflues propres au code.
 
     Via le terminal, il est possible d'exécuter un script Python avec des paramètres. Il suffit de compléter la commande \texttt{Python3 script.py} par une série chaine de caratères séparés par des espaces, comme par exemple \texttt{Python3 script.py 9 argument "[0,1]"}. L'ordre de ces arguments est important. Les paramètres optionnels doivent être déclarés en dernier ; leur ordre peut être quelconque mais il faut préciser leur nom : \texttt{arg1=0}. La nomenclature tente de s'approcher le plus possible d'une fonction Python.
 
