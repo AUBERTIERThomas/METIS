@@ -2182,7 +2182,7 @@ def detect_base_pos(don_c, thr=2, trace=False):
     
     return(don_int.copy())
 
-    
+
 def num_prof(don):
     """
     Numbers each profile (or base) in chronological order.

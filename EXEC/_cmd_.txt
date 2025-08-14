@@ -1,10 +1,7 @@
-CMDEX_grid
+CMDEX_frontiere
 0
 1
 2
-file_list=all.dat
-radius=4
-prec=300
-only_nan=False
-plot_pts=True
-alt_algo=True
+file_list=hcpmini-Tr_init_P_ep.dat,hcpmini-Tr2_init_P_ep.dat,hcpmini-Tr3_init_P_ep.dat
+output_file=a_suppr.dat
+choice=False

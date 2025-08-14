@@ -2736,7 +2736,7 @@ def CMD_frontiere_loop(ls_mes,ncx,ncy,nc_data,nb_data,nb_ecarts,nb_res,choice=Fa
 
 # Corrige les décalages entre deux fichiers en sélectionnant des points frontaliers, si ils existent. Activer "choice" pour valider ou non les ajustements.
 
-def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,choice=False,l_c=None,nb=30,tol_inter=0.1,tol_intra=0.2,m_size=40,verif=True,verif_pts=False,dat_to_test=0):
+def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,choice=False,l_c=None,nb=30,tol_inter=0.1,tol_intra=0.2,m_size=40,verif=False,verif_pts=False,dat_to_test=0):
     """ [TA]\n
     Given two dataframes, try to adjust the second one by juncture if they are close enough.\n
     Frontiers are approximated by distincts pairs of points between both set of points.\n
@@ -2858,7 +2858,7 @@ def CMD_calc_frontiere(don1,don2,ncx,ncy,nc_data,nb_res,nb_ecarts,choice=False,l
             print("----------------------------- FRONTIER -----------------------------")
         
         # Calcul de la différence / écart-type
-        data2[dat_to_test] = [x+6 for x in data2[dat_to_test]]
+        #data2[dat_to_test] = [x+6 for x in data2[dat_to_test]]
         diff = []
         mult = []
         for r in range(nb_res):
