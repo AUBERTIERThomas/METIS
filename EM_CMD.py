@@ -5339,7 +5339,8 @@ def CMD_calibration(uid,col_ph,col_qu,file_list=None,eff_sigma=True,show_steps=T
     
     Notes
     -----
-    [DEV] The ``conv`` parameter may be removed if one of the two procedure is deemed better in all cases.
+    [DEV] The ``conv`` parameter may be removed if one of the two procedure is deemed better in all cases.\n
+    TODO : Still in progress.
     
     Raises
     ------

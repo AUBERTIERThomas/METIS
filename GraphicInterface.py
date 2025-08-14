@@ -43,6 +43,7 @@ clear_old_outputs = CONFIG.clear_old_outputs
 ui_popups = CONFIG.ui_popups
 blocking_figs = CONFIG.blocking_figs
 
+# Pas de warnings venant des librairies
 if CONFIG.no_warnings:
     warnings.filterwarnings("ignore")
 
@@ -60,7 +61,7 @@ def LOAD_root(title,mm=False):
     Returns
     -------
     root : tkinter.Tk
-        Window instance
+        Window instance.
     canvas : tkinter.Canvas
         Canvas object that contains most of the graphic components.
     bg_im : tkinter.PhotoImage
@@ -76,14 +77,20 @@ def LOAD_root(title,mm=False):
     For this reason, all sprites needs to be at least smaller than their expected size on the canvas.
     Very small sprites (such as 20x20 resolution) are thus more lenient for scaling operations.
     """
+    # Création de la fenêtre
     root = tk.Tk(screenName=CONFIG.sc_name)
     root.geometry(str(CONFIG.tk_width)+"x"+str(CONFIG.tk_height))
     root.title(title)
         
+    # Création du "canvas", un objet qui peut contenir des éléments graphiques
     canvas = tk.Canvas(root, width = CONFIG.tk_width, height = CONFIG.tk_height)
     canvas.pack(fill = "both", expand = True)
     
+    # Calcul des dimensions de l'image de fond, à adapter en fonction de celles de la fenêtre
+    # Doit être un nombre entier (importance d'une image pas trop grosse)
     bg_zoom = max(-(-CONFIG.tk_width // 640),-(-CONFIG.tk_height // 360))
+    
+    # Choix de l'image de fond
     if mm:
         bg_im = tk.PhotoImage(master = canvas, file = r"Images/METIS_BG.png").zoom(bg_zoom,bg_zoom)
         canvas.create_image( CONFIG.tk_width, 0, image = bg_im, anchor = "ne")
@@ -91,7 +98,9 @@ def LOAD_root(title,mm=False):
         bg_im = tk.PhotoImage(master = canvas, file = r"Images/Neutral_BG.png").zoom(bg_zoom,bg_zoom)
         canvas.create_image( CONFIG.tk_width//2, CONFIG.tk_height//2, image = bg_im, anchor = "center")
     
+    # Image des boutons
     button_im = tk.PhotoImage(master = canvas, file = r"Images/ayaya.png").zoom(10,10)
+    # Image du bouton d'options
     settings_im = tk.PhotoImage(master = canvas, file = r"Images/Settings.png").zoom(3,3)
     
     return root, canvas, bg_im, button_im, settings_im
@@ -99,9 +108,23 @@ def LOAD_root(title,mm=False):
 # Fenêtre du menu principal
 
 def GUI_main_menu():
+    """ [TA]\n
+    Main menu window.\n
+    Leads to all function group menus.
 
+    Notes
+    -----
+    Main menu uses a different background (with logos).\n
+    Has buttons for credits and global documentation.
+    
+    See also
+    --------
+    ``GUI_main_CMD, GUI_main_CMDEX, GUI_main_JSON, GUI_main_DAT, GUI_main_other``
+    """
+    # Chargement de la fenêtre
     root, canvas, bg_im, button_im, settings_im = LOAD_root("Main menu",mm=True)
     
+    # Fonctions des boutons
     def on_CMD_button_pressed():
         if not keep_prev_ui:
             root.destroy()
@@ -127,7 +150,9 @@ def GUI_main_menu():
             root.destroy()
         GUI_main_other()
     
+    # Fond derrière les boutons
     canvas.create_rectangle(CONFIG.tk_width//2-425, CONFIG.tk_height-575, CONFIG.tk_width//2+425, CONFIG.tk_height-25, fill="#d6c09f", width=0)
+    # Liste des boutons
     b1 = tk.Button(canvas, text = "CMD", font=('Terminal', 40, 'bold'), compound="center", image = button_im, command=on_CMD_button_pressed)
     b1_c = canvas.create_window( CONFIG.tk_width//2-150,CONFIG.tk_height-550, anchor = "n",window = b1)
     b2 = tk.Button(canvas, text = "CMDEX", font=('Terminal', 40, 'bold'), compound="center", image = button_im, command=on_CMDEX_button_pressed)
@@ -147,6 +172,7 @@ def GUI_main_menu():
     bc = tk.Button(root, text = 'Crédits', font=('Terminal', 20, 'bold'), compound="center", command=EXEC_credits)
     bc_c = canvas.create_window( CONFIG.tk_width-145,CONFIG.tk_height-50, anchor = "nw",window = bc)
     
+    # Boucle de la fenêtre
     root.mainloop()
 
 # -----------------------------------------------------------------------------------
@@ -154,9 +180,18 @@ def GUI_main_menu():
 # -----------------------------------------------------------------------------------
 
 def GUI_main_CMD():
-
+    """ [TA]\n
+    Main window for ``CMD`` functions.\n
+    Leads to all child function windows.
+    
+    See also
+    --------
+    ``GUI_main_menu, GUI_CMD_exec_known_device, GUI_CMD_exec_new_device``
+    """
+    # Chargement de la fenêtre
     root, canvas, bg_im, button_im, settings_im = LOAD_root("CMD menu")
     
+    # Fonctions des boutons
     def on_return_button_pressed():
         if not keep_prev_ui:
             root.destroy()
@@ -172,7 +207,9 @@ def GUI_main_CMD():
             root.destroy()
         GUI_CMD_exec_new_device()
     
+    # Fond derrière les boutons
     canvas.create_rectangle(CONFIG.tk_width//2-275, CONFIG.tk_height-375, CONFIG.tk_width//2+275, CONFIG.tk_height-125, fill="#d9c09c", width=0)
+    # Liste des boutons
     b1 = tk.Button(root, text = 'CMD_exec_\nknown_device', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_kd_button_pressed)
     b1_c = canvas.create_window( CONFIG.tk_width//2-150,CONFIG.tk_height-350, anchor = "n",window = b1)
     b2 = tk.Button(root, text = 'CMD_exec_\nnew_device', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_nd_button_pressed)
@@ -182,12 +219,22 @@ def GUI_main_CMD():
     bs = tk.Button(root, image = settings_im, command=EXEC_settings)
     bs_c = canvas.create_window( CONFIG.tk_width-85,25, anchor = "nw",window = bs)
     
+    # Boucle de la fenêtre
     root.mainloop()
 
 def GUI_main_CMDEX():
-
+    """ [TA]\n
+    Main window for ``CMDEX`` functions.\n
+    Leads to all child function windows.
+    
+    See also
+    --------
+    ``GUI_main_menu, GUI_CMDEX_ball_calibr, GUI_CMDEX_init, GUI_CMDEX_evol_profils, GUI_CMDEX_frontiere, GUI_CMDEX_grid, GUI_CMDEX_calibration``
+    """
+    # Chargement de la fenêtre
     root, canvas, bg_im, button_im, settings_im = LOAD_root("CMDEX menu")
     
+    # Fonctions des boutons
     def on_return_button_pressed():
         if not keep_prev_ui:
             root.destroy()
@@ -223,7 +270,9 @@ def GUI_main_CMDEX():
             root.destroy()
         GUI_CMDEX_calibration()
     
+    # Fond derrière les boutons
     canvas.create_rectangle(CONFIG.tk_width//2-425, CONFIG.tk_height-575, CONFIG.tk_width//2+425, CONFIG.tk_height-25, fill="#d9c09c", width=0)
+    # Liste des boutons
     b1 = tk.Button(root, text = 'CMDEX_ball_\ncalibr', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_bc_button_pressed)
     b1_c = canvas.create_window( CONFIG.tk_width//2-300,CONFIG.tk_height-550, anchor = "n",window = b1)
     b2 = tk.Button(root, text = 'CMDEX_init', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_i_button_pressed)
@@ -241,12 +290,22 @@ def GUI_main_CMDEX():
     bs = tk.Button(root, image = settings_im, command=EXEC_settings)
     bs_c = canvas.create_window( CONFIG.tk_width-85,25, anchor = "nw",window = bs)
     
+    # Boucle de la fenêtre
     root.mainloop()
 
 def GUI_main_JSON():
-
+    """ [TA]\n
+    Main window for ``JSON`` functions.\n
+    Leads to all child function windows.
+    
+    See also
+    --------
+    ``GUI_main_menu, GUI_JSON_print_devices, GUI_JSON_add_devices, GUI_JSON_remove_devices, GUI_JSON_modify_device``
+    """
+    # Chargement de la fenêtre
     root, canvas, bg_im, button_im, settings_im = LOAD_root("JSON menu")
     
+    # Fonctions des boutons
     def on_return_button_pressed():
         if not keep_prev_ui:
             root.destroy()
@@ -272,7 +331,9 @@ def GUI_main_JSON():
             root.destroy()
         GUI_JSON_modify_device()
     
+    # Fond derrière les boutons
     canvas.create_rectangle(CONFIG.tk_width//2-275, CONFIG.tk_height-575, CONFIG.tk_width//2+275, CONFIG.tk_height-25, fill="#d9c09c", width=0)
+    # Liste des boutons
     b1 = tk.Button(root, text = 'JSON_print_\ndevices', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_pd_button_pressed)
     b1_c = canvas.create_window( CONFIG.tk_width//2-150,CONFIG.tk_height-550, anchor = "n",window = b1)
     b2 = tk.Button(root, text = 'JSON_add_\ndevice', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_ad_button_pressed)
@@ -286,12 +347,23 @@ def GUI_main_JSON():
     bs = tk.Button(root, image = settings_im, command=EXEC_settings)
     bs_c = canvas.create_window( CONFIG.tk_width-85,25, anchor = "nw",window = bs)
     
+    # Boucle de la fenêtre
     root.mainloop()
 
 def GUI_main_DAT():
-
+    """ [TA]\n
+    Main window for ``DAT`` functions.\n
+    Leads to all child function windows.
+    
+    See also
+    --------
+    ``GUI_main_menu, GUI_DAT_change_date, GUI_DAT_pop_and_dec, GUI_DAT_switch_cols, GUI_DAT_remove_cols, GUI_DAT_remove_data, 
+    GUI_DAT_stats, GUI_DAT_light_format, GUI_DAT_change_sep, GUI_DAT_no_gps_pos, GUI_DAT_fuse_data, GUI_DAT_fuse_bases``
+    """
+    # Chargement de la fenêtre
     root, canvas, bg_im, button_im, settings_im = LOAD_root("DAT menu")
     
+    # Fonctions des boutons
     def on_return_button_pressed():
         if not keep_prev_ui:
             root.destroy()
@@ -352,7 +424,9 @@ def GUI_main_DAT():
             root.destroy()
         GUI_DAT_fuse_bases()
     
+    # Fond derrière les boutons
     canvas.create_rectangle(CONFIG.tk_width//2-575, CONFIG.tk_height-875, CONFIG.tk_width//2+575, CONFIG.tk_height-25, fill="#d9c09c", width=0)
+    # Liste des boutons
     b1 = tk.Button(root, text = 'DAT_change_\ndate', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_cd_button_pressed)
     b1_c = canvas.create_window( CONFIG.tk_width//2-450,CONFIG.tk_height-850, anchor = "n",window = b1)
     b2 = tk.Button(root, text = 'DAT_pop_\nand_dec', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_pad_button_pressed)
@@ -380,12 +454,23 @@ def GUI_main_DAT():
     bs = tk.Button(root, image = settings_im, command=EXEC_settings)
     bs_c = canvas.create_window( CONFIG.tk_width-85,25, anchor = "nw",window = bs)
     
+    # Boucle de la fenêtre
     root.mainloop()
 
 def GUI_main_other():
-
+    """ [TA]\n
+    Main window for ``Other`` functions (miscellaneous tasks).\n
+    Leads to all child function windows.
+    
+    See also
+    --------
+    ``GUI_main_menu, GUI_TRANS_df_to_matrix, GUI_TRANS_matrix_to_df, GUI_TRANS_matrix_to_grd, GUI_TRANS_grd_to_matrix, 
+    GUI_FIG_display_fig, GUI_FIG_plot_data, GUI_FIG_plot_grid, GUI_FIG_plot_pos, GUI_EXEC``
+    """
+    # Chargement de la fenêtre
     root, canvas, bg_im, button_im, settings_im = LOAD_root("Divers menu")
     
+    # Fonctions des boutons
     def on_return_button_pressed():
         if not keep_prev_ui:
             root.destroy()
@@ -436,7 +521,9 @@ def GUI_main_other():
             root.destroy()
         GUI_EXEC()
     
+    # Fond derrière les boutons
     canvas.create_rectangle(CONFIG.tk_width//2-725, CONFIG.tk_height-575, CONFIG.tk_width//2+725, CONFIG.tk_height-25, fill="#d9c09c", width=0)
+    # Liste des boutons
     b1 = tk.Button(root, text = 'TRANS_df_\nto_matrix', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_TRANS_dtm_button_pressed)
     b1_c = canvas.create_window( CONFIG.tk_width//2-450,CONFIG.tk_height-550, anchor = "n",window = b1)
     b2 = tk.Button(root, text = 'TRANS_\nmatrix_to_df', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_TRANS_mtd_button_pressed)
@@ -460,14 +547,34 @@ def GUI_main_other():
     bs = tk.Button(root, image = settings_im, command=EXEC_settings)
     bs_c = canvas.create_window( CONFIG.tk_width-85,25, anchor = "nw",window = bs)
     
+    # Boucle de la fenêtre
     root.mainloop()
 
 # ------------------------------------------------------------------------
 # --- Fonctions pour les fenêtres graphiques des différentes commandes ---
 # ------------------------------------------------------------------------
-    
+""" [TA]\n
+The following functions are giving the right informations for window creation.\n
+That windows allows the user to call a procedure .\n
+Since they all follow the same structure, every info is given here.
+
+Parameters
+----------
+``[opt]`` from_EXEC : ``None`` or list of str, default : ``None``
+    If the function is called from ``EXEC``.
+    If so, contains the list of function arguments as they are in the terminal command.
+    Will be used to autocomplete variable values.
+
+Notes
+-----
+``label_list`` is the list of function arguments name. It should be in the same order as they are in ``EM_CMD`` to avoid errors.\n
+``type_list`` is the list of function arguments type. It should be in the same order as they are in ``label_list``. Only ``"bool"`` makes any difference in the execution.\n
+``default_list`` is the list of function arguments default value. It should be in the same order as they are in ``label_list``. ``"*"`` means mandatory.\n
+To get the signification of each argument of ``EXEC_display_variables``, see documentation.
+"""
+
 def GUI_CMD_exec_known_device(from_EXEC=None):
-        
+    
     root, canvas, bg_im, button_im, settings_im = LOAD_root("CMD_exec_known_device")
 
     label_list = ["uid","file_list","file_list_rev","sep","output_file","output_file_base","light_restr","split","sup_na","regr","corr_base","no_base","choice"]
@@ -854,12 +961,25 @@ def GUI_EXEC():
 # Exécute la commande d'aide
 
 def EXEC_help(help_name=None):
+    """ [TA]\n
+    Display help for a given function.
     
+    Parameters
+    ----------
+    ``[opt]`` help_name : ``None`` or str, default : ``None``
+        Function name. If ``None``, will display everything.
+
+    Notes
+    -----
+    macOS (``Darwin``) has not been tested yet (no Apple device).
+    """
+    # Choix de la commande
     if help_name == None:
         command = "python3 Traitement_CMD_v"+CONFIG.ver+".py"
     else:
         command = "python3 Traitement_CMD_v"+CONFIG.ver+".py CMD_help "+str(help_name)
     
+    # Appel
     if OS_KERNEL == "Linux":
         os.system("gnome-terminal -- bash -c \"{}; exec bash\"".format(command))
     elif OS_KERNEL == "Windows":
@@ -868,19 +988,30 @@ def EXEC_help(help_name=None):
         os.system("osascript -e 'tell app \"Terminal\" to activate' -e 'tell app \"Terminal\" to do script \"{}\"'".format(command))
     else:
         print("PAS IMPLÉMENTÉ POUR L'OS '{}'".format(OS_KERNEL))
-    
+
+# Affiche les paramètres globaux des fenêtres, et gère leur mise à jour
 
 def EXEC_settings():
-    
+    """ [TA]\n
+    Display settings menu.
+
+    Notes
+    -----
+    Uses global variables to streamline the structure. May not be optimal.
+    """
+    # Dimensions de la fenêtre
     s_w = 700
     s_h = 400
+    # Création de la fenêtre
     root = tk.Tk(screenName=CONFIG.sc_name)
     root.geometry(str(s_w)+"x"+str(s_h))
     root.title("OPTIONS")
-        
+    
+    # Création du "canvas"
     canvas = tk.Canvas(root, width = CONFIG.tk_width, height = CONFIG.tk_height)
     canvas.pack(fill = "both", expand = True)
     
+    # Récupération des variables globales
     global keep_prev_ui
     global keep_cmd
     global show_raw_figs
@@ -888,6 +1019,7 @@ def EXEC_settings():
     global ui_popups
     global blocking_figs
     
+    # Mise à jour des champs
     def update_global_vars():
         global keep_prev_ui
         global keep_cmd
@@ -902,6 +1034,7 @@ def EXEC_settings():
         ui_popups = c5.instate(['selected'])
         blocking_figs = c6.instate(['selected'])
     
+    # Checkbox des paramètres
     c1 = ttk.Checkbutton(master = canvas, command=update_global_vars)
     if keep_prev_ui:
         c1.state(['!alternate','selected'])
@@ -945,19 +1078,65 @@ def EXEC_settings():
     canvas.create_window( 30, 145, anchor = "nw", window = c6)
     canvas.create_text( 55, 145, font=('Times', -20, 'bold'), text = "activer les fenêtres graphiques bloquantes", anchor = "nw", fill='black')
     
+    # Bouton pour fermer
     br = tk.Button(root, text = 'Valider', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", command=root.destroy)
     br_c = canvas.create_window( s_w//2-55, s_h-50, anchor = "nw",window = br)
         
 # Gère l'affichage des éléments des fenêtres de fonctions
         
 def EXEC_display_variables(root, canvas, button_im, settings_im, label_list, type_list, default_list, func_name, func_prefix, func_descr, prev_window, from_EXEC):
+    """ [TA]\n
+    Organize how variables and buttons are displayed in function window.\n
+    Do handle all cases.
     
+    Parameters
+    ----------
+    root : tkinter.Tk
+        Window instance.
+    canvas : tkinter.Canvas
+        Canvas object that contains most of the graphic components.
+    button_im : tkinter.PhotoImage
+        Loaded button sprite.
+    settings_im : tkinter.PhotoImage
+        Loaded settings button sprite.
+    label_list : list of str
+        List of function arguments name. It should be in the same order as they are in ``EM_CMD`` to avoid errors.\n
+    type_list : list or str
+        List of function arguments type. It should be in the same order as they are in ``label_list``.
+        Only ``"bool"`` makes any difference in the execution.\n
+    default_list : list or str
+        List of function arguments default value. It should be in the same order as they are in ``label_list``. ``"*"`` means mandatory.\n
+    func_name : str
+        Function name.
+    func_prefix : ``None`` or str
+        Function prefix. Is used to find output images in ``Output`` folder.
+        If ``""``, does not create output figures. If ``None``, also keeps terminal open.
+    func_descr : str
+        Function description. Is displayed on top.
+    prev_window : str
+        Name of function that loads the previous (or parent) window.
+    from_EXEC : ``None`` or list of str
+        If the function is called from ``EXEC``.
+        If so, contains the list of function arguments as they are in the terminal command.
+        Will be used to autocomplete variable values.
+
+    Notes
+    -----
+    Some specific cases are described in comments.
+            
+    See also
+    --------
+    ``EXEC_get_param, EXEC_launch_command, EXEC_refresh_data, EXEC_clear_all_figs``
+    """
+    # Création du titre
     title_l = len(func_descr)//2
     canvas.create_rectangle(CONFIG.tk_width//2-title_l*25, 5, CONFIG.tk_width//2+title_l*25, 50, fill=l_gray[1], width=0)
     canvas.create_text( CONFIG.tk_width//2, 20, font=('Times', 30, 'bold'), text = func_descr, anchor = "center", fill="black")
     
+    # Liste qui va contenir les variables
     var_list = [None for i in range(len(label_list))]
     
+    # Création des entêtes du tableau des variables
     canvas.create_rectangle(35, 120, 145, 145, fill=l_blue[0], width=0)
     canvas.create_rectangle(145, 120, 345, 145, fill=l_blue[1], width=0)
     canvas.create_rectangle(345, 120, 595, 145, fill=l_blue[0], width=0)
@@ -967,30 +1146,42 @@ def EXEC_display_variables(root, canvas, button_im, settings_im, label_list, typ
     canvas.create_text( 345, 125, font=('Times', -20, 'bold'), text = "Valeur", anchor = "nw", fill="black")
     canvas.create_text( 595, 125, font=('Times', -20, 'bold'), text = "Défaut", anchor = "nw", fill="black")
     
+    # On compte le nombre de paramètres obligatoires (tous en début de liste)
     opt_start = default_list.count("*")
+    # Si la fonction accepte des arguments **kwargs (en fin de liste)
     opt_end = len(default_list)-(default_list[-1]=="**")
+    
+    # Itération sur chaque variable
     for i in range(len(label_list)):
+        # Couleur des cases en fond
         canvas.create_rectangle(35, 145+25*i, 145, 170+25*i, fill=d_gray[i%2], width=0)
         canvas.create_rectangle(145, 145+25*i, 345, 170+25*i, fill=l_gray[i%2], width=0)
         canvas.create_rectangle(345, 145+25*i, 595, 170+25*i, fill=d_gray[i%2], width=0)
         canvas.create_rectangle(595, 145+25*i, 725, 170+25*i, fill=l_gray[i%2], width=0)
+        # Affichage du type
         canvas.create_text( 40, 150+25*i, font=('Times', -20, 'bold'), text = type_list[i], anchor = "nw", fill='purple')
+        # Checkbox pour les booléens
         if type_list[i] == "bool":
             var_list[i] = ttk.Checkbutton(master = root, variable = var_list[i])
+            # Cas classique
             if from_EXEC == None:
                 if default_list[i] == "True":
                     var_list[i].state(['!alternate','selected'])
                 else:
                     var_list[i].state(['!alternate','!selected'])
+            # Valeur initiale via EXEC
             else:
                 if EXEC_get_param(from_EXEC[opt_start:],label_list[i]).lower() in ["true","t","1"]:
                     var_list[i].state(['!alternate','selected'])
                 else:
                     var_list[i].state(['!alternate','!selected'])
+        # Entry (ligne de texte) pour le reste des variables
         else:
             v = tk.StringVar()
+            # Cas classique
             if from_EXEC == None:
                 v.set("")
+            # Valeur initiale via EXEC
             else:
                 if i < opt_start:
                     v.set(from_EXEC[i][:-1])
@@ -998,7 +1189,9 @@ def EXEC_display_variables(root, canvas, button_im, settings_im, label_list, typ
                     v.set(EXEC_get_param(from_EXEC[opt_start:],label_list[i]))
             var_list[i] = tk.Entry(master = root, textvariable = v, width=33)
             var_list[i].insert(0, v.get())
+        # Affichage du champ de valeur
         canvas.create_window( 350, 150+25*i, anchor = "nw", window = var_list[i])
+        # Choix des couleursen fonction de [obligatoire, optionnel, kwargs]
         if i < opt_start:
             l_color = "blue"
             d_color = "red"
@@ -1008,9 +1201,12 @@ def EXEC_display_variables(root, canvas, button_im, settings_im, label_list, typ
                 d_color = "green"
             else:
                 d_color = "#b87500"
+        # Affichage du nom de variable
         canvas.create_text( 150, 150+25*i, font=('Times', -20, 'bold'), text = label_list[i], anchor = "nw", fill=l_color)
+        # Affichage de la valeur par défaut
         canvas.create_text( 600, 150+25*i, font=('Times', -20, 'bold'), text = default_list[i], anchor = "nw", fill=d_color)
-        
+    
+    # Fonctions des boutons
     def on_return_button_pressed():
         if not keep_prev_ui:
             root.destroy()
@@ -1024,9 +1220,11 @@ def EXEC_display_variables(root, canvas, button_im, settings_im, label_list, typ
     
     def on_clear_button_pressed():
         EXEC_clear_all_figs()
-            
+    
+    # Liste des boutons
     b1 = tk.Button(root, text = 'RUN', font=('Terminal', 50, 'bold'), compound="center", image = button_im, command=on_run_button_pressed)
     b1_c = canvas.create_window( 25,CONFIG.tk_height-225, anchor = "nw",window = b1)
+    # Boutons pas toujours chargés
     if func_prefix not in ["",None]:
         b2 = tk.Button(root, text = 'Afficher\nle résultat', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", image = button_im, command=on_refresh_button_pressed)
         b2_c = canvas.create_window( 265,CONFIG.tk_height-225, anchor = "nw",window = b2)
@@ -1040,7 +1238,29 @@ def EXEC_display_variables(root, canvas, button_im, settings_im, label_list, typ
     bs = tk.Button(root, image = settings_im, command=EXEC_settings)
     bs_c = canvas.create_window( CONFIG.tk_width-85,25, anchor = "nw",window = bs)
 
+# Extrait la valeur d'un paramètreen format string
+
 def EXEC_get_param(fe,l):
+    """ [TA]\n
+    Returns the parameter value when from EXEC file.\n
+    If not specified, returns an empty string.
+    
+    Parameters
+    ----------
+    fe : list of str
+        List of parameters and their value in string format.
+    l : str
+        Parameter name to look for.
+
+    Returns
+    -------
+    -- : str
+        Parameter value, or ``""`` if not specified.
+                
+    See also
+    --------
+    ``EXEC_display_variables``
+    """
     for v in fe:
         s = v[:-1].split("=")
         if s[0] == l:
@@ -1050,16 +1270,25 @@ def EXEC_get_param(fe,l):
 # Affiche des informations générales
 
 def EXEC_g_infos():
+    """ [TA]\n
+    Display some informations about how functions are sorted.\n
     
+    See also
+    --------
+    ``GUI_main_menu``
+    """
+    # Dimensions de la fenêtre
     s_w = 700
     s_h = 400
     root = tk.Tk(screenName=CONFIG.sc_name)
     root.geometry(str(s_w)+"x"+str(s_h))
     root.title("INFOS")
         
+    # Création du "canvas"
     canvas = tk.Canvas(root, width = CONFIG.tk_width, height = CONFIG.tk_height)
     canvas.pack(fill = "both", expand = True)
     
+    # Liste des lignes de texte
     canvas.create_text( 55, 20, font=('Times', -20, 'bold'), text = "Bienvenue sur l'interface graphique du traitement CMD !", anchor = "nw", fill='black')
     canvas.create_text( 55, 70, font=('Times', -20, 'bold'), text = "Les fonctions sont divisées par catégories :", anchor = "nw", fill='black')
     canvas.create_text( 55, 95, font=('Times', -20, 'bold'), text = "CMD -> Traitement général, avec de nombreuses étapes", anchor = "nw", fill='#606000')
@@ -1069,35 +1298,72 @@ def EXEC_g_infos():
     canvas.create_text( 55, 195, font=('Times', -20, 'bold'), text = "Divers -> Autres fonctions (affichage, changement de format...)", anchor = "nw", fill='#606000')
     canvas.create_text( 55, 245, font=('Times', -20, 'bold'), text = "Pour plus d'informations, veuillez consulter l'aide", anchor = "nw", fill='brown')
     
+    # Bouton pour fermer
     br = tk.Button(root, text = 'Valider', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", command=root.destroy)
     br_c = canvas.create_window( s_w//2-70, s_h-50, anchor = "nw",window = br)
 
 # Affiche les crédits
 
 def EXEC_credits():
+    """ [TA]\n
+    Display credits.\n
     
+    See also
+    --------
+    ``GUI_main_menu``
+    """
+    # Dimensions de la fenêtre
     s_w = 700
     s_h = 250
     root = tk.Tk(screenName=CONFIG.sc_name)
     root.geometry(str(s_w)+"x"+str(s_h))
     root.title("CRÉDITS")
         
+    # Création du "canvas"
     canvas = tk.Canvas(root, width = CONFIG.tk_width, height = CONFIG.tk_height)
     canvas.pack(fill = "both", expand = True)
     
+    # Liste des lignes de texte
     canvas.create_text( s_w//2, 20, font=('Times', -20, 'bold'), text = "Développé par Thomas AUBERTIER", anchor = "n", fill='black')
     canvas.create_text( s_w//2, 45, font=('Times', -20, 'bold'), text = "Stage METIS / ÉVEHA International", anchor = "n", fill='black')
     canvas.create_text( s_w//2, 70, font=('Times', -20, 'bold'), text = "thomas.aubertier@etu.sorbonne-universite.fr", anchor = "n", fill='#006cc9')
-    canvas.create_text( s_w//2, 120, font=('Times', -20, 'bold'), text = "Basé sur les travaux de Julien THIESSON", anchor = "n", fill='brown')
+    canvas.create_text( s_w//2, 120, font=('Times', -20, 'bold'), text = "Basé sur mes travaux et ceux de Julien THIESSON", anchor = "n", fill='brown')
     canvas.create_text( s_w//2, 145, font=('Times', -20, 'bold'), text = "-- 2025 --", anchor = "n", fill='red')
     
+    # Bouton pour fermer
     br = tk.Button(root, text = 'Valider', font=('Terminal', CONFIG.tk_b_font_size, 'bold'), compound="center", command=root.destroy)
     br_c = canvas.create_window( s_w//2-70, s_h-50, anchor = "nw",window = br)
 
 # Exécute la fonction spécifiée
 
 def EXEC_launch_command(func_name,var_list,label_list,default_list,func_prefix):
+    """ [TA]\n
+    Organize how variables and buttons are displayed in function window.\n
+    Do handle all cases.
     
+    Parameters
+    ----------
+    func_name : str
+        Function name.
+    var_list : list of str
+        List of function arguments variables
+    label_list : list of str
+        List of function arguments name. It should be in the same order as they are in ``EM_CMD`` to avoid errors.\n
+    default_list : list or str
+        List of function arguments default value. It should be in the same order as they are in ``label_list``. ``"*"`` means mandatory.\n
+    func_prefix : ``None`` or str
+        Function prefix. Is used to find output images in ``Output`` folder.
+        If ``""``, does not create output figures. If ``None``, also keeps terminal open.
+        
+    Notes
+    -----
+    Some specific cases are described in comments.
+        
+    See also
+    --------
+    ``EXEC_display_variables``
+    """
+    # Gestion de la fonction EXEC (séparé du reste)
     if func_name == "EXEC":
         print(var_list)
         if not var_list:
@@ -1114,6 +1380,7 @@ def EXEC_launch_command(func_name,var_list,label_list,default_list,func_prefix):
             globals()['GUI_'+ef](from_EXEC=fn[1:])
         return None
     
+    # Construction de la chaine de caractère utilisée par l'interface terminal
     param_list = ""
     for ic, v in enumerate(var_list):
         try:
@@ -1128,13 +1395,20 @@ def EXEC_launch_command(func_name,var_list,label_list,default_list,func_prefix):
             else:                       # Paramètre optionel
                 param_list += " " + label_list[ic] + "=" + var_value
     
+    # Ça, c'est mieux décrit dans ``EM_CMD``
     gui_mode = [" GraphicUIn't"," GraphicUI"]
     if func_prefix == None:
         gui_mode = [" GraphicUIn't GraphicUI_ignore"," GraphicUI GraphicUI_ignore"]
+    
+    # Finalisation de la commande
     command_to_execute = "python3 Traitement_CMD_v"+CONFIG.ver+".py " + func_name + param_list + gui_mode[int(ui_popups)]
     print(command_to_execute)
+    
+    # Suppression des anciennes figures/images
     if func_prefix != None and clear_old_outputs:
         os.system("rm -f Output/"+func_prefix+"*")
+    
+    # Garder le terminal ouvert
     if keep_cmd or func_prefix == None or func_prefix == "":
         if OS_KERNEL == "Linux":
             os.system("gnome-terminal -- bash -c \"{}; exec bash\"".format(command_to_execute))
@@ -1144,6 +1418,7 @@ def EXEC_launch_command(func_name,var_list,label_list,default_list,func_prefix):
             os.system("osascript -e 'tell app \"Terminal\" to activate' -e 'tell app \"Terminal\" to do script \"{}\"'".format(command_to_execute))
         else:
             print("PAS IMPLÉMENTÉ POUR L'OS '{}'".format(OS_KERNEL))
+    # Fermer après exécution
     else:
         if OS_KERNEL == "Linux":
             os.system("gnome-terminal -e '{}'".format(command_to_execute))
@@ -1157,7 +1432,30 @@ def EXEC_launch_command(func_name,var_list,label_list,default_list,func_prefix):
 # Affiche les figures résultat de la commande
 
 def EXEC_refresh_data(root, canvas, prefix):
+    """ [TA]\n
+    Load output images and figures.
     
+    Parameters
+    ----------
+    root : tkinter.Tk
+        Window instance.
+    canvas : tkinter.Canvas
+        Canvas object that contains most of the graphic components.
+    prefix : str
+        Function prefix. Is used to find output images in ``Output`` folder.
+
+    Notes
+    -----
+    ``tkinter`` is apparently not ableto handle ``matplotlib`` figures in existing window.
+    Loading one automatically create a new one anyways.
+    For this reason, only the image is inserted. The figure is loaded separately.\n
+    Some ideas are still left in comments.
+    
+    See also
+    --------
+    ``EXEC_show_fig``
+    """
+    # Chargement des figures/images
     os.chdir(CONFIG.script_path)
     fig_list = sorted(glob.glob("Output/"+prefix+"*.pickle"))
     im_list = sorted(glob.glob("Output/"+prefix+"*.png"))
@@ -1166,9 +1464,12 @@ def EXEC_refresh_data(root, canvas, prefix):
     fig_l = []
     im_l = []
     #canvas.pack_forget()
+    
+    # La figure sera placée dans un "label"
     label = tk.Label(root)
     label.place(x=750, y=150)
     for ic in range(t):
+        # Affichage de la figure
         if show_raw_figs:
             figx = pickle.load(open(fig_list[ic], 'rb'))
         
@@ -1181,6 +1482,7 @@ def EXEC_refresh_data(root, canvas, prefix):
         # fig_l.append(tk.Tk(screenName=CONFIG.sc_name))
         # fig_l[ic].title('Figure '+str(ic+1))
         
+        # Affichage de l'image
         # figcanvas = tk.Canvas(canvas, width = CONFIG.tk_width_mpl, height = CONFIG.tk_height_mpl)
         # figcanvas.place(x=750, y=150)
         im = Image.open(im_list[ic])
@@ -1196,9 +1498,11 @@ def EXEC_refresh_data(root, canvas, prefix):
         # toolbar.update()
         # toolbar.pack()
         
+        # Boutons pour changer d'image
         b = tk.Button(root, text = str(ic+1), font=('System', 50, 'bold'), command=lambda ic=ic: EXEC_show_fig(label,im_l,ic))
         b_l.append(canvas.create_window( 750 + 110*ic, 60, anchor = "nw",window = b))
-        
+    
+    # Affichage en premier plan de la première image
     canvas.pack()
     if im_l:
         EXEC_show_fig(label,im_l,0)
@@ -1206,12 +1510,31 @@ def EXEC_refresh_data(root, canvas, prefix):
 # Change la figure à afficher
 
 def EXEC_show_fig(label,im_l,ic):
+    """ [TA]\n
+    Update the displayed image on function window.
     
+    Parameters
+    ----------
+    label : tkinter.label
+        Image container.
+    im_l : list of tkinter.image
+        Loaded image list.
+    ic : list of tkinter.image
+        Loaded image index in ``im_l``.
+
+    Notes
+    -----
+    `Does not return anything, yet ``label`` is updated accordingly.
+        
+    See also
+    --------
+    ``EXEC_refresh_data``
+    """
     # for im in im_list:
     #     im.pack_forget()
     #     #f.withdraw()
     # im_list[ic].pack()
-    #f.deiconify()
+    #f.deiconify()EXEC_show_fig
     #canvas.tag_raise(im)
     #im.tkraise()
     #canvas.pack()
@@ -1221,12 +1544,13 @@ def EXEC_show_fig(label,im_l,ic):
     # print(im_l[ic]," ",ic)
     label.config(image=im_l[ic])
 
-# Change la figure à afficher
+# Ferme toutes les figures mpl (finalement sert pas plus que plt.close)
 
 def EXEC_clear_all_figs():
     
     plt.close('all')
-    
+
+# Début de l'exécution
 GUI_main_menu()
 
 

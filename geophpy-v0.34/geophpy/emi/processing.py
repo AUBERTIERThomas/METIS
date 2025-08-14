@@ -918,8 +918,9 @@ def calibration(uid,col_ph,col_qu,file_list=None,eff_sigma=True,show_steps=True,
     Notes
     -----
     [DEV] The ``conv`` parameter may be removed if one of the two procedure 
-    is deemed better in all cases.
-    
+    is deemed better in all cases.\n
+    TODO : Still in progress.
+        
     Raises
     ------
     * File not found.

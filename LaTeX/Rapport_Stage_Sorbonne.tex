@@ -738,11 +738,11 @@
         \item[$\bullet$] \textbf{Concis} : Il doit pouvoir fournir le maximum d'information utile à l'utilisateur, et le moins d'information superflues propres au code.
     \end{enumerate}
 
-    Via le terminal, il est possible d'exécuter un script Python avec des paramètres. Il suffit de compléter la commande \texttt{Python3 script.py} par une série chaine de caratères séparés par des espaces, comme par exemple \texttt{Python3 script.py 9 argument "[0,1]"}. L'ordre de ces arguments est important. Les paramètres optionnels doivent être déclarés en dernier ; leur ordre peut être quelconque mais il faut préciser leur nom : \texttt{arg1=0}. La nomenclature tente de s'approcher le plus possible d'une fonction Python.
+    Via le terminal, il est possible d'exécuter un script Python avec des paramètres. Il suffit de compléter la commande \texttt{python3 script.py} par une série chaine de caractères séparés par des espaces, comme par exemple \texttt{python3 script.py 9 argument "[0,1]"}. L'ordre de ces arguments est important. Les paramètres optionnels doivent être déclarés en dernier ; leur ordre peut être quelconque mais il faut préciser leur nom : \texttt{arg1=0}. La nomenclature tente de s'approcher le plus possible d'une fonction Python.
 
     En général, la format d'un appel se construit comme suit :
     
-    \texttt{Python3 Traitement\_CMD\_vX.py [nom\_fonction] [args\_principaux] [args\_optionnels]}.
+    \texttt{python3 Traitement\_CMD\_vX.py [nom\_fonction] [args\_principaux] [args\_optionnels]}.
 
     Si on souhaite simuler un appel de script depuis un shell IPython, on peut utiliser la commande \texttt{runfile} :
     
@@ -777,7 +777,7 @@
 
     Changer la valeur de l'option pendant l'exécution n'impacte que l'exécution en cours. Si on veut modifier sa valeur définitivement, on pourra le faire via le fichier \texttt{CONFIG.py}.
 
-\newpage
+%\newpage
 \section{Librairie Python}
 \subsection{Migration du code en module Python}
 
@@ -812,7 +812,7 @@
         \end{enumerate}
     \end{enumerate}
 
-\newpage
+%\newpage
 \subsection{Rédaction de notebooks}
 
     Afin de contextualiser et de mettre en évidence le fonctionnement des fonctions, plusieurs notebooks mettent en application des exemples. L'avantage de ce format est que les résultats sont sauvegardés, ce qui signifie qu'un utilisateur n'a pas besoin de l'exécuter pour observer les figures. De plus, cela permet d'insérer des cellules de texte autour du code.
@@ -831,9 +831,9 @@
 
 \section{Responsabilité sociale et environnementale}
 
-    L'ensemble du travail disponible intégré à \texttt{geophpy} est sous licence \href{https://www.gnu.org/licenses/gpl-3.0.en.html}{\texttt{GNU GPL v3}}, qui est open-source. La production publique est donc à but non lucrative, mais son utilisation pour le commanditaire (Éveha) représente un gain d'efficacité.
+    L'ensemble du travail disponible intégré à \texttt{geophpy} est sous licence \href{https://www.gnu.org/licenses/gpl-3.0.en.html}{\texttt{GNU GPL v3}}, qui est open-source. La production publique est donc à but non lucratif, mais son utilisation pour le commanditaire (Éveha) représente un gain d'efficacité.
 
-    Ce stage m'a permis d'effectuer pour la première fois des réflexions sur la compatibilité des codes. Le premier concerne la façon de prospecter. En fonction des logiciels, des appareils ou des habitudes de chaque géophysicien, certains paradygmes donnés par mes tuteurs ne sont plus vrais (noms de colonnes inconnus, trajectoires aléatoires...). Certaines procédures du code ne marche plus. On ne peut donc jamais être compatible de manière absolue, on doit constament peser le pour et le contre entre la compatibilité locale (fichiers des membres du laboratoire) et globale (formes les plus répandues).
+    Ce stage m'a permis d'effectuer pour la première fois des réflexions sur la compatibilité des codes. Le premier concerne la façon de prospecter. En fonction des logiciels, des appareils ou des habitudes de chaque géophysicien, certains paradygmes donnés par mes tuteurs ne sont plus vrais (noms de colonnes inconnus, trajectoires aléatoires...). Certaines procédures du code ne marche donc plus. On ne peut ainsi jamais être compatible de manière absolue, on doit constament peser le pour et le contre entre la compatibilité locale (fichiers des membres du laboratoire), pour les principaux utilisateurs, et globale (formes les plus répandues) si l'information existe.
 
     \vskip 15pt
 
@@ -841,7 +841,7 @@
 
     On peut également considérer les applications du travail en hydrologie (domaine d'activité de METIS) pour cartographier les profondeurs, ou pour les procédures générales l'adaptation avec d'autres types de prospections (électrique, magnétique, sismique...).
 
-\newpage
+%\newpage
 \section{Conclusion}
 \subsection{État de la production}
 
@@ -882,7 +882,7 @@
 \section{Annexe}
 \subsection{Auto-évaluation de stage}
 
-    Les pages suivantes présentent le compte-rendu de l'auto-évaluation remplie début juillet. Les points sont valables pour la fin de stage également.
+    Les pages suivantes présentent le compte-rendu de l'auto-évaluation remplie début juillet. Les points sont valables pour la fin de stage également, à l'exception de "Communiquer à l’écrit de façon professionnelle, structurée et synthétique" (mes tuteurs m'ont conseillé plusieurs éclaircissements sur la rédaction et le plan du rapport).
     \includepdf[landscape=true,pages=-]{auto_evaluation_57109.pdf}
 
 \subsection{Compléments}
@@ -958,12 +958,13 @@ def CMD_appr_border(x1,x2,y1,y2,i_max,j_max,i_excl,j_excl):
     j = 0
     i_ = i_dec - i_max
     j_ = j_dec - j_max
-    #print("i_ = ",i_," | j_ = ",j_)
     d_min = (x1[i_min]-x2[j_min])**2 + (y1[i_min]-y2[j_min])**2
     turn = True
     
-    # On parcourt les ensembles dans l'ordre de l'index à partir de points de départ aléatoires p1 et p2.
-    # On parcourt le premier jeu jusqu'à trouver un point plus proche de p2 que p1. Dans ce cas, il devient p1, et on itère sur l'autre jeu.
+    # On parcourt les ensembles dans l'ordre de l'index à partir de points 
+    # de départ aléatoires p1 et p2.
+    # On parcourt le premier jeu jusqu'à trouver un point plus proche de p2 
+    # que p1. Dans ce cas, il devient p1, et on itère sur l'autre jeu.
     # La démarche est identique avec p2.
     # On continue jusqu'à avoir exploré une fois tous les points des ensembles.
     # Complexité : O(n)
